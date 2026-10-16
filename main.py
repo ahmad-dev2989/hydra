@@ -1606,7 +1606,8 @@ if __name__ == "__main__":
     
     window = QMainWindow()
     window.setWindowTitle("HYDRA System Interface")
-    window.resize(1000, 700)
+    window.resize(1200, 750)
+    window.setMinimumSize(1000, 650)
     view = QWebEngineView()
     
     # --- FIX: ENSURE REMOTE IMAGES LOAD PROPERLY ---

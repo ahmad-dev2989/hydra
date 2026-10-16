@@ -3,10 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- FIX: Bypasses Wikipedia's image hotlinking protection so real images load -->
-    <meta name="referrer" content="no-referrer"> 
-    <title>HYDRA FULL HUD</title>
+    <meta name="referrer" content="no-referrer">
+    <title>HYDRA System Interface</title>
+    <!-- Google Fonts for authentic Sci-Fi HUD aesthetics -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-color: #02090e;
+            --cyan-glow: #00e5ff;
+            --cyan-dim: rgba(0, 229, 255, 0.35);
+            --cyan-faint: rgba(0, 229, 255, 0.12);
+            --amber-glow: #ff9e00;
+            --amber-dim: rgba(255, 158, 0, 0.4);
+            --card-bg: rgba(2, 18, 28, 0.75);
+            --border-tech: rgba(0, 229, 255, 0.4);
+            --text-primary: #ffffff;
+            --text-secondary: #00e5ff;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -16,217 +32,231 @@
         }
 
         body {
-            background-color: #05131a;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at center, rgba(0, 80, 110, 0.15) 0%, transparent 70%),
+                radial-gradient(circle at 10% 90%, rgba(0, 180, 216, 0.08) 0%, transparent 40%);
             height: 100vh;
+            width: 100vw;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Rajdhani', 'Segoe UI', sans-serif;
             overflow: hidden;
-            color: #ffffff;
+            color: var(--text-primary);
             position: relative;
         }
 
+        /* Full-Screen Tech Grid with Coordinate Crosshairs */
         .bg-grid {
             position: absolute;
-            width: 92vw;
-            height: 92vh;
+            inset: 0;
             background-image: 
-                linear-gradient(rgba(33, 158, 188, 0.15) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(33, 158, 188, 0.15) 1px, transparent 1px);
-            background-size: 50px 50px;
+                linear-gradient(rgba(0, 229, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 229, 255, 0.05) 1px, transparent 1px);
+            background-size: 60px 60px;
             background-position: center;
-            mask-image: radial-gradient(circle, rgba(0, 0, 0, 1) 50%, rgba(0, 0, 0, 0) 95%);
-            -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 1) 50%, rgba(0, 0, 0, 0) 95%);
-            z-index: 0;
+            z-index: 1;
             pointer-events: none;
         }
 
-        .hud-cluster {
-            position: relative;
-            width: 450px; 
-            height: 450px;
+        /* Coordinate Crosshairs at Key Grid Intersections */
+        .crosshair {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            color: rgba(0, 229, 255, 0.35);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
             display: flex;
-            justify-content: center;
             align-items: center;
-            transform: translateZ(0);
-            z-index: 10;
-        }
-
-        .circle-image {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            border-radius: 50%;
-            box-shadow: 0 0 35px rgba(33, 158, 188, 0.4);
-            z-index: 1;
-            image-rendering: -webkit-optimize-contrast;
-        }
-
-        .anim-ring-1 {
-            position: absolute;
-            width: 88%;
-            height: 88%;
-            border: 1px dashed rgba(33, 158, 188, 0.35);
-            border-radius: 50%;
+            justify-content: center;
             z-index: 2;
-            animation: spin-clockwise 50s linear infinite;
+            pointer-events: none;
         }
+        .ch-tl { top: 25%; left: 13.5%; }
+        .ch-tr { top: 25%; right: 18.5%; }
+        .ch-bl { bottom: 28%; left: 13.5%; }
+        .ch-br { bottom: 28%; right: 18.5%; }
 
-        .anim-ring-2 {
+        /* Outer HUD Frame & Corner Accents */
+        .hud-frame {
             position: absolute;
-            width: 78%;
-            height: 78%;
-            border: 2px solid transparent;
-            border-top: 2px solid rgba(255, 183, 3, 0.4);
-            border-bottom: 2px solid rgba(255, 183, 3, 0.4);
-            border-radius: 50%;
-            z-index: 3;
-            animation: spin-counter 30s linear infinite;
-        }
-
-        .core {
-            position: absolute;
-            width: 38%; 
-            height: 38%; 
-            background-color: #07171f; 
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border: 2px solid #1a5b75; 
+            inset: 20px;
+            pointer-events: none;
             z-index: 10;
         }
 
-        .core h1 {
-            color: #ffffff;
-            font-size: 32px; 
-            font-weight: 700;
-            letter-spacing: 3px;
-            text-align: center;
-        }
-
-        .status-icon-btn {
-            position: fixed; 
-            bottom: 40px;
-            right: 40px;
-            width: 64px;
-            height: 64px;
-            background: rgba(255, 255, 255, 0.08); 
-            backdrop-filter: blur(6px); 
-            border-radius: 32px;
-            cursor: pointer;
-            border: 1px solid rgba(255, 255, 255, 0.1); 
-            transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1), border-radius 0.4s;
-            z-index: 100;
-            pointer-events: auto;
-            overflow: hidden;
-        }
-
-        .status-icon-btn.expanded {
-            width: 380px;
-            border-radius: 16px;
-            cursor: default;
-        }
-
-        .cmd-input {
+        /* Top-Left Corner Bracket with Slashes */
+        .corner-tl-bracket {
             position: absolute;
-            left: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 0;
-            opacity: 0;
-            border: none;
-            background: transparent;
-            color: #ffffff;
-            font-size: 16px;
-            font-family: inherit;
-            outline: none;
-            transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.2s;
+            top: 10px;
+            left: 10px;
+            width: 160px;
+            height: 12px;
+            border-top: 2px solid var(--border-tech);
+            border-left: 2px solid var(--border-tech);
+            pointer-events: none;
         }
-
-        .status-icon-btn.expanded .cmd-input {
-            width: 290px;
-            opacity: 1;
-            transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s 0.1s;
-        }
-
-        .icon-wrap {
+        .corner-tl-bracket::after {
+            content: '';
             position: absolute;
-            right: 16px;
-            top: 15px;
-            width: 32px;
-            height: 32px;
-            cursor: pointer;
+            top: -2px;
+            right: -25px;
+            width: 25px;
+            height: 2px;
+            transform-origin: top left;
+            transform: rotate(45deg);
+            background: var(--border-tech);
         }
 
-        .chat-icon-svg, .send-icon-svg {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            fill: #ffffff;
-            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s;
+        /* Slashes Graphics */
+        .slashes {
+            display: flex;
+            gap: 4px;
+            pointer-events: none;
         }
-
-        .send-icon-svg {
-            opacity: 0;
-            transform: scale(0.5) rotate(-45deg);
-        }
-
-        .status-icon-btn.expanded .chat-icon-svg {
-            opacity: 0;
-            transform: scale(0.5) rotate(45deg);
-        }
-
-        .status-icon-btn.expanded .send-icon-svg {
-            opacity: 0.9;
-            transform: scale(1) rotate(0deg);
-        }
-
-        @keyframes spin-clockwise {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        @keyframes spin-counter {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(-360deg); }
-        }
-
-        .hud-data {
-            position: absolute;
-            font-family: 'Courier New', Courier, monospace;
-            color: rgba(33, 158, 188, 0.9);
-            letter-spacing: 2px;
-            z-index: 50;
-            text-shadow: 0 0 8px rgba(33, 158, 188, 0.6);
-        }
-        
-        .top-left { top: 30px; left: 30px; }
-        .bottom-left { bottom: 30px; left: 30px; }
-        
-        .time-text {
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 2px;
-            color: #ffffff;
-            text-shadow: 0 0 10px rgba(33, 158, 188, 0.8);
-        }
-
-        .date-text {
-            font-size: 14px;
+        .slashes span {
+            display: inline-block;
+            width: 4px;
+            height: 12px;
+            background-color: var(--cyan-glow);
+            transform: skewX(-30deg);
             opacity: 0.8;
+            box-shadow: 0 0 6px var(--cyan-glow);
         }
 
-        .net-text {
-            font-size: 14px;
-            margin-bottom: 4px;
+        .slashes-tl {
+            position: absolute;
+            top: 135px;
+            left: 5px;
         }
 
-        /* Slide & Information Panel Visuals (image_7fab4a.jpg layout) */
+        /* Top-Right Corner Bracket */
+        .corner-tr-bracket {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 160px;
+            height: 12px;
+            border-top: 2px solid var(--border-tech);
+            border-right: 2px solid var(--border-tech);
+            pointer-events: none;
+        }
+        .corner-tr-bracket::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -25px;
+            width: 25px;
+            height: 2px;
+            transform-origin: top right;
+            transform: rotate(-45deg);
+            background: var(--border-tech);
+        }
+
+        /* Bottom-Left Tech Bracket */
+        .corner-bl-bracket {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 32px;
+            height: 140px;
+            border-left: 2px solid var(--border-tech);
+            border-bottom: 2px solid var(--border-tech);
+        }
+
+        /* Bottom-Right Corner Bracket with Slashes */
+        .corner-br-bracket {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            width: 150px;
+            height: 55px;
+            border-bottom: 2px solid var(--border-tech);
+            border-right: 2px solid var(--border-tech);
+        }
+        .slashes-br {
+            position: absolute;
+            bottom: 6px;
+            right: 70px;
+        }
+
+        /* TOP-LEFT: TIME & DATE HUD */
+        .hud-time-container {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            z-index: 20;
+        }
+
+        .hud-time-pill {
+            width: 6px;
+            height: 52px;
+            background: var(--cyan-glow);
+            border-radius: 3px;
+            box-shadow: 0 0 12px var(--cyan-glow);
+        }
+
+        .hud-time-text-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .hud-clock {
+            font-family: 'Share Tech Mono', 'Orbitron', monospace;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: 5px;
+            color: #ffffff;
+            text-shadow: 0 0 10px var(--cyan-glow), 0 0 20px rgba(0, 229, 255, 0.4);
+            line-height: 1;
+        }
+
+        .hud-date {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 13px;
+            letter-spacing: 4px;
+            color: var(--cyan-glow);
+            opacity: 0.85;
+            text-transform: uppercase;
+        }
+
+        /* TOP-RIGHT: SYSTEM ONLINE STATUS */
+        .hud-system-status {
+            position: absolute;
+            top: 35px;
+            right: 40px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Share Tech Mono', 'Orbitron', monospace;
+            font-size: 13px;
+            letter-spacing: 3px;
+            color: var(--cyan-glow);
+            text-transform: uppercase;
+            z-index: 20;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--cyan-glow);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--cyan-glow), 0 0 18px var(--cyan-glow);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.6; }
+        }
+
+        /* MAIN CENTRAL HUD & WINGS STAGE */
         .main-stage {
             position: relative;
             width: 100vw;
@@ -234,24 +264,394 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            z-index: 15;
             transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .main-stage.swiped-left {
-            transform: translateX(-35vw);
+            transform: translateX(-32vw);
         }
 
+        /* Central Rotating Arc Reactor Core */
+        .reactor-core-wrap {
+            position: relative;
+            width: 360px;
+            height: 360px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* SVG Concentric Multi-Track High-Tech Reactor */
+        .reactor-svg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        .spin-cw-slow {
+            transform-origin: center;
+            animation: rotate-cw 40s linear infinite;
+        }
+
+        .spin-ccw-fast {
+            transform-origin: center;
+            animation: rotate-ccw 22s linear infinite;
+        }
+
+        .spin-cw-fast {
+            transform-origin: center;
+            animation: rotate-cw 14s linear infinite;
+        }
+
+        .spin-ccw-slow {
+            transform-origin: center;
+            animation: rotate-ccw 50s linear infinite;
+        }
+
+        @keyframes rotate-cw {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes rotate-ccw {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(-360deg); }
+        }
+
+        /* Center Inner Branding Disc */
+        .core-center-disc {
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            background: radial-gradient(circle, #02121b 30%, #01080d 100%);
+            border-radius: 50%;
+            border: 2px solid rgba(0, 229, 255, 0.35);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 25px rgba(0, 229, 255, 0.25), inset 0 0 15px rgba(0, 229, 255, 0.2);
+            z-index: 5;
+        }
+
+        .core-brand-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: 6px;
+            color: #ffffff;
+            text-shadow: 0 0 10px var(--cyan-glow), 0 0 25px rgba(0, 229, 255, 0.6);
+            padding-left: 6px; /* Balance letter-spacing */
+        }
+
+        /* Cardinal Orange / Amber Tick Marks at 12, 3, 6, 9 */
+        .cardinal-ticks {
+            position: absolute;
+            width: 250px;
+            height: 250px;
+            pointer-events: none;
+            z-index: 6;
+        }
+        .c-tick {
+            position: absolute;
+            background: var(--amber-glow);
+            box-shadow: 0 0 8px var(--amber-glow);
+        }
+        .c-tick-top { top: 0; left: 50%; width: 4px; height: 12px; transform: translateX(-50%); border-radius: 2px; }
+        .c-tick-bottom { bottom: 0; left: 50%; width: 4px; height: 12px; transform: translateX(-50%); border-radius: 2px; }
+        .c-tick-left { left: 0; top: 50%; width: 12px; height: 4px; transform: translateY(-50%); border-radius: 2px; }
+        .c-tick-right { right: 0; top: 50%; width: 12px; height: 4px; transform: translateY(-50%); border-radius: 2px; }
+
+        /* Left & Right Horizontal Data Wings */
+        .hud-wings-container {
+            position: absolute;
+            width: 1000px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 4;
+        }
+
+        .hud-wing {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+
+        .wing-left {
+            transform: translateX(-40px);
+        }
+
+        .wing-right {
+            transform: translateX(40px);
+        }
+
+        .wing-line-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            position: relative;
+        }
+
+        .wing-text {
+            font-family: 'Share Tech Mono', 'Orbitron', monospace;
+            font-size: 11px;
+            letter-spacing: 3px;
+            color: rgba(0, 229, 255, 0.85);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            white-space: nowrap;
+        }
+
+        .wing-line {
+            width: 220px;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(0, 229, 255, 0.7), rgba(0, 229, 255, 0.1));
+            position: relative;
+        }
+        .wing-right .wing-line {
+            background: linear-gradient(90deg, rgba(0, 229, 255, 0.1), rgba(0, 229, 255, 0.7));
+        }
+
+        .wing-node {
+            width: 6px;
+            height: 6px;
+            background: var(--cyan-glow);
+            border-radius: 50%;
+            box-shadow: 0 0 6px var(--cyan-glow);
+            position: absolute;
+            top: -2.5px;
+        }
+        .node-left { left: 16px; }
+        .node-right { right: 35px; }
+
+        .wing-pill-tick {
+            width: 16px;
+            height: 3px;
+            background: var(--cyan-glow);
+            margin-top: 5px;
+            margin-left: 14px;
+            box-shadow: 0 0 6px var(--cyan-glow);
+        }
+
+        /* BOTTOM-LEFT: NETWORK & TELEMETRY HUD CARD */
+        .hud-telemetry-card {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            width: 280px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-tech);
+            border-radius: 4px;
+            clip-path: polygon(
+                0 0, 
+                140px 0, 
+                170px 24px, 
+                100% 24px, 
+                100% calc(100% - 16px), 
+                calc(100% - 16px) 100%, 
+                0 100%
+            );
+            padding: 18px 20px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 20;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.1);
+        }
+
+        /* Outer Angled Tech Frame Accent for Telemetry Card */
+        .telemetry-outer-bracket {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 310px;
+            height: 190px;
+            pointer-events: none;
+            z-index: 18;
+        }
+        .telemetry-bracket-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .net-status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Share Tech Mono', 'Orbitron', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--cyan-glow);
+            letter-spacing: 2px;
+            margin-bottom: 2px;
+        }
+
+        .net-table {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .net-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 12px;
+            letter-spacing: 1.5px;
+        }
+
+        .net-label-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .net-icon {
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: var(--cyan-glow);
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .net-val {
+            color: #ffffff;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-align: right;
+        }
+
+        .slashes-card {
+            position: absolute;
+            bottom: 8px;
+            right: 18px;
+        }
+
+        /* BOTTOM-RIGHT: INTERACTIVE CHAT ACTION BUTTON & INPUT PILL */
+        .hud-action-container {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .action-circle-btn {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            background: #02141f;
+            border-radius: 50%;
+            border: 2px solid var(--border-tech);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 0 18px rgba(0, 229, 255, 0.35);
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            overflow: hidden;
+        }
+
+        /* Outer Arc Glow Ring around button */
+        .btn-orbit-ring {
+            position: absolute;
+            width: 74px;
+            height: 74px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            border-top: 2px solid var(--cyan-glow);
+            border-right: 2px solid var(--cyan-glow);
+            box-shadow: 0 0 10px var(--cyan-glow);
+            animation: rotate-cw 6s linear infinite;
+            pointer-events: none;
+        }
+
+        .chat-svg {
+            width: 24px;
+            height: 24px;
+            fill: #ffffff;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        .send-svg {
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            fill: var(--cyan-glow);
+            opacity: 0;
+            transform: scale(0.4) rotate(-30deg);
+            transition: all 0.3s ease;
+        }
+
+        /* Expanded State for Command Entry */
+        .action-circle-btn.expanded {
+            width: 420px;
+            border-radius: 30px;
+            background: rgba(2, 20, 31, 0.95);
+            border-color: var(--cyan-glow);
+            box-shadow: 0 0 25px rgba(0, 229, 255, 0.5);
+            justify-content: space-between;
+            padding: 0 18px 0 24px;
+            cursor: default;
+        }
+
+        .action-circle-btn.expanded .btn-orbit-ring {
+            display: none;
+        }
+
+        .action-circle-btn.expanded .chat-svg {
+            display: none;
+        }
+
+        .action-circle-btn.expanded .send-svg {
+            position: static;
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+            cursor: pointer;
+        }
+
+        .cmd-text-input {
+            width: 0;
+            opacity: 0;
+            border: none;
+            background: transparent;
+            color: #ffffff;
+            font-family: 'Share Tech Mono', 'Rajdhani', monospace;
+            font-size: 16px;
+            outline: none;
+            letter-spacing: 1px;
+            transition: width 0.35s ease, opacity 0.25s ease;
+        }
+
+        .action-circle-btn.expanded .cmd-text-input {
+            width: 330px;
+            opacity: 1;
+        }
+
+        /* SLIDE-OUT DOSSIER & DEEP DIVE PANELS (Retaining full compatibility) */
         .info-panel {
             position: absolute;
-            right: 5vw;
+            right: 4vw;
             top: 10vh;
-            width: 52vw;
+            width: 50vw;
             height: 80vh;
             opacity: 0;
             pointer-events: none;
             display: flex;
             gap: 24px;
             transition: opacity 0.4s ease-in-out 0.2s;
+            z-index: 25;
         }
 
         .main-stage.swiped-left ~ .info-panel {
@@ -268,195 +668,404 @@
             max-height: 100%;
             padding-right: 8px;
         }
-
-        .info-left-col::-webkit-scrollbar {
-            width: 4px;
-        }
-        .info-left-col::-webkit-scrollbar-thumb {
-            background: rgba(33, 158, 188, 0.4);
-            border-radius: 2px;
-        }
+        .info-left-col::-webkit-scrollbar { width: 4px; }
+        .info-left-col::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 2px; }
 
         .info-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(33, 158, 188, 0.2);
+            background: rgba(2, 18, 28, 0.85);
+            border: 1px solid var(--border-tech);
             border-radius: 8px;
-            padding: 10px;
+            padding: 12px;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
+            backdrop-filter: blur(8px);
         }
-
         .info-card img {
             width: 100%;
-            height: 110px;
+            height: 120px;
             object-fit: cover;
             border-radius: 4px;
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            cursor: pointer;
         }
-
         .info-card .source-txt {
-            font-size: 12px;
-            color: #219ebc;
-            font-family: 'Courier New', Courier, monospace;
-        }
-
-        .info-card .detail-txt {
             font-size: 11px;
-            opacity: 0.85;
-            line-height: 1.3;
+            color: var(--cyan-glow);
+            font-family: 'Share Tech Mono', monospace;
+            letter-spacing: 1px;
+        }
+        .info-card .detail-txt {
+            font-size: 13px;
+            opacity: 0.9;
+            line-height: 1.4;
         }
 
         .info-right-col {
-            flex: 1.1;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            flex: 1.2;
+            background: rgba(2, 18, 28, 0.85);
+            border: 1px solid var(--border-tech);
             border-radius: 12px;
             padding: 24px;
             display: flex;
             flex-direction: column;
             gap: 16px;
+            backdrop-filter: blur(8px);
         }
-
         .info-right-col h2 {
-            font-size: 36px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 28px;
             font-weight: 700;
             color: #ffffff;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
+            border-bottom: 1px solid var(--border-tech);
+            padding-bottom: 10px;
         }
-
         .info-right-col p {
-            font-size: 14px;
+            font-size: 15px;
             line-height: 1.6;
             opacity: 0.9;
             overflow-y: auto;
         }
-        
-        /* The Glitch Engine */
+
+        /* Deep Dive HUD (Full Screen) */
+        .deep-dive-panel {
+            position: absolute;
+            inset: 0;
+            background: rgba(2, 9, 14, 0.98);
+            z-index: 40;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(100vw);
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s;
+            padding: 40px;
+            overflow: hidden;
+        }
+        .deep-dive-active .deep-dive-panel {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0);
+        }
+        .deep-dive-active .main-stage,
+        .deep-dive-active .hud-frame,
+        .deep-dive-active .hud-time-container,
+        .deep-dive-active .hud-system-status,
+        .deep-dive-active .hud-telemetry-card,
+        .deep-dive-active .hud-action-container,
+        .deep-dive-active .info-panel {
+            transform: translateX(-150vw) !important;
+            opacity: 0;
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s;
+        }
+
+        .dd-header {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 36px;
+            color: #ffffff;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            border-bottom: 2px solid var(--cyan-glow);
+            padding-bottom: 10px;
+        }
+        .dd-content { display: flex; gap: 30px; height: calc(100% - 70px); }
+        .dd-images { flex: 0.35; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; overflow-y: auto; align-content: start; }
+        .dd-images img { width: 100%; height: 150px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-tech); cursor: pointer; }
+        .dd-text { flex: 0.65; background: rgba(2, 18, 28, 0.85); border: 1px solid var(--border-tech); border-radius: 12px; padding: 25px; overflow-y: auto; line-height: 1.7; font-size: 16px; }
+        .dd-text h3 { color: var(--cyan-glow); margin-top: 15px; margin-bottom: 8px; font-size: 20px; text-transform: uppercase; font-family: 'Orbitron', sans-serif; }
+        .dd-text p { margin-bottom: 12px; }
+
+        /* Lightbox Modal */
+        .img-modal {
+            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; z-index: 1000; transition: opacity 0.3s ease;
+        }
+        .img-modal.active { opacity: 1; pointer-events: auto; }
+        .img-modal img { max-width: 90%; max-height: 90%; border: 2px solid var(--cyan-glow); border-radius: 8px; box-shadow: 0 0 25px rgba(0, 229, 255, 0.6); }
+
+        /* Sporadic Glitch Effect on HUD Data */
         .glitch-active {
             position: relative;
         }
-        
         .glitch-active::before, .glitch-active::after {
             content: attr(data-text);
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #05131a;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-color);
         }
-        
         .glitch-active::before {
             left: 2px;
-            text-shadow: -2px 0 rgba(255, 0, 0, 0.8);
+            text-shadow: -2px 0 rgba(255, 0, 80, 0.8);
             animation: sporadic-glitch-1 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
         }
-        
         .glitch-active::after {
             left: -2px;
-            text-shadow: -2px 0 rgba(0, 255, 255, 0.8);
+            text-shadow: -2px 0 rgba(0, 229, 255, 0.8);
             animation: sporadic-glitch-2 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite reverse;
         }
-        
         @keyframes sporadic-glitch-1 {
             0% { clip-path: inset(20% 0 80% 0); transform: translate(-2px, 1px); }
-            20% { clip-path: inset(60% 0 10% 0); transform: translate(2px, -1px); }
-            40% { clip-path: inset(40% 0 50% 0); transform: translate(-2px, 2px); }
-            60% { clip-path: inset(80% 0 5% 0); transform: translate(2px, -2px); }
-            80% { clip-path: inset(10% 0 70% 0); transform: translate(-1px, 1px); }
+            50% { clip-path: inset(60% 0 10% 0); transform: translate(2px, -1px); }
             100% { clip-path: inset(30% 0 50% 0); transform: translate(1px, -1px); }
         }
-        
         @keyframes sporadic-glitch-2 {
             0% { clip-path: inset(10% 0 60% 0); transform: translate(2px, -1px); }
-            20% { clip-path: inset(30% 0 20% 0); transform: translate(-2px, 1px); }
-            40% { clip-path: inset(70% 0 10% 0); transform: translate(2px, -2px); }
-            60% { clip-path: inset(20% 0 50% 0); transform: translate(-2px, 2px); }
-            80% { clip-path: inset(50% 0 30% 0); transform: translate(1px, -1px); }
+            50% { clip-path: inset(70% 0 10% 0); transform: translate(2px, -2px); }
             100% { clip-path: inset(5% 0 80% 0); transform: translate(-1px, 1px); }
         }
-
-        /* --- Image Lightbox Modal --- */
-        .img-modal {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px);
-            display: flex; justify-content: center; align-items: center;
-            opacity: 0; pointer-events: none; z-index: 1000;
-            transition: opacity 0.3s ease;
-        }
-        .img-modal.active { opacity: 1; pointer-events: auto; }
-        .img-modal img { max-width: 90%; max-height: 90%; border: 2px solid #219ebc; border-radius: 8px; box-shadow: 0 0 20px rgba(33,158,188,0.5); }
-        
-        /* --- Deep Dive Panel --- */
-        .deep-dive-panel {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(5, 13, 18, 0.98); z-index: 40;
-            display: flex; flex-direction: column; opacity: 0; pointer-events: none;
-            transform: translateX(100vw); transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s;
-            padding: 40px; box-sizing: border-box; overflow: hidden;
-        }
-        /* When active, slide deep dive in, and swipe EVERYTHING else way out left */
-        .deep-dive-active .deep-dive-panel { opacity: 1; pointer-events: auto; transform: translateX(0); }
-        .deep-dive-active .hud-cluster, .deep-dive-active #dateTimeHUD, .deep-dive-active #networkHUD, .deep-dive-active .info-panel {
-            transform: translateX(-150vw) !important; opacity: 0; transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s;
-        }
-        
-        .dd-header { font-size: 42px; color: #fff; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; border-bottom: 2px solid #219ebc; padding-bottom: 10px;}
-        .dd-content { display: flex; gap: 30px; height: calc(100% - 80px); }
-        .dd-images { flex: 0.35; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; overflow-y: auto; align-content: start; }
-        .dd-images img { width: 100%; height: 160px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(33,158,188,0.4); cursor: pointer; transition: transform 0.2s; }
-        .dd-images img:hover { transform: scale(1.03); border-color: #219ebc; }
-        .dd-text { flex: 0.65; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 30px; overflow-y: auto; color: #e0e0e0; line-height: 1.7; font-size: 16px; }
-        .dd-text h3 { color: #219ebc; margin-top: 20px; margin-bottom: 10px; font-size: 24px; text-transform: uppercase; }
-        .dd-text p { margin-bottom: 15px; }
-        
-        /* Custom scrollbars for Deep Dive */
-        .dd-text::-webkit-scrollbar, .dd-images::-webkit-scrollbar { width: 6px; }
-        .dd-text::-webkit-scrollbar-thumb, .dd-images::-webkit-scrollbar-thumb { background: rgba(33, 158, 188, 0.5); border-radius: 3px; }
     </style>
 </head>
 <body>
 
+    <!-- Background Grid -->
     <div class="bg-grid"></div>
 
-    <div id="dateTimeHUD" class="hud-data top-left target-glitch">
-        <div id="hudTime" class="time-text" data-text="--:--:--">--:--:--</div>
-        <div id="hudDate" class="date-text" data-text="-- --- ----">-- --- ----</div>
-    </div>
-    
-    <div id="networkHUD" class="hud-data bottom-left target-glitch">
-        <div id="hudNetStatus" class="net-text" data-text="SYS.NET: ANALYZING">SYS.NET: ANALYZING</div>
-        <div id="hudSSID" class="net-text" data-text="SSID: --">SSID: --</div>
-        <div id="hudSignal" class="net-text" data-text="SIGNAL: --%">SIGNAL: --%</div>
-        <div id="hudSpeed" class="net-text" data-text="RATE: -- Mbps">RATE: -- Mbps</div>
-    </div>
+    <!-- Coordinate Crosshairs at Key Grid Nodes -->
+    <div class="crosshair ch-tl">+</div>
+    <div class="crosshair ch-tr">+</div>
+    <div class="crosshair ch-bl">+</div>
+    <div class="crosshair ch-br">+</div>
 
-    <div class="hud-cluster">
-        <img src="circle.png" alt="HYDRA circle asset" class="circle-image">
-        <div class="anim-ring-1"></div>
-        <div class="anim-ring-2"></div>
-        <div class="core">
-            <h1>HYDRA</h1>
+    <!-- Outer Tech Bracket Framing -->
+    <div class="hud-frame">
+        <div class="corner-tl-bracket"></div>
+        <div class="slashes slashes-tl">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="corner-tr-bracket"></div>
+        <div class="corner-bl-bracket"></div>
+        <div class="corner-br-bracket">
+            <div class="slashes slashes-br">
+                <span></span><span></span><span></span>
+            </div>
         </div>
     </div>
 
-    <div class="status-icon-btn" id="containerBtn">
-        <input type="text" class="cmd-input" id="cmdInput" placeholder="Enter system command..." autocomplete="off">
-        <div class="icon-wrap" id="iconAction">
-            <svg class="chat-icon-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2C6.48 2 2 5.91 2 10.75C2 13.57 3.51 16.03 5.86 17.65L4.5 21.5L8.53 19.46C9.64 19.82 10.8 20 12 20C17.52 20 22 16.09 22 11.25C22 6.41 17.52 2.5 12 2.5V2ZM16 11H8V9H16V11ZM13 15H8V13H13V15Z"/>
+    <!-- Top-Left Time & Date HUD -->
+    <div class="hud-time-container">
+        <div class="hud-time-pill"></div>
+        <div class="hud-time-text-wrap target-glitch">
+            <div id="hudTime" class="hud-clock" data-text="--:--:--">--:--:--</div>
+            <div id="hudDate" class="hud-date" data-text="-- --- ----">-- --- ----</div>
+        </div>
+    </div>
+
+    <!-- Top-Right System Online Status -->
+    <div class="hud-system-status">
+        <div class="status-dot"></div>
+        <span>SYSTEM ONLINE</span>
+    </div>
+
+    <!-- MAIN CENTRAL STAGE (Reactor Core + Wings) -->
+    <div class="main-stage">
+        
+        <!-- Left and Right Horizontal Wings -->
+        <div class="hud-wings-container">
+            <!-- Left Wing -->
+            <div class="hud-wing wing-left">
+                <div class="wing-line-wrap">
+                    <div class="wing-text">THINK &nbsp;/&nbsp; ANALYZE &nbsp;/&nbsp; EXECUTE</div>
+                    <div class="wing-line">
+                        <div class="wing-node node-left"></div>
+                    </div>
+                    <div class="wing-pill-tick"></div>
+                </div>
+            </div>
+
+            <!-- Right Wing -->
+            <div class="hud-wing wing-right">
+                <div class="wing-line-wrap" style="align-items: flex-end;">
+                    <div class="wing-text">YOUR AI ASSISTANT</div>
+                    <div class="wing-line">
+                        <div class="wing-node node-right"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- High-Tech Rotating Arc Reactor Core -->
+        <div class="reactor-core-wrap">
+            <svg class="reactor-svg" viewBox="0 0 400 400">
+                <defs>
+                    <!-- Cyan Neon Filter -->
+                    <filter id="cyanGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                    <!-- Amber Neon Filter -->
+                    <filter id="amberGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="3.5" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                </defs>
+
+                <!-- Track 0: Outermost Dark Cyan Guide Ring -->
+                <circle cx="200" cy="200" r="185" fill="none" stroke="rgba(0, 229, 255, 0.15)" stroke-width="1.5" />
+
+                <!-- Track 1: Outermost Subtle Tech Notches (Counter-Clockwise Slow) -->
+                <g class="spin-ccw-slow">
+                    <circle cx="200" cy="200" r="172" fill="none" stroke="rgba(0, 229, 255, 0.35)" stroke-width="1.5" stroke-dasharray="14 18 4 18" />
+                    <circle cx="200" cy="200" r="164" fill="none" stroke="rgba(0, 229, 255, 0.2)" stroke-width="1" stroke-dasharray="3 9" />
+                </g>
+
+                <!-- Track 2: Bright Neon Cyan Segmented Ring (Clockwise Fast) -->
+                <g class="spin-cw-fast" filter="url(#cyanGlow)">
+                    <circle cx="200" cy="200" r="148" fill="none" stroke="#00e5ff" stroke-width="3" stroke-dasharray="90 35 25 15 60 40" stroke-linecap="round" />
+                    <circle cx="200" cy="200" r="148" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="15 240" stroke-linecap="round" />
+                </g>
+
+                <!-- Track 3: Middle Neon Cyan Dash Cluster (Counter-Clockwise) -->
+                <g class="spin-ccw-fast" filter="url(#cyanGlow)">
+                    <circle cx="200" cy="200" r="132" fill="none" stroke="#00e5ff" stroke-width="2.5" stroke-dasharray="45 20 8 12 75 30" stroke-linecap="round" />
+                </g>
+
+                <!-- Track 4: Concentric Amber / Gold Inner Ring (Clockwise) -->
+                <g class="spin-cw-slow" filter="url(#amberGlow)">
+                    <circle cx="200" cy="200" r="115" fill="none" stroke="#ff9e00" stroke-width="3" stroke-dasharray="60 30 110 40" stroke-linecap="round" />
+                    <circle cx="200" cy="200" r="115" fill="none" stroke="#ffe066" stroke-width="1.5" stroke-dasharray="10 120" stroke-linecap="round" />
+                </g>
+
+                <!-- Track 5: Fine Golden Micro-Ticks -->
+                <g class="spin-ccw-slow">
+                    <circle cx="200" cy="200" r="102" fill="none" stroke="rgba(255, 158, 0, 0.5)" stroke-width="1" stroke-dasharray="4 6" />
+                </g>
+
+                <!-- Track 6: Innermost Cyan Framing Ring -->
+                <circle cx="200" cy="200" r="88" fill="none" stroke="rgba(0, 229, 255, 0.6)" stroke-width="2" stroke-dasharray="8 8" />
             </svg>
-            <svg class="send-icon-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+
+            <!-- Cardinal Amber Ticks at 12, 3, 6, 9 o'clock -->
+            <div class="cardinal-ticks">
+                <div class="c-tick c-tick-top"></div>
+                <div class="c-tick c-tick-bottom"></div>
+                <div class="c-tick c-tick-left"></div>
+                <div class="c-tick c-tick-right"></div>
+            </div>
+
+            <!-- Central Branding Disc -->
+            <div class="core-center-disc">
+                <h1 class="core-brand-text" id="coreTitle">HYDRA</h1>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- BOTTOM-LEFT: NETWORK & TELEMETRY HUD CARD -->
+    <div class="hud-telemetry-card target-glitch">
+        <div class="net-status-badge">
+            <div class="status-dot"></div>
+            <span id="hudNetStatus">ONLINE</span>
+        </div>
+
+        <div class="net-table">
+            <div class="net-row">
+                <div class="net-label-group">
+                    <!-- Wi-Fi SVG Icon -->
+                    <svg class="net-icon" viewBox="0 0 24 24">
+                        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                        <line x1="12" y1="20" x2="12.01" y2="20"/>
+                    </svg>
+                    <span>NETWORK</span>
+                </div>
+                <span id="hudSSID" class="net-val">Connected</span>
+            </div>
+
+            <div class="net-row">
+                <div class="net-label-group">
+                    <!-- Signal Bar SVG Icon -->
+                    <svg class="net-icon" viewBox="0 0 24 24">
+                        <line x1="12" y1="20" x2="12" y2="10"/>
+                        <line x1="18" y1="20" x2="18" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="16"/>
+                    </svg>
+                    <span>SIGNAL</span>
+                </div>
+                <span id="hudSignal" class="net-val">Good</span>
+            </div>
+
+            <div class="net-row">
+                <div class="net-label-group">
+                    <!-- Transfer Arrows SVG Icon -->
+                    <svg class="net-icon" viewBox="0 0 24 24">
+                        <line x1="7" y1="17" x2="7" y2="3"/>
+                        <polyline points="3 7 7 3 11 7"/>
+                        <line x1="17" y1="7" x2="17" y2="21"/>
+                        <polyline points="13 17 17 21 21 17"/>
+                    </svg>
+                    <span>RATE</span>
+                </div>
+                <span id="hudSpeed" class="net-val">43.2 KB/s</span>
+            </div>
+        </div>
+
+        <!-- Chamfered Accent Slashes -->
+        <div class="slashes slashes-card">
+            <span></span><span></span><span></span>
+        </div>
+    </div>
+
+    <!-- BOTTOM-RIGHT: INTERACTIVE CHAT ACTION BUTTON & INPUT PILL -->
+    <div class="hud-action-container">
+        <div class="action-circle-btn" id="containerBtn">
+            <div class="btn-orbit-ring"></div>
+            
+            <input type="text" class="cmd-text-input" id="cmdInput" placeholder="Enter system command..." autocomplete="off">
+
+            <!-- Chat Bubble Icon -->
+            <svg class="chat-svg" viewBox="0 0 24 24">
+                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
+                <circle cx="8" cy="10" r="1.2"/>
+                <circle cx="12" cy="10" r="1.2"/>
+                <circle cx="16" cy="10" r="1.2"/>
+            </svg>
+
+            <!-- Send Icon -->
+            <svg class="send-svg" id="btnSend" viewBox="0 0 24 24">
                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
             </svg>
         </div>
     </div>
 
+    <!-- Quick Info Slide-out Panel (Compatible with main.py) -->
+    <div class="info-panel" id="infoPanel">
+        <div class="info-left-col" id="infoLeftCol"></div>
+        <div class="info-right-col">
+            <h2 id="infoTitle">Intelligence Intel</h2>
+            <p id="infoDescription">Awaiting query parameters...</p>
+        </div>
+    </div>
+
+    <!-- Full-Screen Deep Dive Panel (Compatible with main.py) -->
+    <div class="deep-dive-panel" id="deepDivePanel">
+        <div class="dd-header" id="ddTitle">Target Analysis</div>
+        <div class="dd-content">
+            <div class="dd-images" id="ddImages"></div>
+            <div class="dd-text" id="ddText">Loading deeper context...</div>
+        </div>
+    </div>
+
+    <!-- Image Lightbox Modal -->
+    <div class="img-modal" id="imgModal" onclick="closeImageModal()">
+        <img id="modalImg" src="" alt="Expanded View" onclick="event.stopPropagation();">
+    </div>
+
     <script>
         const containerBtn = document.getElementById('containerBtn');
         const cmdInput = document.getElementById('cmdInput');
-        const iconAction = document.getElementById('iconAction');
+        const btnSend = document.getElementById('btnSend');
 
+        // Toggle Command Input Pill
         containerBtn.addEventListener('click', function(e) {
             if (!containerBtn.classList.contains('expanded')) {
                 containerBtn.classList.add('expanded');
@@ -464,7 +1073,7 @@
             }
         });
 
-        iconAction.addEventListener('click', function(e) {
+        btnSend.addEventListener('click', function(e) {
             if (containerBtn.classList.contains('expanded')) {
                 e.stopPropagation();
                 submitCommand();
@@ -481,6 +1090,13 @@
             }
         });
 
+        // Close on outside click
+        document.addEventListener('click', function(e) {
+            if (!containerBtn.contains(e.target) && containerBtn.classList.contains('expanded')) {
+                containerBtn.classList.remove('expanded');
+            }
+        });
+
         function submitCommand() {
             const command = cmdInput.value.trim();
             if (command) {
@@ -492,9 +1108,10 @@
         }
 
         function setCoreText(text) {
-            document.querySelector('.core h1').innerText = text;
+            document.getElementById('coreTitle').innerText = text;
         }
-        
+
+        // Live Clock and Date Updater
         function updateHUD() {
             const now = new Date();
             const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
@@ -508,57 +1125,35 @@
             
             hudDate.innerText = dateStr;
             hudDate.setAttribute('data-text', dateStr);
-            
-            // Network updates are now pushed directly from Python via updateRealNetwork()
         }
-        
-        function updateRealNetwork(ssid, signal, speed) {
-            const netStr = ssid === 'DISCONNECTED' ? 'SYS.NET: OFFLINE' : 'SYS.NET: SECURE (ONLINE)';
-            
-            const hudNetStatus = document.getElementById('hudNetStatus');
-            hudNetStatus.innerText = netStr;
-            hudNetStatus.setAttribute('data-text', netStr);
-            
-            const hudSSID = document.getElementById('hudSSID');
-            hudSSID.innerText = 'SSID: ' + ssid;
-            hudSSID.setAttribute('data-text', 'SSID: ' + ssid);
-            
-            const hudSignal = document.getElementById('hudSignal');
-            hudSignal.innerText = 'SIGNAL: ' + signal;
-            hudSignal.setAttribute('data-text', 'SIGNAL: ' + signal);
-            
-            const hudSpeed = document.getElementById('hudSpeed');
-            hudSpeed.innerText = 'RATE: ' + speed;
-            hudSpeed.setAttribute('data-text', 'RATE: ' + speed);
-        }
-        
         setInterval(updateHUD, 1000);
         updateHUD();
 
-        // 10-Second Random Sporadic Glitch Trigger
+        // Network Status Updater (Called dynamically by Python netsh monitor)
+        function updateRealNetwork(ssid, signal, speed) {
+            const isOnline = ssid !== 'DISCONNECTED' && ssid !== '--';
+            document.getElementById('hudNetStatus').innerText = isOnline ? 'ONLINE' : 'OFFLINE';
+            document.getElementById('hudSSID').innerText = isOnline ? ssid : 'Disconnected';
+            document.getElementById('hudSignal').innerText = isOnline ? (signal.includes('%') ? signal : signal + '%') : 'None';
+            document.getElementById('hudSpeed').innerText = isOnline ? speed : '--';
+        }
+
+        // Sporadic Cyber Glitch on HUD Data every 10s
         setInterval(() => {
             const elements = document.querySelectorAll('.target-glitch > div');
             elements.forEach(el => el.classList.add('glitch-active'));
-            
-            // Remove the glitch effect after 400 milliseconds
             setTimeout(() => {
                 elements.forEach(el => el.classList.remove('glitch-active'));
-            }, 400);
-            
-        }, 10000); // Triggers exactly every 10 seconds
+            }, 350);
+        }, 10000);
+
+        // Slide-out HUD Logic (Compatible with main.py)
         function triggerScreenSwipe(active) {
-            const stage = document.querySelector('body > :not(.bg-grid):not(.status-icon-btn):not(.info-panel)');
-            // Wrap HUD cluster and HUD data in a common selector or toggle class directly:
-            document.getElementById('dateTimeHUD').classList.toggle('swiped-left-el', active);
-            document.getElementById('networkHUD').classList.toggle('swiped-left-el', active);
-            document.querySelector('.hud-cluster').style.transform = active ? 'translateX(-22vw) scale(0.85)' : 'translateX(0) scale(1)';
-            document.querySelector('.hud-cluster').style.transition = 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
-            document.getElementById('infoPanel').style.opacity = active ? '1' : '0';
-            document.getElementById('infoPanel').style.pointerEvents = active ? 'auto' : 'none';
+            document.querySelector('.main-stage').classList.toggle('swiped-left', active);
         }
 
         function populateInfoHUD(title, text, items) {
-            document.body.classList.remove('deep-dive-active'); // Ensure we aren't stuck in deep dive
+            document.body.classList.remove('deep-dive-active');
             setTimeout(() => {
                 document.getElementById('infoTitle').innerText = title;
                 document.getElementById('infoDescription').innerText = text;
@@ -568,14 +1163,13 @@
                     let imgSrc = item.img ? item.img : 'circle.png';
                     leftCol.innerHTML += `
                         <div class="info-card">
-                            <!-- Added click to open lightbox -->
                             <img src="${imgSrc}" alt="Source preview" onerror="this.onerror=null; this.src='circle.png';" onclick="openImageModal(this.src)">
                             <div class="source-txt">${item.source || 'HYDRA ARCHIVE'}</div>
                             <div class="detail-txt">${item.desc}</div>
                         </div>`;
                 });
                 triggerScreenSwipe(true);
-            }, 450); 
+            }, 300);
         }
 
         function resetScreenSwipe() {
@@ -583,18 +1177,6 @@
             triggerScreenSwipe(false);
         }
 
-        // --- NEW: Image Modal Lightbox ---
-        function openImageModal(src) {
-            if (src.includes('circle.png')) return; // Ignore fallback image
-            document.getElementById('modalImg').src = src;
-            document.getElementById('imgModal').classList.add('active');
-        }
-
-        function closeImageModal() {
-            document.getElementById('imgModal').classList.remove('active');
-        }
-
-        // --- NEW: Build the Deep Dive HUD ---
         function openDeepDiveHUD(title, htmlContent, imagesList) {
             document.getElementById('ddTitle').innerText = title;
             document.getElementById('ddText').innerHTML = htmlContent;
@@ -607,33 +1189,18 @@
                 }
             });
 
-            // This triggers the massive swipe left
             document.body.classList.add('deep-dive-active');
         }
+
+        function openImageModal(src) {
+            if (src.includes('circle.png')) return;
+            document.getElementById('modalImg').src = src;
+            document.getElementById('imgModal').classList.add('active');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imgModal').classList.remove('active');
+        }
     </script>
-
-    <!-- Quick Info Panel -->
-    <div class="info-panel" id="infoPanel">
-        <div class="info-left-col" id="infoLeftCol"></div>
-        <div class="info-right-col">
-            <h2 id="infoTitle">Information</h2>
-            <p id="infoDescription">Awaiting query parameters...</p>
-        </div>
-    </div>
-
-    <!-- NEW: Full Screen Deep Dive Panel -->
-    <div class="deep-dive-panel" id="deepDivePanel">
-        <div class="dd-header" id="ddTitle">Target Analysis</div>
-        <div class="dd-content">
-            <div class="dd-images" id="ddImages"></div>
-            <div class="dd-text" id="ddText">Loading deeper context...</div>
-        </div>
-    </div>
-
-    <!-- NEW: Full Screen Image Lightbox -->
-    <div class="img-modal" id="imgModal" onclick="closeImageModal()">
-        <!-- StopPropagation prevents clicking the image from instantly closing the modal -->
-        <img id="modalImg" src="" alt="Expanded View" onclick="event.stopPropagation();">
-    </div>
 </body>
 </html>
