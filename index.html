@@ -11,13 +11,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #000d17;
-            --cyan-glow: #00e5ff;
-            --cyan-line: #00d8f6;
-            --cyan-dim: rgba(0, 216, 246, 0.4);
-            --card-bg: rgba(1, 14, 23, 0.92);
-            --text-primary: #ffffff;
-            --text-cyan: #00d8f6;
+            --bg-color: #f0f7fe;
+            --cyan-glow: #00b4d8;
+            --cyan-bright: #00e5ff;
+            --cyan-line: #0096c7;
+            --cyan-dim: rgba(0, 180, 240, 0.25);
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --text-primary: #18346b;
+            --text-secondary: #2c4d87;
+            --text-cyan: #0077b6;
             --hud-scale: 1;
         }
 
@@ -35,8 +37,8 @@
             overflow: hidden;
             background-color: var(--bg-color);
             background-image: 
-                radial-gradient(circle at 50% 50%, rgba(0, 75, 115, 0.22) 0%, rgba(0, 30, 50, 0.08) 50%, transparent 75%),
-                radial-gradient(circle at 10% 90%, rgba(0, 180, 216, 0.05) 0%, transparent 45%);
+                radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.95) 0%, rgba(240, 248, 255, 0.6) 45%, rgba(225, 238, 252, 0.85) 100%),
+                radial-gradient(circle at 10% 90%, rgba(0, 180, 240, 0.08) 0%, transparent 45%);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -56,17 +58,17 @@
             overflow: visible;
         }
 
-        /* Visible Futuristic Cyan Background Grid in Light Form */
+        /* Visible Futuristic Background Grid in Light Form */
         .bg-grid {
             position: absolute;
             inset: 0;
             width: 1024px;
             height: 575px;
             background-image: 
-                linear-gradient(rgba(0, 216, 246, 0.12) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 216, 246, 0.12) 1px, transparent 1px);
+                linear-gradient(rgba(0, 150, 240, 0.12) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 150, 240, 0.12) 1px, transparent 1px);
             background-size: 50px 50px;
-            background-position: 512px 281px;
+            background-position: 511px 274px;
             z-index: 1;
             pointer-events: none;
         }
@@ -85,7 +87,7 @@
         /* Coordinate Crosshairs at Exact Canva Nodes */
         .crosshair {
             position: absolute;
-            color: rgba(0, 216, 246, 0.55);
+            color: rgba(0, 140, 230, 0.65);
             font-family: 'Share Tech Mono', monospace;
             font-size: 14px;
             font-weight: 700;
@@ -96,7 +98,7 @@
             transform: translate(-50%, -50%);
             z-index: 3;
             pointer-events: none;
-            text-shadow: 0 0 6px rgba(0, 216, 246, 0.5);
+            text-shadow: 0 0 6px rgba(0, 180, 240, 0.4);
         }
         .ch-tl { left: 138px; top: 146px; }
         .ch-tr { left: 837px; top: 146px; }
@@ -104,16 +106,16 @@
         .ch-br { left: 837px; top: 412px; }
 
         /* Outer crosshair nodes touching outer reactor circle */
-        .ch-center-left { left: 356px; top: 281px; }
-        .ch-center-right { left: 668px; top: 281px; }
+        .ch-center-left { left: 383px; top: 274px; }
+        .ch-center-right { left: 638px; top: 274px; }
 
         /* ======================================================== */
         /* TOP-LEFT: CLOCK CONTENT                                  */
         /* ======================================================== */
         .clock-content {
             position: absolute;
-            left: 36px;
-            top: 29px;
+            left: 20px;
+            top: 40px;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -123,36 +125,36 @@
 
         .clock-pill {
             width: 3.5px;
-            height: 38px;
+            height: 48px;
             background: var(--cyan-glow);
             border-radius: 2px;
-            box-shadow: 0 0 8px var(--cyan-glow), 0 0 14px rgba(0, 229, 255, 0.6);
+            box-shadow: 0 0 8px rgba(0, 180, 240, 0.7);
         }
 
         .clock-data {
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 3px;
         }
 
         .clock-time {
             font-family: 'Share Tech Mono', monospace;
-            font-size: 21px;
+            font-size: 23px;
             font-weight: 700;
             letter-spacing: 4.5px;
-            color: #ffffff;
-            text-shadow: 0 0 8px var(--cyan-glow), 0 0 16px rgba(0, 229, 255, 0.5);
+            color: #18346b;
+            text-shadow: 0 0 8px rgba(0, 180, 240, 0.25);
             line-height: 1.1;
         }
 
         .clock-date {
             font-family: 'Share Tech Mono', monospace;
-            font-size: 11px;
+            font-size: 11.5px;
             letter-spacing: 3px;
             color: var(--text-cyan);
             text-transform: uppercase;
+            font-weight: 600;
             opacity: 0.95;
-            text-shadow: 0 0 6px rgba(0, 216, 246, 0.4);
         }
 
         /* ======================================================== */
@@ -160,22 +162,24 @@
         /* ======================================================== */
         .status-content {
             position: absolute;
-            left: 914px;
+            left: 884px;
             top: 40px;
             display: flex;
             align-items: center;
             gap: 10px;
             z-index: 20;
             pointer-events: auto;
+            white-space: nowrap;
         }
 
         .status-dot {
             width: 7.5px;
             height: 7.5px;
-            background-color: var(--cyan-glow);
+            background-color: var(--cyan-bright);
             border-radius: 50%;
-            box-shadow: 0 0 8px var(--cyan-glow), 0 0 16px var(--cyan-glow);
+            box-shadow: 0 0 8px var(--cyan-bright), 0 0 16px rgba(0, 229, 255, 0.7);
             animation: pulse-dot 2.5s ease-in-out infinite;
+            flex-shrink: 0;
         }
 
         @keyframes pulse-dot {
@@ -187,9 +191,10 @@
             font-family: 'Share Tech Mono', monospace;
             font-size: 11.5px;
             letter-spacing: 2.5px;
-            color: var(--text-cyan);
+            color: #18346b;
             text-transform: uppercase;
-            text-shadow: 0 0 6px rgba(0, 216, 246, 0.5);
+            font-weight: 700;
+            white-space: nowrap;
         }
 
         /* ======================================================== */
@@ -208,11 +213,11 @@
             transform: translateX(-320px);
         }
 
-        /* Center HUD Cluster at Exact Canva Coordinates (511.5, 281.0) */
+        /* Center HUD Cluster at Exact Canva Coordinates (511, 274) */
         .hud-cluster {
             position: absolute;
-            left: 512px;
-            top: 281px;
+            left: 511px;
+            top: 274px;
             transform: translate(-50%, -50%);
             width: 280px;
             height: 280px;
@@ -240,9 +245,7 @@
             height: 280px;
             object-fit: contain;
             border-radius: 50%;
-            -webkit-mask-image: radial-gradient(circle, black 65%, black 97%, transparent 100%);
-            mask-image: radial-gradient(circle, black 65%, black 97%, transparent 100%);
-            filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.45));
+            filter: drop-shadow(0 0 14px rgba(0, 180, 240, 0.35));
             display: block;
             pointer-events: none;
             image-rendering: -webkit-optimize-contrast;
@@ -256,9 +259,9 @@
         /* Seamless Stationary Core Center Disc Over circle.png */
         .core-center-disc {
             position: absolute;
-            width: 82px;
-            height: 82px;
-            background: #000d17;
+            width: 104px;
+            height: 104px;
+            background: radial-gradient(circle, #ffffff 45%, #f1f7fe 100%);
             border-radius: 50%;
             display: flex;
             justify-content: center;
@@ -269,22 +272,22 @@
 
         .core-brand-text {
             font-family: 'Rajdhani', 'Share Tech Mono', sans-serif;
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 700;
             letter-spacing: 5px;
-            color: #ffffff;
-            text-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+            color: #18346b;
+            text-shadow: 0 0 10px rgba(0, 180, 240, 0.2);
             padding-left: 5px;
             user-select: none;
             transition: all 0.3s ease;
         }
 
-        /* Left Wing at Exact Canva Coordinates (x: 164 to 393, y: 281) */
+        /* Left Wing at Exact Canva Coordinates */
         .wing-left-wrap {
             position: absolute;
-            left: 164px;
-            top: 265px;
-            width: 230px;
+            left: 126px;
+            top: 257px;
+            width: 260px;
             display: flex;
             flex-direction: column;
             align-items: flex-start;
@@ -294,49 +297,35 @@
 
         .wing-text {
             font-family: 'Share Tech Mono', monospace;
-            font-size: 10px;
+            font-size: 10.5px;
             letter-spacing: 2px;
-            color: var(--text-cyan);
+            color: #2c4d87;
             text-transform: uppercase;
-            margin-bottom: 6px;
+            margin-bottom: 7px;
             white-space: nowrap;
-            text-shadow: 0 0 6px rgba(0, 216, 246, 0.5);
+            font-weight: 700;
         }
 
-        .wing-line-bar {
-            width: 228px;
-            height: 1px;
-            background: rgba(0, 216, 246, 0.6);
-            position: relative;
-        }
-
+        /* SVG Wing lines with chamfer jog */
         .wing-pill-node {
             position: absolute;
-            left: 20px;
-            top: -2.5px;
+            left: 133px;
+            top: 277px;
             width: 15px;
-            height: 5px;
-            background: var(--cyan-glow);
+            height: 6px;
+            background: var(--cyan-bright);
             border-radius: 2px;
-            box-shadow: 0 0 6px var(--cyan-glow);
+            box-shadow: 0 0 8px rgba(0, 229, 255, 0.8);
+            z-index: 6;
+            pointer-events: none;
         }
 
-        .wing-end-dot {
-            position: absolute;
-            right: 0;
-            top: -1.5px;
-            width: 3.5px;
-            height: 3.5px;
-            background: var(--cyan-glow);
-            border-radius: 50%;
-        }
-
-        /* Right Wing at Exact Canva Coordinates (x: 630 to 824, y: 281) */
+        /* Right Wing at Exact Canva Coordinates */
         .wing-right-wrap {
             position: absolute;
-            left: 630px;
-            top: 265px;
-            width: 194px;
+            left: 636px;
+            top: 257px;
+            width: 251px;
             display: flex;
             flex-direction: column;
             align-items: flex-end;
@@ -344,29 +333,21 @@
             z-index: 5;
         }
 
-        .wing-right-wrap .wing-line-bar {
-            width: 194px;
+        .wing-right-wrap .wing-text {
+            margin-bottom: 7px;
         }
 
         .wing-dot-node {
             position: absolute;
-            right: 36px;
-            top: -2px;
-            width: 4.5px;
-            height: 4.5px;
-            background: var(--cyan-glow);
+            left: 852px;
+            top: 277px;
+            width: 6px;
+            height: 6px;
+            background: #0963fd;
             border-radius: 50%;
-            box-shadow: 0 0 6px var(--cyan-glow);
-        }
-
-        .wing-start-dot {
-            position: absolute;
-            left: 0;
-            top: -1.5px;
-            width: 3.5px;
-            height: 3.5px;
-            background: var(--cyan-glow);
-            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(9, 99, 253, 0.8);
+            z-index: 6;
+            pointer-events: none;
         }
 
         /* ======================================================== */
@@ -374,9 +355,9 @@
         /* ======================================================== */
         .telemetry-card-content {
             position: absolute;
-            left: 38px;
+            left: 20px;
             top: 462px;
-            width: 155px;
+            width: 180px;
             display: flex;
             align-items: flex-start;
             gap: 10px;
@@ -384,11 +365,11 @@
         }
 
         .telemetry-accent-pill {
-            width: 3px;
-            height: 50px;
+            width: 3.5px;
+            height: 56px;
             background: var(--cyan-glow);
             border-radius: 2px;
-            box-shadow: 0 0 8px var(--cyan-glow);
+            box-shadow: 0 0 8px rgba(0, 180, 240, 0.7);
             margin-top: 2px;
         }
 
@@ -408,9 +389,9 @@
         .telemetry-dot {
             width: 6px;
             height: 6px;
-            background: var(--cyan-glow);
+            background: var(--cyan-bright);
             border-radius: 50%;
-            box-shadow: 0 0 8px var(--cyan-glow);
+            box-shadow: 0 0 8px rgba(0, 229, 255, 0.8);
         }
 
         .telemetry-title {
@@ -441,23 +422,24 @@
             display: flex;
             align-items: center;
             gap: 7px;
-            color: var(--text-cyan);
+            color: var(--text-secondary);
             opacity: 0.95;
+            font-weight: 600;
         }
 
         .hud-icon {
             width: 12px;
             height: 12px;
             fill: none;
-            stroke: var(--cyan-glow);
+            stroke: var(--cyan-line);
             stroke-width: 2;
             stroke-linecap: round;
             stroke-linejoin: round;
         }
 
         .row-val {
-            color: #ffffff;
-            font-weight: 600;
+            color: #18346b;
+            font-weight: 700;
             letter-spacing: 1px;
             text-align: right;
             padding-left: 6px;
@@ -468,18 +450,18 @@
         /* ======================================================== */
         .action-btn-container {
             position: absolute;
-            left: 954px;
-            top: 472px;
-            width: 52px;
-            height: 52px;
-            background: #02141f;
+            left: 933px;
+            top: 463px;
+            width: 56px;
+            height: 56px;
+            background: #ffffff;
             border-radius: 50%;
-            border: 1.5px solid rgba(0, 216, 246, 0.45);
+            border: 1.5px solid rgba(0, 180, 240, 0.45);
             display: flex;
             justify-content: center;
             align-items: center;
             cursor: pointer;
-            box-shadow: 0 0 16px rgba(0, 229, 255, 0.35);
+            box-shadow: 0 0 20px rgba(0, 180, 240, 0.35), 0 4px 12px rgba(27, 49, 100, 0.1);
             transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
             overflow: hidden;
             pointer-events: auto;
@@ -488,22 +470,22 @@
 
         .action-neon-arc {
             position: absolute;
-            width: 54px;
-            height: 54px;
+            width: 58px;
+            height: 58px;
             border-radius: 50%;
             border: 2.5px solid transparent;
             border-top: 2.5px solid var(--cyan-glow);
             border-right: 2.5px solid var(--cyan-glow);
-            box-shadow: 0 0 8px var(--cyan-glow), 0 0 14px rgba(0, 229, 255, 0.5);
+            box-shadow: 0 0 8px var(--cyan-glow), 0 0 14px rgba(0, 180, 240, 0.5);
             pointer-events: none;
             transform: rotate(20deg);
             transition: opacity 0.3s ease;
         }
 
         .chat-icon {
-            width: 18px;
-            height: 18px;
-            fill: #ffffff;
+            width: 22px;
+            height: 22px;
+            fill: #18346b;
             transition: transform 0.3s ease, opacity 0.3s ease;
             position: relative;
             z-index: 2;
@@ -525,9 +507,9 @@
             right: 20px;
             width: 380px;
             border-radius: 26px;
-            background: rgba(2, 20, 31, 0.95);
+            background: rgba(255, 255, 255, 0.96);
             border-color: var(--cyan-glow);
-            box-shadow: 0 0 25px rgba(0, 229, 255, 0.5);
+            box-shadow: 0 0 25px rgba(0, 180, 240, 0.5);
             justify-content: space-between;
             padding: 0 16px 0 20px;
             cursor: default;
@@ -553,7 +535,7 @@
             opacity: 0;
             border: none;
             background: transparent;
-            color: #ffffff;
+            color: #18346b;
             font-family: 'Share Tech Mono', monospace;
             font-size: 14px;
             outline: none;
@@ -601,59 +583,64 @@
         .info-left-col::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 2px; }
 
         .info-card {
-            background: rgba(2, 18, 28, 0.85);
-            border: 1px solid rgba(0, 216, 246, 0.4);
+            background: rgba(255, 255, 255, 0.88);
+            border: 1px solid rgba(0, 180, 240, 0.4);
             border-radius: 8px;
             padding: 12px;
             display: flex;
             flex-direction: column;
             gap: 8px;
             backdrop-filter: blur(8px);
+            color: #18346b;
         }
         .info-card img {
             width: 100%;
             height: 110px;
             object-fit: cover;
             border-radius: 4px;
-            border: 1px solid rgba(0, 229, 255, 0.3);
+            border: 1px solid rgba(0, 180, 240, 0.3);
             cursor: pointer;
         }
         .info-card .source-txt {
             font-size: 11px;
-            color: var(--cyan-glow);
+            color: var(--text-cyan);
             font-family: 'Share Tech Mono', monospace;
             letter-spacing: 1px;
+            font-weight: 700;
         }
         .info-card .detail-txt {
             font-size: 12px;
-            opacity: 0.9;
+            opacity: 0.95;
             line-height: 1.4;
+            color: #18346b;
         }
 
         .info-right-col {
             flex: 1.2;
-            background: rgba(2, 18, 28, 0.85);
-            border: 1px solid rgba(0, 216, 246, 0.4);
+            background: rgba(255, 255, 255, 0.88);
+            border: 1px solid rgba(0, 180, 240, 0.4);
             border-radius: 12px;
             padding: 20px;
             display: flex;
             flex-direction: column;
             gap: 14px;
             backdrop-filter: blur(8px);
+            color: #18346b;
         }
         .info-right-col h2 {
             font-family: 'Share Tech Mono', sans-serif;
             font-size: 22px;
             font-weight: 700;
-            color: #ffffff;
+            color: #18346b;
             letter-spacing: 2px;
-            border-bottom: 1px solid rgba(0, 216, 246, 0.4);
+            border-bottom: 1px solid rgba(0, 180, 240, 0.4);
             padding-bottom: 8px;
         }
         .info-right-col p {
             font-size: 13.5px;
             line-height: 1.6;
-            opacity: 0.9;
+            opacity: 0.95;
+            color: #2c4d87;
             overflow-y: auto;
         }
 
@@ -661,7 +648,7 @@
         .deep-dive-panel {
             position: absolute;
             inset: 0;
-            background: rgba(2, 9, 14, 0.98);
+            background: rgba(240, 247, 254, 0.98);
             z-index: 40;
             display: flex;
             flex-direction: column;
@@ -692,7 +679,7 @@
         .dd-header {
             font-family: 'Share Tech Mono', sans-serif;
             font-size: 30px;
-            color: #ffffff;
+            color: #18346b;
             margin-bottom: 18px;
             text-transform: uppercase;
             letter-spacing: 3px;
@@ -701,19 +688,19 @@
         }
         .dd-content { display: flex; gap: 25px; height: calc(100% - 65px); }
         .dd-images { flex: 0.35; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; overflow-y: auto; align-content: start; }
-        .dd-images img { width: 100%; height: 130px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(0, 216, 246, 0.4); cursor: pointer; }
-        .dd-text { flex: 0.65; background: rgba(2, 18, 28, 0.85); border: 1px solid rgba(0, 216, 246, 0.4); border-radius: 12px; padding: 22px; overflow-y: auto; line-height: 1.7; font-size: 14.5px; }
-        .dd-text h3 { color: var(--cyan-glow); margin-top: 14px; margin-bottom: 6px; font-size: 17px; text-transform: uppercase; }
-        .dd-text p { margin-bottom: 10px; }
+        .dd-images img { width: 100%; height: 130px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(0, 180, 240, 0.4); cursor: pointer; }
+        .dd-text { flex: 0.65; background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0, 180, 240, 0.4); border-radius: 12px; padding: 22px; overflow-y: auto; line-height: 1.7; font-size: 14.5px; color: #18346b; }
+        .dd-text h3 { color: var(--text-cyan); margin-top: 14px; margin-bottom: 6px; font-size: 17px; text-transform: uppercase; }
+        .dd-text p { margin-bottom: 10px; color: #2c4d87; }
 
         /* Lightbox Modal */
         .img-modal {
-            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9);
+            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
             backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center;
             opacity: 0; pointer-events: none; z-index: 1000; transition: opacity 0.3s ease;
         }
         .img-modal.active { opacity: 1; pointer-events: auto; }
-        .img-modal img { max-width: 90%; max-height: 90%; border: 2px solid var(--cyan-glow); border-radius: 8px; box-shadow: 0 0 25px rgba(0, 229, 255, 0.6); }
+        .img-modal img { max-width: 90%; max-height: 90%; border: 2px solid var(--cyan-glow); border-radius: 8px; box-shadow: 0 0 25px rgba(0, 180, 240, 0.6); }
 
         /* Sporadic Glitch Effect on HUD Data */
         .glitch-active {
@@ -727,12 +714,12 @@
         }
         .glitch-active::before {
             left: 2px;
-            text-shadow: -2px 0 rgba(255, 0, 80, 0.8);
+            text-shadow: -2px 0 rgba(255, 0, 80, 0.7);
             animation: sporadic-glitch-1 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
         }
         .glitch-active::after {
             left: -2px;
-            text-shadow: -2px 0 rgba(0, 229, 255, 0.8);
+            text-shadow: -2px 0 rgba(0, 180, 240, 0.7);
             animation: sporadic-glitch-2 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite reverse;
         }
         @keyframes sporadic-glitch-1 {
@@ -759,62 +746,94 @@
         <svg class="hud-master-svg" viewBox="0 0 1024 575">
             <defs>
                 <filter id="hudGlow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="2" result="blur" />
+                    <feGaussianBlur stdDeviation="1.5" result="blur" />
                     <feMerge>
                         <feMergeNode in="blur" />
                         <feMergeNode in="SourceGraphic" />
                     </feMerge>
                 </filter>
+                <linearGradient id="cyanLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#38bdf8" />
+                    <stop offset="100%" stop-color="#0096c7" />
+                </linearGradient>
+                <linearGradient id="blOuterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#9d9eff" />
+                    <stop offset="45%" stop-color="#38bdf8" />
+                    <stop offset="100%" stop-color="#0096c7" />
+                </linearGradient>
+                <linearGradient id="brCornerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#00b4d8" />
+                    <stop offset="78%" stop-color="#38bdf8" />
+                    <stop offset="100%" stop-color="#8d76fa" />
+                </linearGradient>
+                <linearGradient id="trGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#38bdf8" />
+                    <stop offset="75%" stop-color="#0096c7" />
+                    <stop offset="100%" stop-color="#8d76fa" />
+                </linearGradient>
+                <linearGradient id="tlGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#0096c7" />
+                    <stop offset="70%" stop-color="#38bdf8" />
+                    <stop offset="100%" stop-color="#8d76fa" />
+                </linearGradient>
+                <linearGradient id="rwLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="rgba(0, 160, 240, 0.7)" />
+                    <stop offset="100%" stop-color="rgba(141, 118, 250, 0.7)" />
+                </linearGradient>
             </defs>
 
-            <!-- ================= TOP-LEFT CLOCK FRAME ================= -->
-            <!-- Clock card inner border: top line, chamfer down-right, step right -->
-            <path d="M 22 28 L 153 28 L 163 38 L 175 38" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
-            <!-- Bottom line: horizontal under date, chamfer up-right -->
-            <path d="M 22 66 L 135 66 L 148 53" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
-            <!-- Left border -->
-            <path d="M 22 28 L 22 66" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
-            <!-- Corner bracket with chamfer down-left and vertical drop -->
-            <path d="M 22 66 L 8 80 L 8 100" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
+            <!-- ================= TOP-LEFT CLOCK FRAME (Exact Hexagonal HUD Capsule) ================= -->
+            <!-- Top line at y=28, chamfers at x=168 down-right, bottom line at y=106, chamfer drop to (0, 142) -->
+            <path d="M 12 65 L 12 40 L 24 28 L 168 28 L 180 40 L 180 72 L 146 106 L 36 106 L 0 142" fill="none" stroke="url(#tlGrad)" stroke-width="1.5" />
             <!-- Three slanted slashes /// at the bottom-left chamfer -->
-            <g fill="#00e5ff" transform="translate(6, 73) skewX(-32)">
-                <rect x="0" y="0" width="3" height="7.5" rx="1" filter="url(#hudGlow)"/>
-                <rect x="5.5" y="0" width="3" height="7.5" rx="1" filter="url(#hudGlow)"/>
-                <rect x="11" y="0" width="3" height="7.5" rx="1" filter="url(#hudGlow)"/>
+            <g fill="#00b4d8" transform="translate(13, 91) skewX(-32)">
+                <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
+                <rect x="6" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
+                <rect x="12" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
             </g>
 
-            <!-- ================= TOP-RIGHT SYSTEM ONLINE ================= -->
-            <path d="M 898 28 L 1004 28 L 1014 38 L 1014 80 L 1011 80" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
+            <!-- ================= TOP-RIGHT SYSTEM ONLINE (Exact Hexagonal HUD Capsule) ================= -->
+            <path d="M 850 44 L 868 44" fill="none" stroke="url(#trGrad)" stroke-width="1.5" />
+            <path d="M 868 44 L 886 26 L 1004 26 L 1014 36 L 1014 58" fill="none" stroke="url(#trGrad)" stroke-width="1.5" />
+            <path d="M 868 44 L 886 62 L 1004 62 L 1014 72 L 1014 86 L 1024 96" fill="none" stroke="url(#trGrad)" stroke-width="1.5" />
 
-            <!-- ================= FAINT BACKGROUND CONCENTRIC ARCS ================= -->
-            <!-- Concentric guide circle at r=165px -->
-            <circle cx="512" cy="281" r="165" fill="none" stroke="rgba(0, 216, 246, 0.14)" stroke-width="1.2" />
-            <!-- Concentric top & bottom arc at r=208px -->
-            <path d="M 365 206 A 208 208 0 0 1 659 206" fill="none" stroke="rgba(0, 216, 246, 0.22)" stroke-width="1.2" />
-            <path d="M 365 356 A 208 208 0 0 0 659 356" fill="none" stroke="rgba(0, 216, 246, 0.22)" stroke-width="1.2" />
+            <!-- ================= CENTER REACTOR CARDINAL AXES & TICKS ================= -->
+            <path d="M 511 138 L 511 168 M 511 378 L 511 408" stroke="#0096c7" stroke-width="1.2" fill="none"/>
+            <circle cx="511" cy="151" r="3.5" fill="#0077b6"/>
+            <circle cx="511" cy="400" r="3.5" fill="#0077b6"/>
+            <circle cx="383" cy="274" r="3.5" fill="#0077b6"/>
+            <circle cx="638" cy="274" r="3.5" fill="#0077b6"/>
 
-            <!-- ================= BOTTOM-LEFT TELEMETRY FRAME ================= -->
-            <!-- Outer bottom-left corner line starting high up at y=412 -->
-            <path d="M 12 412 L 12 534 L 25 547 L 240 547" fill="none" stroke="rgba(0, 216, 246, 0.55)" stroke-width="1.5" />
-            <!-- Telemetry Card Frame Outline -->
-            <path d="M 40 448 L 26 462 L 26 510 L 36 520 L 180 520" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
-            <path d="M 40 448 L 145 448 L 160 463 L 200 463 L 212 475 L 212 510 L 222 520" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
-            <!-- Three slashes /// at the bottom right chamfer of card -->
-            <g fill="#00e5ff" transform="translate(182, 519) skewX(-32)">
-                <rect x="0" y="0" width="3" height="6.5" rx="1" filter="url(#hudGlow)"/>
-                <rect x="5.5" y="0" width="3" height="6.5" rx="1" filter="url(#hudGlow)"/>
-                <rect x="11" y="0" width="3" height="6.5" rx="1" filter="url(#hudGlow)"/>
+            <!-- ================= WINGS SVG PATHS WITH EXACT CHAMFER JOG ================= -->
+            <path d="M 126 280 L 336 280 L 346 274 L 383 274" stroke="rgba(0, 160, 240, 0.7)" stroke-width="1.5" fill="none"/>
+            <path d="M 638 274 L 677 274 L 687 280 L 887 280" stroke="url(#rwLineGrad)" stroke-width="1.5" fill="none"/>
+
+            <!-- ================= BOTTOM-LEFT TELEMETRY FRAME (Exact Canva Paths) ================= -->
+            <!-- Outer corner baseline: starts at (0, 400), down to (12, 532), chamfer to (24, 544), baseline to (245, 544), step up to (305, 536) -->
+            <path d="M 0 400 L 12 412 L 12 532 L 24 544 L 245 544 L 253 536 L 305 536" fill="none" stroke="url(#blOuterGrad)" stroke-width="1.5" />
+            <!-- Telemetry card frame: top line at y=442, chamfer down to y=462, diagonal down to baseline -->
+            <path d="M 24 452 L 34 442 L 160 442 L 178 460 L 246 460 L 320 534 L 330 544" fill="none" stroke="#00b4d8" stroke-width="1.5" />
+            <path d="M 24 452 L 24 516 L 34 526 L 110 526" fill="none" stroke="#00b4d8" stroke-width="1.5" />
+            
+            <!-- Three slashes /// at the bottom right of telemetry card -->
+            <g fill="#00b4d8" transform="translate(225, 537) skewX(-32)">
+                <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
+                <rect x="6.5" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
+                <rect x="13" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
             </g>
 
-            <!-- ================= BOTTOM-RIGHT BRACKET ================= -->
-            <!-- Outer baseline from x=862 to 998 at y=547, chamfers to (1014, 531), goes up to y=480 -->
-            <path d="M 862 547 L 998 547 L 1014 531 L 1014 480" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
+            <!-- ================= BOTTOM-RIGHT BRACKET & ACTION BUTTON RING ================= -->
+            <!-- Outer baseline and chamfer corner -->
+            <path d="M 775 547 L 785 539 L 880 539 L 880 542 L 1004 542 L 1014 532 L 1014 480 L 1010 476 L 1010 460 L 1024 446" fill="none" stroke="url(#brCornerGrad)" stroke-width="1.5" />
             <!-- Three slanted slashes /// on the horizontal baseline -->
-            <g fill="#00e5ff" transform="translate(925, 546) skewX(-32)">
-                <rect x="0" y="0" width="3" height="7" rx="1" filter="url(#hudGlow)"/>
-                <rect x="5.5" y="0" width="3" height="7" rx="1" filter="url(#hudGlow)"/>
-                <rect x="11" y="0" width="3" height="7" rx="1" filter="url(#hudGlow)"/>
+            <g fill="#00b4d8" transform="translate(865, 533) skewX(-32)">
+                <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
+                <rect x="6.5" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
+                <rect x="13" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
             </g>
+            <!-- Delicate Outer Circle Ring around Action Button -->
+            <circle cx="961" cy="491" r="35" fill="none" stroke="rgba(0, 180, 240, 0.35)" stroke-width="1.2"/>
+            <path d="M 961 456 A 35 35 0 0 1 996 491" fill="none" stroke="#00e5ff" stroke-width="2.2" filter="url(#hudGlow)"/>
         </svg>
 
         <!-- Four Coordinate Crosshairs '+' -->
@@ -845,16 +864,14 @@
         <!-- Main Stage (Center Reactor + Wings) -->
         <div class="main-stage">
             
-            <!-- Left Wing at Canva Coordinates (x: 164 to 393, y: 281) -->
+            <!-- Left Wing Text -->
             <div class="wing-left-wrap">
                 <div class="wing-text">THINK &nbsp;/&nbsp; ANALYZE &nbsp;/&nbsp; EXECUTE</div>
-                <div class="wing-line-bar">
-                    <div class="wing-pill-node"></div>
-                    <div class="wing-end-dot"></div>
-                </div>
             </div>
+            <!-- Pill Node on Left Wing -->
+            <div class="wing-pill-node"></div>
 
-            <!-- Center Rotating HUD Reactor (Using circle.png at 512, 281) -->
+            <!-- Center Rotating HUD Reactor (Using circle.png at 511, 274) -->
             <div class="hud-cluster">
                 <div class="circle-rotating-wrap">
                     <img src="circle.png" class="circle-image" alt="HYDRA Core">
@@ -864,14 +881,12 @@
                 </div>
             </div>
 
-            <!-- Right Wing at Canva Coordinates (x: 630 to 824, y: 281) -->
+            <!-- Right Wing Text -->
             <div class="wing-right-wrap">
                 <div class="wing-text">YOUR AI ASSISTANT</div>
-                <div class="wing-line-bar">
-                    <div class="wing-dot-node"></div>
-                    <div class="wing-start-dot"></div>
-                </div>
             </div>
+            <!-- Dot Node on Right Wing -->
+            <div class="wing-dot-node"></div>
 
         </div>
 
@@ -918,13 +933,13 @@
             <!-- Chat Bubble Icon with cutout lines matching Canva -->
             <svg class="chat-icon" id="iconAction" viewBox="0 0 24 24">
                 <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-                <line x1="7" y1="8" x2="15" y2="8" stroke="#02141f" stroke-width="2" stroke-linecap="round"/>
-                <line x1="7" y1="12" x2="17" y2="12" stroke="#02141f" stroke-width="2" stroke-linecap="round"/>
+                <line x1="7" y1="8" x2="15" y2="8" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+                <line x1="7" y1="12" x2="17" y2="12" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
             </svg>
 
             <!-- Send Icon -->
             <svg class="send-icon" id="btnSend" viewBox="0 0 24 24">
-                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="#00e5ff"/>
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="#00b4d8"/>
             </svg>
         </div>
 
