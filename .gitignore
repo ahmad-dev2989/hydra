@@ -1,0 +1,21 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local environment & secrets
+.env
+.venv/
+venv/
+ENV/
+
+# Database files
+*.db
+*.db-wal
+*.db-shm
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/

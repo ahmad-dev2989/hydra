@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- FIX: Bypasses Wikipedia's image hotlinking protection so real images load -->
+    <meta name="referrer" content="no-referrer"> 
+    <title>HYDRA FULL HUD</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        body {
+            background-color: #05131a;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            color: #ffffff;
+            position: relative;
+        }
+
+        .bg-grid {
+            position: absolute;
+            width: 92vw;
+            height: 92vh;
+            background-image: 
+                linear-gradient(rgba(33, 158, 188, 0.15) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(33, 158, 188, 0.15) 1px, transparent 1px);
+            background-size: 50px 50px;
+            background-position: center;
+            mask-image: radial-gradient(circle, rgba(0, 0, 0, 1) 50%, rgba(0, 0, 0, 0) 95%);
+            -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 1) 50%, rgba(0, 0, 0, 0) 95%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .hud-cluster {
+            position: relative;
+            width: 450px; 
+            height: 450px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform: translateZ(0);
+            z-index: 10;
+        }
+
+        .circle-image {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 50%;
+            box-shadow: 0 0 35px rgba(33, 158, 188, 0.4);
+            z-index: 1;
+            image-rendering: -webkit-optimize-contrast;
+        }
+
+        .anim-ring-1 {
+            position: absolute;
+            width: 88%;
+            height: 88%;
+            border: 1px dashed rgba(33, 158, 188, 0.35);
+            border-radius: 50%;
+            z-index: 2;
+            animation: spin-clockwise 50s linear infinite;
+        }
+
+        .anim-ring-2 {
+            position: absolute;
+            width: 78%;
+            height: 78%;
+            border: 2px solid transparent;
+            border-top: 2px solid rgba(255, 183, 3, 0.4);
+            border-bottom: 2px solid rgba(255, 183, 3, 0.4);
+            border-radius: 50%;
+            z-index: 3;
+            animation: spin-counter 30s linear infinite;
+        }
+
+        .core {
+            position: absolute;
+            width: 38%; 
+            height: 38%; 
+            background-color: #07171f; 
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #1a5b75; 
+            z-index: 10;
+        }
+
+        .core h1 {
+            color: #ffffff;
+            font-size: 32px; 
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-align: center;
+        }
+
+        .status-icon-btn {
+            position: fixed; 
+            bottom: 40px;
+            right: 40px;
+            width: 64px;
+            height: 64px;
+            background: rgba(255, 255, 255, 0.08); 
+            backdrop-filter: blur(6px); 
+            border-radius: 32px;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1), border-radius 0.4s;
+            z-index: 100;
+            pointer-events: auto;
+            overflow: hidden;
+        }
+
+        .status-icon-btn.expanded {
+            width: 380px;
+            border-radius: 16px;
+            cursor: default;
+        }
+
+        .cmd-input {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            opacity: 0;
+            border: none;
+            background: transparent;
+            color: #ffffff;
+            font-size: 16px;
+            font-family: inherit;
+            outline: none;
+            transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.2s;
+        }
+
+        .status-icon-btn.expanded .cmd-input {
+            width: 290px;
+            opacity: 1;
+            transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s 0.1s;
+        }
+
+        .icon-wrap {
+            position: absolute;
+            right: 16px;
+            top: 15px;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+        }
+
+        .chat-icon-svg, .send-icon-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            fill: #ffffff;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s;
+        }
+
+        .send-icon-svg {
+            opacity: 0;
+            transform: scale(0.5) rotate(-45deg);
+        }
+
+        .status-icon-btn.expanded .chat-icon-svg {
+            opacity: 0;
+            transform: scale(0.5) rotate(45deg);
+        }
+
+        .status-icon-btn.expanded .send-icon-svg {
+            opacity: 0.9;
+            transform: scale(1) rotate(0deg);
+        }
+
+        @keyframes spin-clockwise {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes spin-counter {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(-360deg); }
+        }
+
+        .hud-data {
+            position: absolute;
+            font-family: 'Courier New', Courier, monospace;
+            color: rgba(33, 158, 188, 0.9);
+            letter-spacing: 2px;
+            z-index: 50;
+            text-shadow: 0 0 8px rgba(33, 158, 188, 0.6);
+        }
+        
+        .top-left { top: 30px; left: 30px; }
+        .bottom-left { bottom: 30px; left: 30px; }
+        
+        .time-text {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 2px;
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(33, 158, 188, 0.8);
+        }
+
+        .date-text {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .net-text {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        /* Slide & Information Panel Visuals (image_7fab4a.jpg layout) */
+        .main-stage {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .main-stage.swiped-left {
+            transform: translateX(-35vw);
+        }
+
+        .info-panel {
+            position: absolute;
+            right: 5vw;
+            top: 10vh;
+            width: 52vw;
+            height: 80vh;
+            opacity: 0;
+            pointer-events: none;
+            display: flex;
+            gap: 24px;
+            transition: opacity 0.4s ease-in-out 0.2s;
+        }
+
+        .main-stage.swiped-left ~ .info-panel {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .info-left-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            max-height: 100%;
+            padding-right: 8px;
+        }
+
+        .info-left-col::-webkit-scrollbar {
+            width: 4px;
+        }
+        .info-left-col::-webkit-scrollbar-thumb {
+            background: rgba(33, 158, 188, 0.4);
+            border-radius: 2px;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(33, 158, 188, 0.2);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .info-card img {
+            width: 100%;
+            height: 110px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .info-card .source-txt {
+            font-size: 12px;
+            color: #219ebc;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .info-card .detail-txt {
+            font-size: 11px;
+            opacity: 0.85;
+            line-height: 1.3;
+        }
+
+        .info-right-col {
+            flex: 1.1;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .info-right-col h2 {
+            font-size: 36px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 1px;
+        }
+
+        .info-right-col p {
+            font-size: 14px;
+            line-height: 1.6;
+            opacity: 0.9;
+            overflow-y: auto;
+        }
+        
+        /* The Glitch Engine */
+        .glitch-active {
+            position: relative;
+        }
+        
+        .glitch-active::before, .glitch-active::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #05131a;
+        }
+        
+        .glitch-active::before {
+            left: 2px;
+            text-shadow: -2px 0 rgba(255, 0, 0, 0.8);
+            animation: sporadic-glitch-1 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
+        }
+        
+        .glitch-active::after {
+            left: -2px;
+            text-shadow: -2px 0 rgba(0, 255, 255, 0.8);
+            animation: sporadic-glitch-2 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite reverse;
+        }
+        
+        @keyframes sporadic-glitch-1 {
+            0% { clip-path: inset(20% 0 80% 0); transform: translate(-2px, 1px); }
+            20% { clip-path: inset(60% 0 10% 0); transform: translate(2px, -1px); }
+            40% { clip-path: inset(40% 0 50% 0); transform: translate(-2px, 2px); }
+            60% { clip-path: inset(80% 0 5% 0); transform: translate(2px, -2px); }
+            80% { clip-path: inset(10% 0 70% 0); transform: translate(-1px, 1px); }
+            100% { clip-path: inset(30% 0 50% 0); transform: translate(1px, -1px); }
+        }
+        
+        @keyframes sporadic-glitch-2 {
+            0% { clip-path: inset(10% 0 60% 0); transform: translate(2px, -1px); }
+            20% { clip-path: inset(30% 0 20% 0); transform: translate(-2px, 1px); }
+            40% { clip-path: inset(70% 0 10% 0); transform: translate(2px, -2px); }
+            60% { clip-path: inset(20% 0 50% 0); transform: translate(-2px, 2px); }
+            80% { clip-path: inset(50% 0 30% 0); transform: translate(1px, -1px); }
+            100% { clip-path: inset(5% 0 80% 0); transform: translate(-1px, 1px); }
+        }
+
+        /* --- Image Lightbox Modal --- */
+        .img-modal {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px);
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+        .img-modal.active { opacity: 1; pointer-events: auto; }
+        .img-modal img { max-width: 90%; max-height: 90%; border: 2px solid #219ebc; border-radius: 8px; box-shadow: 0 0 20px rgba(33,158,188,0.5); }
+        
+        /* --- Deep Dive Panel --- */
+        .deep-dive-panel {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(5, 13, 18, 0.98); z-index: 40;
+            display: flex; flex-direction: column; opacity: 0; pointer-events: none;
+            transform: translateX(100vw); transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s;
+            padding: 40px; box-sizing: border-box; overflow: hidden;
+        }
+        /* When active, slide deep dive in, and swipe EVERYTHING else way out left */
+        .deep-dive-active .deep-dive-panel { opacity: 1; pointer-events: auto; transform: translateX(0); }
+        .deep-dive-active .hud-cluster, .deep-dive-active #dateTimeHUD, .deep-dive-active #networkHUD, .deep-dive-active .info-panel {
+            transform: translateX(-150vw) !important; opacity: 0; transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s;
+        }
+        
+        .dd-header { font-size: 42px; color: #fff; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; border-bottom: 2px solid #219ebc; padding-bottom: 10px;}
+        .dd-content { display: flex; gap: 30px; height: calc(100% - 80px); }
+        .dd-images { flex: 0.35; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; overflow-y: auto; align-content: start; }
+        .dd-images img { width: 100%; height: 160px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(33,158,188,0.4); cursor: pointer; transition: transform 0.2s; }
+        .dd-images img:hover { transform: scale(1.03); border-color: #219ebc; }
+        .dd-text { flex: 0.65; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 30px; overflow-y: auto; color: #e0e0e0; line-height: 1.7; font-size: 16px; }
+        .dd-text h3 { color: #219ebc; margin-top: 20px; margin-bottom: 10px; font-size: 24px; text-transform: uppercase; }
+        .dd-text p { margin-bottom: 15px; }
+        
+        /* Custom scrollbars for Deep Dive */
+        .dd-text::-webkit-scrollbar, .dd-images::-webkit-scrollbar { width: 6px; }
+        .dd-text::-webkit-scrollbar-thumb, .dd-images::-webkit-scrollbar-thumb { background: rgba(33, 158, 188, 0.5); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-grid"></div>
+
+    <div id="dateTimeHUD" class="hud-data top-left target-glitch">
+        <div id="hudTime" class="time-text" data-text="--:--:--">--:--:--</div>
+        <div id="hudDate" class="date-text" data-text="-- --- ----">-- --- ----</div>
+    </div>
+    
+    <div id="networkHUD" class="hud-data bottom-left target-glitch">
+        <div id="hudNetStatus" class="net-text" data-text="SYS.NET: ANALYZING">SYS.NET: ANALYZING</div>
+        <div id="hudSSID" class="net-text" data-text="SSID: --">SSID: --</div>
+        <div id="hudSignal" class="net-text" data-text="SIGNAL: --%">SIGNAL: --%</div>
+        <div id="hudSpeed" class="net-text" data-text="RATE: -- Mbps">RATE: -- Mbps</div>
+    </div>
+
+    <div class="hud-cluster">
+        <img src="circle.png" alt="HYDRA circle asset" class="circle-image">
+        <div class="anim-ring-1"></div>
+        <div class="anim-ring-2"></div>
+        <div class="core">
+            <h1>HYDRA</h1>
+        </div>
+    </div>
+
+    <div class="status-icon-btn" id="containerBtn">
+        <input type="text" class="cmd-input" id="cmdInput" placeholder="Enter system command..." autocomplete="off">
+        <div class="icon-wrap" id="iconAction">
+            <svg class="chat-icon-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C6.48 2 2 5.91 2 10.75C2 13.57 3.51 16.03 5.86 17.65L4.5 21.5L8.53 19.46C9.64 19.82 10.8 20 12 20C17.52 20 22 16.09 22 11.25C22 6.41 17.52 2.5 12 2.5V2ZM16 11H8V9H16V11ZM13 15H8V13H13V15Z"/>
+            </svg>
+            <svg class="send-icon-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+        </div>
+    </div>
+
+    <script>
+        const containerBtn = document.getElementById('containerBtn');
+        const cmdInput = document.getElementById('cmdInput');
+        const iconAction = document.getElementById('iconAction');
+
+        containerBtn.addEventListener('click', function(e) {
+            if (!containerBtn.classList.contains('expanded')) {
+                containerBtn.classList.add('expanded');
+                cmdInput.focus();
+            }
+        });
+
+        iconAction.addEventListener('click', function(e) {
+            if (containerBtn.classList.contains('expanded')) {
+                e.stopPropagation();
+                submitCommand();
+            }
+        });
+
+        cmdInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                submitCommand();
+            } else if (e.key === 'Escape') {
+                cmdInput.value = '';
+                containerBtn.classList.remove('expanded');
+                cmdInput.blur();
+            }
+        });
+
+        function submitCommand() {
+            const command = cmdInput.value.trim();
+            if (command) {
+                console.log("HYDRA_CMD:" + command);
+                cmdInput.value = '';
+                containerBtn.classList.remove('expanded');
+                cmdInput.blur();
+            }
+        }
+
+        function setCoreText(text) {
+            document.querySelector('.core h1').innerText = text;
+        }
+        
+        function updateHUD() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+            const timeStr = now.toLocaleTimeString('en-GB', { hour12: false });
+            
+            const hudTime = document.getElementById('hudTime');
+            const hudDate = document.getElementById('hudDate');
+            
+            hudTime.innerText = timeStr;
+            hudTime.setAttribute('data-text', timeStr);
+            
+            hudDate.innerText = dateStr;
+            hudDate.setAttribute('data-text', dateStr);
+            
+            // Network updates are now pushed directly from Python via updateRealNetwork()
+        }
+        
+        function updateRealNetwork(ssid, signal, speed) {
+            const netStr = ssid === 'DISCONNECTED' ? 'SYS.NET: OFFLINE' : 'SYS.NET: SECURE (ONLINE)';
+            
+            const hudNetStatus = document.getElementById('hudNetStatus');
+            hudNetStatus.innerText = netStr;
+            hudNetStatus.setAttribute('data-text', netStr);
+            
+            const hudSSID = document.getElementById('hudSSID');
+            hudSSID.innerText = 'SSID: ' + ssid;
+            hudSSID.setAttribute('data-text', 'SSID: ' + ssid);
+            
+            const hudSignal = document.getElementById('hudSignal');
+            hudSignal.innerText = 'SIGNAL: ' + signal;
+            hudSignal.setAttribute('data-text', 'SIGNAL: ' + signal);
+            
+            const hudSpeed = document.getElementById('hudSpeed');
+            hudSpeed.innerText = 'RATE: ' + speed;
+            hudSpeed.setAttribute('data-text', 'RATE: ' + speed);
+        }
+        
+        setInterval(updateHUD, 1000);
+        updateHUD();
+
+        // 10-Second Random Sporadic Glitch Trigger
+        setInterval(() => {
+            const elements = document.querySelectorAll('.target-glitch > div');
+            elements.forEach(el => el.classList.add('glitch-active'));
+            
+            // Remove the glitch effect after 400 milliseconds
+            setTimeout(() => {
+                elements.forEach(el => el.classList.remove('glitch-active'));
+            }, 400);
+            
+        }, 10000); // Triggers exactly every 10 seconds
+        function triggerScreenSwipe(active) {
+            const stage = document.querySelector('body > :not(.bg-grid):not(.status-icon-btn):not(.info-panel)');
+            // Wrap HUD cluster and HUD data in a common selector or toggle class directly:
+            document.getElementById('dateTimeHUD').classList.toggle('swiped-left-el', active);
+            document.getElementById('networkHUD').classList.toggle('swiped-left-el', active);
+            document.querySelector('.hud-cluster').style.transform = active ? 'translateX(-22vw) scale(0.85)' : 'translateX(0) scale(1)';
+            document.querySelector('.hud-cluster').style.transition = 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
+            document.getElementById('infoPanel').style.opacity = active ? '1' : '0';
+            document.getElementById('infoPanel').style.pointerEvents = active ? 'auto' : 'none';
+        }
+
+        function populateInfoHUD(title, text, items) {
+            document.body.classList.remove('deep-dive-active'); // Ensure we aren't stuck in deep dive
+            setTimeout(() => {
+                document.getElementById('infoTitle').innerText = title;
+                document.getElementById('infoDescription').innerText = text;
+                const leftCol = document.getElementById('infoLeftCol');
+                leftCol.innerHTML = '';
+                items.forEach(item => {
+                    let imgSrc = item.img ? item.img : 'circle.png';
+                    leftCol.innerHTML += `
+                        <div class="info-card">
+                            <!-- Added click to open lightbox -->
+                            <img src="${imgSrc}" alt="Source preview" onerror="this.onerror=null; this.src='circle.png';" onclick="openImageModal(this.src)">
+                            <div class="source-txt">${item.source || 'HYDRA ARCHIVE'}</div>
+                            <div class="detail-txt">${item.desc}</div>
+                        </div>`;
+                });
+                triggerScreenSwipe(true);
+            }, 450); 
+        }
+
+        function resetScreenSwipe() {
+            document.body.classList.remove('deep-dive-active');
+            triggerScreenSwipe(false);
+        }
+
+        // --- NEW: Image Modal Lightbox ---
+        function openImageModal(src) {
+            if (src.includes('circle.png')) return; // Ignore fallback image
+            document.getElementById('modalImg').src = src;
+            document.getElementById('imgModal').classList.add('active');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imgModal').classList.remove('active');
+        }
+
+        // --- NEW: Build the Deep Dive HUD ---
+        function openDeepDiveHUD(title, htmlContent, imagesList) {
+            document.getElementById('ddTitle').innerText = title;
+            document.getElementById('ddText').innerHTML = htmlContent;
+            
+            const imgContainer = document.getElementById('ddImages');
+            imgContainer.innerHTML = '';
+            imagesList.forEach(src => {
+                if (src && !src.includes('circle.png')) {
+                    imgContainer.innerHTML += `<img src="${src}" onclick="openImageModal(this.src)" onerror="this.style.display='none'">`;
+                }
+            });
+
+            // This triggers the massive swipe left
+            document.body.classList.add('deep-dive-active');
+        }
+    </script>
+
+    <!-- Quick Info Panel -->
+    <div class="info-panel" id="infoPanel">
+        <div class="info-left-col" id="infoLeftCol"></div>
+        <div class="info-right-col">
+            <h2 id="infoTitle">Information</h2>
+            <p id="infoDescription">Awaiting query parameters...</p>
+        </div>
+    </div>
+
+    <!-- NEW: Full Screen Deep Dive Panel -->
+    <div class="deep-dive-panel" id="deepDivePanel">
+        <div class="dd-header" id="ddTitle">Target Analysis</div>
+        <div class="dd-content">
+            <div class="dd-images" id="ddImages"></div>
+            <div class="dd-text" id="ddText">Loading deeper context...</div>
+        </div>
+    </div>
+
+    <!-- NEW: Full Screen Image Lightbox -->
+    <div class="img-modal" id="imgModal" onclick="closeImageModal()">
+        <!-- StopPropagation prevents clicking the image from instantly closing the modal -->
+        <img id="modalImg" src="" alt="Expanded View" onclick="event.stopPropagation();">
+    </div>
+</body>
+</html>
