@@ -162,22 +162,23 @@
         /* ======================================================== */
         .status-content {
             position: absolute;
-            left: 884px;
-            top: 40px;
+            left: 888px;
+            top: 44px;
+            transform: translateY(-50%);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 6px;
             z-index: 20;
             pointer-events: auto;
             white-space: nowrap;
         }
 
         .status-dot {
-            width: 7.5px;
-            height: 7.5px;
+            width: 6px;
+            height: 6px;
             background-color: var(--cyan-bright);
             border-radius: 50%;
-            box-shadow: 0 0 8px var(--cyan-bright), 0 0 16px rgba(0, 229, 255, 0.7);
+            box-shadow: 0 0 6px var(--cyan-bright), 0 0 12px rgba(0, 229, 255, 0.6);
             animation: pulse-dot 2.5s ease-in-out infinite;
             flex-shrink: 0;
         }
@@ -189,8 +190,8 @@
 
         .status-label {
             font-family: 'Share Tech Mono', monospace;
-            font-size: 11.5px;
-            letter-spacing: 2.5px;
+            font-size: 8.5px;
+            letter-spacing: 1.2px;
             color: #18346b;
             text-transform: uppercase;
             font-weight: 700;
@@ -450,84 +451,83 @@
         /* ======================================================== */
         .action-btn-container {
             position: absolute;
-            left: 933px;
+            right: 35px;
             top: 463px;
             width: 56px;
             height: 56px;
             background: #ffffff;
-            border-radius: 50%;
+            border-radius: 28px;
             border: 1.5px solid rgba(0, 180, 240, 0.45);
             display: flex;
             justify-content: center;
             align-items: center;
             cursor: pointer;
-            box-shadow: 0 0 20px rgba(0, 180, 240, 0.35), 0 4px 12px rgba(27, 49, 100, 0.1);
-            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 4px 16px rgba(0, 180, 240, 0.2), 0 2px 6px rgba(27, 49, 100, 0.08);
+            transition: width 0.42s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease;
             overflow: hidden;
             pointer-events: auto;
             z-index: 100;
         }
 
-        .action-neon-arc {
-            position: absolute;
-            width: 58px;
-            height: 58px;
-            border-radius: 50%;
-            border: 2.5px solid transparent;
-            border-top: 2.5px solid var(--cyan-glow);
-            border-right: 2.5px solid var(--cyan-glow);
-            box-shadow: 0 0 8px var(--cyan-glow), 0 0 14px rgba(0, 180, 240, 0.5);
-            pointer-events: none;
-            transform: rotate(20deg);
-            transition: opacity 0.3s ease;
+        .action-btn-container:hover {
+            box-shadow: 0 6px 20px rgba(0, 180, 240, 0.35), 0 2px 8px rgba(27, 49, 100, 0.12);
+            border-color: var(--cyan-glow);
         }
 
         .chat-icon {
+            position: absolute;
             width: 22px;
             height: 22px;
             fill: #18346b;
-            transition: transform 0.3s ease, opacity 0.3s ease;
-            position: relative;
+            opacity: 1;
+            transform: scale(1);
+            transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
             z-index: 2;
         }
 
         .send-icon {
             position: absolute;
+            right: 18px;
             width: 18px;
             height: 18px;
+            fill: #18346b;
             opacity: 0;
-            transform: scale(0.4) rotate(-30deg);
-            transition: all 0.3s ease;
+            transform: scale(0.6) rotate(-15deg);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease, fill 0.2s ease;
             z-index: 2;
+            pointer-events: none;
         }
 
-        /* Expanded State for Command Entry */
+        /* Expanded State for Command Entry - Smooth, Classy, Minimalist */
         .action-btn-container.expanded {
-            left: auto;
-            right: 20px;
             width: 380px;
-            border-radius: 26px;
-            background: rgba(255, 255, 255, 0.96);
-            border-color: var(--cyan-glow);
-            box-shadow: 0 0 25px rgba(0, 180, 240, 0.5);
-            justify-content: space-between;
+            border-radius: 28px;
+            background: rgba(255, 255, 255, 0.98);
+            border-color: #00b4d8;
+            box-shadow: 0 6px 24px rgba(0, 180, 240, 0.35), 0 2px 8px rgba(27, 49, 100, 0.1);
+            justify-content: flex-start;
             padding: 0 16px 0 20px;
             cursor: default;
         }
 
-        .action-btn-container.expanded .action-neon-arc {
-            opacity: 0;
-        }
-
         .action-btn-container.expanded .chat-icon {
-            display: none;
+            opacity: 0;
+            transform: scale(0.6) rotate(12deg);
+            pointer-events: none;
         }
 
         .action-btn-container.expanded .send-icon {
-            position: static;
-            opacity: 1;
+            opacity: 0.85;
             transform: scale(1) rotate(0deg);
             cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.08s, opacity 0.25s ease 0.08s, fill 0.2s ease;
+        }
+
+        .action-btn-container.expanded .send-icon:hover {
+            opacity: 1;
+            fill: #0077b6;
+            transform: scale(1.12);
         }
 
         .cmd-text-input {
@@ -537,15 +537,28 @@
             background: transparent;
             color: #18346b;
             font-family: 'Share Tech Mono', monospace;
-            font-size: 14px;
+            font-size: 13.5px;
             outline: none;
-            letter-spacing: 1px;
-            transition: width 0.35s ease, opacity 0.25s ease;
+            letter-spacing: 0.8px;
+            pointer-events: none;
+            padding-left: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            transition: width 0.38s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease;
+        }
+
+        .cmd-text-input::placeholder {
+            color: rgba(24, 52, 107, 0.45);
+            font-size: 13px;
+            letter-spacing: 0.8px;
         }
 
         .action-btn-container.expanded .cmd-text-input {
-            width: 310px;
+            width: calc(100% - 44px);
             opacity: 1;
+            pointer-events: auto;
+            padding-left: 4px;
+            transition: width 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.04s, opacity 0.28s ease 0.1s;
         }
 
         /* ======================================================== */
@@ -831,9 +844,6 @@
                 <rect x="6.5" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
                 <rect x="13" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
             </g>
-            <!-- Delicate Outer Circle Ring around Action Button -->
-            <circle cx="961" cy="491" r="35" fill="none" stroke="rgba(0, 180, 240, 0.35)" stroke-width="1.2"/>
-            <path d="M 961 456 A 35 35 0 0 1 996 491" fill="none" stroke="#00e5ff" stroke-width="2.2" filter="url(#hudGlow)"/>
         </svg>
 
         <!-- Four Coordinate Crosshairs '+' -->
@@ -926,8 +936,6 @@
 
         <!-- Bottom-Right Action Button -->
         <div class="action-btn-container" id="containerBtn">
-            <div class="action-neon-arc"></div>
-            
             <input type="text" class="cmd-text-input" id="cmdInput" placeholder="Enter system command..." autocomplete="off">
 
             <!-- Chat Bubble Icon with cutout lines matching Canva -->
@@ -999,6 +1007,13 @@
                 submitCommand();
             } else if (e.key === 'Escape') {
                 cmdInput.value = '';
+                containerBtn.classList.remove('expanded');
+                cmdInput.blur();
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (containerBtn.classList.contains('expanded') && !containerBtn.contains(e.target)) {
                 containerBtn.classList.remove('expanded');
                 cmdInput.blur();
             }
