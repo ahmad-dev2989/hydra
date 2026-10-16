@@ -4,6 +4,11 @@ echo ========================================================
 echo Launching HYDRA System Interface
 echo Powered by Nebius Token Factory ^& NVIDIA Nemotron
 echo ========================================================
-call .venv\Scripts\activate.bat
-python main.py
-pause
+if exist ".venv\Scripts\python.exe" (
+    ".venv\Scripts\python.exe" main.py
+) else if exist "%LocalAppData%\Programs\Python\Python312\python.exe" (
+    "%LocalAppData%\Programs\Python\Python312\python.exe" main.py
+) else (
+    python main.py
+)
+if errorlevel 1 pause
