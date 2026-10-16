@@ -11,13 +11,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #000e18;
+            --bg-color: #000d17;
             --cyan-glow: #00e5ff;
             --cyan-line: #00d8f6;
             --cyan-dim: rgba(0, 216, 246, 0.4);
-            --card-bg: rgba(1, 14, 23, 0.9);
+            --card-bg: rgba(1, 14, 23, 0.92);
             --text-primary: #ffffff;
             --text-cyan: #00d8f6;
+            --hud-scale: 1;
         }
 
         * {
@@ -28,100 +29,104 @@
             -webkit-user-drag: none;
         }
 
-        body {
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
             background-color: var(--bg-color);
             background-image: 
-                radial-gradient(circle at center, rgba(0, 42, 65, 0.3) 0%, transparent 70%),
-                radial-gradient(circle at 12% 88%, rgba(0, 180, 216, 0.06) 0%, transparent 45%);
-            height: 100vh;
-            width: 100vw;
+                radial-gradient(circle at 50% 50%, rgba(0, 75, 115, 0.22) 0%, rgba(0, 30, 50, 0.08) 50%, transparent 75%),
+                radial-gradient(circle at 10% 90%, rgba(0, 180, 216, 0.05) 0%, transparent 45%);
             display: flex;
             justify-content: center;
             align-items: center;
             font-family: 'Share Tech Mono', 'Rajdhani', monospace, sans-serif;
-            overflow: hidden;
             color: var(--text-primary);
-            position: relative;
         }
 
-        /* Subtle Background Grid */
+        /* 1024x575 Native Canva Composition Viewport */
+        .hud-viewport {
+            position: absolute;
+            width: 1024px;
+            height: 575px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(var(--hud-scale, 1));
+            transform-origin: center center;
+            overflow: visible;
+        }
+
+        /* Visible Futuristic Cyan Background Grid in Light Form */
         .bg-grid {
             position: absolute;
             inset: 0;
+            width: 1024px;
+            height: 575px;
             background-image: 
-                linear-gradient(rgba(0, 216, 246, 0.045) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 216, 246, 0.045) 1px, transparent 1px);
+                linear-gradient(rgba(0, 216, 246, 0.12) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 216, 246, 0.12) 1px, transparent 1px);
             background-size: 50px 50px;
-            background-position: center;
+            background-position: 512px 281px;
             z-index: 1;
             pointer-events: none;
         }
 
-        /* Coordinate Crosshairs at Key Quadrant Nodes */
-        .crosshair {
+        /* Master Full-Canvas 1024x575 Vector Overlays (Exact Canva Paths) */
+        .hud-master-svg {
             position: absolute;
-            width: 12px;
-            height: 12px;
-            color: rgba(0, 216, 246, 0.35);
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            inset: 0;
+            width: 1024px;
+            height: 575px;
             z-index: 2;
             pointer-events: none;
-        }
-        .ch-tl { top: 24%; left: 14%; }
-        .ch-tr { top: 24%; right: 18%; }
-        .ch-bl { bottom: 27%; left: 14%; }
-        .ch-br { bottom: 27%; right: 18%; }
-
-        /* Shared SVG Glow Filters */
-        .hud-filter-svg {
-            position: absolute;
-            width: 0;
-            height: 0;
-            pointer-events: none;
-        }
-
-        /* ======================================================== */
-        /* TOP-LEFT: TIME & DATE HUD WIDGET                         */
-        /* ======================================================== */
-        .hud-clock-widget {
-            position: absolute;
-            top: 25px;
-            left: 20px;
-            width: 260px;
-            height: 90px;
-            z-index: 20;
-            pointer-events: none;
-        }
-
-        .clock-frame-svg {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
             overflow: visible;
         }
 
+        /* Coordinate Crosshairs at Exact Canva Nodes */
+        .crosshair {
+            position: absolute;
+            color: rgba(0, 216, 246, 0.55);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: translate(-50%, -50%);
+            z-index: 3;
+            pointer-events: none;
+            text-shadow: 0 0 6px rgba(0, 216, 246, 0.5);
+        }
+        .ch-tl { left: 138px; top: 146px; }
+        .ch-tr { left: 837px; top: 146px; }
+        .ch-bl { left: 138px; top: 412px; }
+        .ch-br { left: 837px; top: 412px; }
+
+        /* Outer crosshair nodes touching outer reactor circle */
+        .ch-center-left { left: 356px; top: 281px; }
+        .ch-center-right { left: 668px; top: 281px; }
+
+        /* ======================================================== */
+        /* TOP-LEFT: CLOCK CONTENT                                  */
+        /* ======================================================== */
         .clock-content {
             position: absolute;
-            top: 14px;
-            left: 32px;
+            left: 36px;
+            top: 29px;
             display: flex;
             align-items: center;
             gap: 12px;
+            z-index: 20;
             pointer-events: auto;
         }
 
         .clock-pill {
             width: 3.5px;
-            height: 40px;
+            height: 38px;
             background: var(--cyan-glow);
             border-radius: 2px;
-            box-shadow: 0 0 10px var(--cyan-glow), 0 0 16px rgba(0, 229, 255, 0.5);
+            box-shadow: 0 0 8px var(--cyan-glow), 0 0 14px rgba(0, 229, 255, 0.6);
         }
 
         .clock-data {
@@ -132,11 +137,11 @@
 
         .clock-time {
             font-family: 'Share Tech Mono', monospace;
-            font-size: 22px;
+            font-size: 21px;
             font-weight: 700;
             letter-spacing: 4.5px;
             color: #ffffff;
-            text-shadow: 0 0 10px var(--cyan-glow), 0 0 20px rgba(0, 229, 255, 0.4);
+            text-shadow: 0 0 8px var(--cyan-glow), 0 0 16px rgba(0, 229, 255, 0.5);
             line-height: 1.1;
         }
 
@@ -146,47 +151,30 @@
             letter-spacing: 3px;
             color: var(--text-cyan);
             text-transform: uppercase;
-            opacity: 0.9;
+            opacity: 0.95;
+            text-shadow: 0 0 6px rgba(0, 216, 246, 0.4);
         }
 
         /* ======================================================== */
-        /* TOP-RIGHT: SYSTEM ONLINE STATUS WIDGET                   */
+        /* TOP-RIGHT: SYSTEM ONLINE STATUS CONTENT                  */
         /* ======================================================== */
-        .hud-status-widget {
-            position: absolute;
-            top: 25px;
-            right: 24px;
-            width: 200px;
-            height: 55px;
-            z-index: 20;
-            pointer-events: none;
-        }
-
-        .status-frame-svg {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 100%;
-            height: 100%;
-            overflow: visible;
-        }
-
         .status-content {
             position: absolute;
-            top: 16px;
-            right: 24px;
+            left: 914px;
+            top: 40px;
             display: flex;
             align-items: center;
-            gap: 9px;
+            gap: 10px;
+            z-index: 20;
             pointer-events: auto;
         }
 
         .status-dot {
-            width: 7px;
-            height: 7px;
+            width: 7.5px;
+            height: 7.5px;
             background-color: var(--cyan-glow);
             border-radius: 50%;
-            box-shadow: 0 0 8px var(--cyan-glow), 0 0 14px var(--cyan-glow);
+            box-shadow: 0 0 8px var(--cyan-glow), 0 0 16px var(--cyan-glow);
             animation: pulse-dot 2.5s ease-in-out infinite;
         }
 
@@ -208,23 +196,24 @@
         /* MAIN STAGE (Center Reactor + Wings)                      */
         /* ======================================================== */
         .main-stage {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 15;
+            position: absolute;
+            inset: 0;
+            width: 1024px;
+            height: 575px;
+            z-index: 10;
             transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .main-stage.swiped-left {
-            transform: translateX(-30vw);
+            transform: translateX(-320px);
         }
 
-        /* Center HUD Cluster */
+        /* Center HUD Cluster at Exact Canva Coordinates (511.5, 281.0) */
         .hud-cluster {
-            position: relative;
+            position: absolute;
+            left: 512px;
+            top: 281px;
+            transform: translate(-50%, -50%);
             width: 280px;
             height: 280px;
             display: flex;
@@ -253,7 +242,7 @@
             border-radius: 50%;
             -webkit-mask-image: radial-gradient(circle, black 65%, black 97%, transparent 100%);
             mask-image: radial-gradient(circle, black 65%, black 97%, transparent 100%);
-            filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.4));
+            filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.45));
             display: block;
             pointer-events: none;
             image-rendering: -webkit-optimize-contrast;
@@ -264,12 +253,12 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Stationary Core Center Disc Over circle.png (Seamless, No Border) */
+        /* Seamless Stationary Core Center Disc Over circle.png */
         .core-center-disc {
             position: absolute;
             width: 82px;
             height: 82px;
-            background: #000e18;
+            background: #000d17;
             border-radius: 50%;
             display: flex;
             justify-content: center;
@@ -290,25 +279,17 @@
             transition: all 0.3s ease;
         }
 
-        /* Horizontal Wings Aligned to Reactor Center */
-        .hud-wing {
+        /* Left Wing at Exact Canva Coordinates (x: 164 to 393, y: 281) */
+        .wing-left-wrap {
             position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
+            left: 164px;
+            top: 265px;
+            width: 230px;
             display: flex;
             flex-direction: column;
+            align-items: flex-start;
             pointer-events: none;
             z-index: 5;
-        }
-
-        .wing-left {
-            right: calc(50% + 152px);
-            align-items: flex-start;
-        }
-
-        .wing-right {
-            left: calc(50% + 152px);
-            align-items: flex-end;
         }
 
         .wing-text {
@@ -323,40 +304,53 @@
         }
 
         .wing-line-bar {
-            width: 170px;
+            width: 228px;
             height: 1px;
-            background: rgba(0, 216, 246, 0.5);
+            background: rgba(0, 216, 246, 0.6);
             position: relative;
         }
 
-        .wing-left .wing-pill-node {
+        .wing-pill-node {
             position: absolute;
-            left: 10px;
-            top: -2px;
-            width: 14px;
-            height: 4px;
+            left: 20px;
+            top: -2.5px;
+            width: 15px;
+            height: 5px;
             background: var(--cyan-glow);
             border-radius: 2px;
             box-shadow: 0 0 6px var(--cyan-glow);
         }
 
-        .wing-left .wing-end-dot {
+        .wing-end-dot {
             position: absolute;
             right: 0;
             top: -1.5px;
-            width: 3px;
-            height: 3px;
+            width: 3.5px;
+            height: 3.5px;
             background: var(--cyan-glow);
             border-radius: 50%;
         }
 
-        .wing-right .wing-line-bar {
-            width: 150px;
+        /* Right Wing at Exact Canva Coordinates (x: 630 to 824, y: 281) */
+        .wing-right-wrap {
+            position: absolute;
+            left: 630px;
+            top: 265px;
+            width: 194px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            pointer-events: none;
+            z-index: 5;
         }
 
-        .wing-right .wing-dot-node {
+        .wing-right-wrap .wing-line-bar {
+            width: 194px;
+        }
+
+        .wing-dot-node {
             position: absolute;
-            right: 28px;
+            right: 36px;
             top: -2px;
             width: 4.5px;
             height: 4.5px;
@@ -365,50 +359,33 @@
             box-shadow: 0 0 6px var(--cyan-glow);
         }
 
-        .wing-right .wing-start-dot {
+        .wing-start-dot {
             position: absolute;
             left: 0;
             top: -1.5px;
-            width: 3px;
-            height: 3px;
+            width: 3.5px;
+            height: 3.5px;
             background: var(--cyan-glow);
             border-radius: 50%;
         }
 
         /* ======================================================== */
-        /* BOTTOM-LEFT: TELEMETRY CARD                              */
+        /* BOTTOM-LEFT: TELEMETRY CONTENT                           */
         /* ======================================================== */
-        .hud-telemetry-widget {
-            position: absolute;
-            bottom: 24px;
-            left: 20px;
-            width: 250px;
-            height: 130px;
-            z-index: 20;
-        }
-
-        .telemetry-frame-svg {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            overflow: visible;
-            pointer-events: none;
-        }
-
         .telemetry-card-content {
             position: absolute;
-            top: 24px;
-            left: 22px;
-            width: 165px;
+            left: 38px;
+            top: 462px;
+            width: 155px;
             display: flex;
             align-items: flex-start;
             gap: 10px;
+            z-index: 20;
         }
 
         .telemetry-accent-pill {
             width: 3px;
-            height: 52px;
+            height: 50px;
             background: var(--cyan-glow);
             border-radius: 2px;
             box-shadow: 0 0 8px var(--cyan-glow);
@@ -465,7 +442,7 @@
             align-items: center;
             gap: 7px;
             color: var(--text-cyan);
-            opacity: 0.9;
+            opacity: 0.95;
         }
 
         .hud-icon {
@@ -489,30 +466,12 @@
         /* ======================================================== */
         /* BOTTOM-RIGHT: INTERACTIVE ACTION BUTTON                  */
         /* ======================================================== */
-        .hud-action-widget {
-            position: absolute;
-            bottom: 24px;
-            right: 24px;
-            width: 200px;
-            height: 100px;
-            z-index: 100;
-            pointer-events: none;
-        }
-
-        .action-frame-svg {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            overflow: visible;
-        }
-
         .action-btn-container {
             position: absolute;
-            bottom: 12px;
-            right: 18px;
-            width: 48px;
-            height: 48px;
+            left: 954px;
+            top: 472px;
+            width: 52px;
+            height: 52px;
             background: #02141f;
             border-radius: 50%;
             border: 1.5px solid rgba(0, 216, 246, 0.45);
@@ -524,12 +483,13 @@
             transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
             overflow: hidden;
             pointer-events: auto;
+            z-index: 100;
         }
 
         .action-neon-arc {
             position: absolute;
-            width: 50px;
-            height: 50px;
+            width: 54px;
+            height: 54px;
             border-radius: 50%;
             border: 2.5px solid transparent;
             border-top: 2.5px solid var(--cyan-glow);
@@ -561,8 +521,10 @@
 
         /* Expanded State for Command Entry */
         .action-btn-container.expanded {
+            left: auto;
+            right: 20px;
             width: 380px;
-            border-radius: 24px;
+            border-radius: 26px;
             background: rgba(2, 20, 31, 0.95);
             border-color: var(--cyan-glow);
             box-shadow: 0 0 25px rgba(0, 229, 255, 0.5);
@@ -609,14 +571,14 @@
         /* ======================================================== */
         .info-panel {
             position: absolute;
-            right: 4vw;
-            top: 10vh;
-            width: 50vw;
-            height: 80vh;
+            right: 40px;
+            top: 60px;
+            width: 500px;
+            height: 450px;
             opacity: 0;
             pointer-events: none;
             display: flex;
-            gap: 24px;
+            gap: 20px;
             transition: opacity 0.4s ease-in-out 0.2s;
             z-index: 25;
         }
@@ -630,10 +592,10 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 14px;
             overflow-y: auto;
             max-height: 100%;
-            padding-right: 8px;
+            padding-right: 6px;
         }
         .info-left-col::-webkit-scrollbar { width: 4px; }
         .info-left-col::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 2px; }
@@ -650,7 +612,7 @@
         }
         .info-card img {
             width: 100%;
-            height: 120px;
+            height: 110px;
             object-fit: cover;
             border-radius: 4px;
             border: 1px solid rgba(0, 229, 255, 0.3);
@@ -663,7 +625,7 @@
             letter-spacing: 1px;
         }
         .info-card .detail-txt {
-            font-size: 13px;
+            font-size: 12px;
             opacity: 0.9;
             line-height: 1.4;
         }
@@ -673,23 +635,23 @@
             background: rgba(2, 18, 28, 0.85);
             border: 1px solid rgba(0, 216, 246, 0.4);
             border-radius: 12px;
-            padding: 24px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 14px;
             backdrop-filter: blur(8px);
         }
         .info-right-col h2 {
             font-family: 'Share Tech Mono', sans-serif;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 700;
             color: #ffffff;
             letter-spacing: 2px;
             border-bottom: 1px solid rgba(0, 216, 246, 0.4);
-            padding-bottom: 10px;
+            padding-bottom: 8px;
         }
         .info-right-col p {
-            font-size: 14px;
+            font-size: 13.5px;
             line-height: 1.6;
             opacity: 0.9;
             overflow-y: auto;
@@ -705,7 +667,7 @@
             flex-direction: column;
             opacity: 0;
             pointer-events: none;
-            transform: translateX(100vw);
+            transform: translateX(100%);
             transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s;
             padding: 40px;
             overflow: hidden;
@@ -716,32 +678,33 @@
             transform: translateX(0);
         }
         .deep-dive-active .main-stage,
-        .deep-dive-active .hud-clock-widget,
-        .deep-dive-active .hud-status-widget,
-        .deep-dive-active .hud-telemetry-widget,
-        .deep-dive-active .hud-action-widget,
+        .deep-dive-active .clock-content,
+        .deep-dive-active .status-content,
+        .deep-dive-active .telemetry-card-content,
+        .deep-dive-active .action-btn-container,
+        .deep-dive-active .hud-master-svg,
         .deep-dive-active .info-panel {
-            transform: translateX(-150vw) !important;
+            transform: translateX(-150%) !important;
             opacity: 0;
             transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s;
         }
 
         .dd-header {
             font-family: 'Share Tech Mono', sans-serif;
-            font-size: 32px;
+            font-size: 30px;
             color: #ffffff;
-            margin-bottom: 20px;
+            margin-bottom: 18px;
             text-transform: uppercase;
             letter-spacing: 3px;
             border-bottom: 2px solid var(--cyan-glow);
-            padding-bottom: 10px;
+            padding-bottom: 8px;
         }
-        .dd-content { display: flex; gap: 30px; height: calc(100% - 70px); }
-        .dd-images { flex: 0.35; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; overflow-y: auto; align-content: start; }
-        .dd-images img { width: 100%; height: 150px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(0, 216, 246, 0.4); cursor: pointer; }
-        .dd-text { flex: 0.65; background: rgba(2, 18, 28, 0.85); border: 1px solid rgba(0, 216, 246, 0.4); border-radius: 12px; padding: 25px; overflow-y: auto; line-height: 1.7; font-size: 15px; }
-        .dd-text h3 { color: var(--cyan-glow); margin-top: 15px; margin-bottom: 8px; font-size: 18px; text-transform: uppercase; }
-        .dd-text p { margin-bottom: 12px; }
+        .dd-content { display: flex; gap: 25px; height: calc(100% - 65px); }
+        .dd-images { flex: 0.35; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; overflow-y: auto; align-content: start; }
+        .dd-images img { width: 100%; height: 130px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(0, 216, 246, 0.4); cursor: pointer; }
+        .dd-text { flex: 0.65; background: rgba(2, 18, 28, 0.85); border: 1px solid rgba(0, 216, 246, 0.4); border-radius: 12px; padding: 22px; overflow-y: auto; line-height: 1.7; font-size: 14.5px; }
+        .dd-text h3 { color: var(--cyan-glow); margin-top: 14px; margin-bottom: 6px; font-size: 17px; text-transform: uppercase; }
+        .dd-text p { margin-bottom: 10px; }
 
         /* Lightbox Modal */
         .img-modal {
@@ -786,50 +749,85 @@
 </head>
 <body>
 
-    <!-- Subtle Background Grid -->
-    <div class="bg-grid"></div>
+    <!-- 1024x575 Unified HUD Viewport Matching Canva Pixel Coordinates -->
+    <div class="hud-viewport">
 
-    <!-- Coordinate Crosshairs at Key Grid Nodes -->
-    <div class="crosshair ch-tl">+</div>
-    <div class="crosshair ch-tr">+</div>
-    <div class="crosshair ch-bl">+</div>
-    <div class="crosshair ch-br">+</div>
+        <!-- Background Grid in Light Form -->
+        <div class="bg-grid"></div>
 
-    <!-- Hidden Filter Definitions for SVG glows -->
-    <svg class="hud-filter-svg">
-        <defs>
-            <filter id="hudGlow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="2" result="blur" />
-                <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                </feMerge>
-            </filter>
-        </defs>
-    </svg>
+        <!-- Master 1024x575 SVG Layer: All Exact Corner Lines, Chamfers, and Slashes -->
+        <svg class="hud-master-svg" viewBox="0 0 1024 575">
+            <defs>
+                <filter id="hudGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="2" result="blur" />
+                    <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
 
-    <!-- ======================================================== -->
-    <!-- TOP-LEFT: TIME & DATE HUD WIDGET                         -->
-    <!-- ======================================================== -->
-    <div class="hud-clock-widget">
-        <svg class="clock-frame-svg" viewBox="0 0 260 90">
+            <!-- ================= TOP-LEFT CLOCK FRAME ================= -->
             <!-- Clock card inner border: top line, chamfer down-right, step right -->
-            <path d="M 20 8 L 160 8 L 172 20 L 185 20" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
+            <path d="M 22 28 L 153 28 L 163 38 L 175 38" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
             <!-- Bottom line: horizontal under date, chamfer up-right -->
-            <path d="M 20 58 L 145 58 L 157 46" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
+            <path d="M 22 66 L 135 66 L 148 53" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
             <!-- Left border -->
-            <path d="M 20 8 L 20 58" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
-            
-            <!-- Outer corner bracket with chamfer and 3 slanted slashes /// -->
-            <path d="M 6 42 L 6 62 L 16 72 L 42 72" fill="none" stroke="rgba(0, 216, 246, 0.55)" stroke-width="1.5" />
-            
-            <!-- Three slashes /// at the bottom-left chamfer -->
-            <g fill="#00e5ff" transform="translate(6, 60) skewX(-32)">
+            <path d="M 22 28 L 22 66" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
+            <!-- Corner bracket with chamfer down-left and vertical drop -->
+            <path d="M 22 66 L 8 80 L 8 100" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
+            <!-- Three slanted slashes /// at the bottom-left chamfer -->
+            <g fill="#00e5ff" transform="translate(6, 73) skewX(-32)">
                 <rect x="0" y="0" width="3" height="7.5" rx="1" filter="url(#hudGlow)"/>
-                <rect x="5" y="0" width="3" height="7.5" rx="1" filter="url(#hudGlow)"/>
-                <rect x="10" y="0" width="3" height="7.5" rx="1" filter="url(#hudGlow)"/>
+                <rect x="5.5" y="0" width="3" height="7.5" rx="1" filter="url(#hudGlow)"/>
+                <rect x="11" y="0" width="3" height="7.5" rx="1" filter="url(#hudGlow)"/>
+            </g>
+
+            <!-- ================= TOP-RIGHT SYSTEM ONLINE ================= -->
+            <path d="M 898 28 L 1004 28 L 1014 38 L 1014 80 L 1011 80" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
+
+            <!-- ================= FAINT BACKGROUND CONCENTRIC ARCS ================= -->
+            <!-- Concentric guide circle at r=165px -->
+            <circle cx="512" cy="281" r="165" fill="none" stroke="rgba(0, 216, 246, 0.14)" stroke-width="1.2" />
+            <!-- Concentric top & bottom arc at r=208px -->
+            <path d="M 365 206 A 208 208 0 0 1 659 206" fill="none" stroke="rgba(0, 216, 246, 0.22)" stroke-width="1.2" />
+            <path d="M 365 356 A 208 208 0 0 0 659 356" fill="none" stroke="rgba(0, 216, 246, 0.22)" stroke-width="1.2" />
+
+            <!-- ================= BOTTOM-LEFT TELEMETRY FRAME ================= -->
+            <!-- Outer bottom-left corner line starting high up at y=412 -->
+            <path d="M 12 412 L 12 534 L 25 547 L 240 547" fill="none" stroke="rgba(0, 216, 246, 0.55)" stroke-width="1.5" />
+            <!-- Telemetry Card Frame Outline -->
+            <path d="M 40 448 L 26 462 L 26 510 L 36 520 L 180 520" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
+            <path d="M 40 448 L 145 448 L 160 463 L 200 463 L 212 475 L 212 510 L 222 520" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
+            <!-- Three slashes /// at the bottom right chamfer of card -->
+            <g fill="#00e5ff" transform="translate(182, 519) skewX(-32)">
+                <rect x="0" y="0" width="3" height="6.5" rx="1" filter="url(#hudGlow)"/>
+                <rect x="5.5" y="0" width="3" height="6.5" rx="1" filter="url(#hudGlow)"/>
+                <rect x="11" y="0" width="3" height="6.5" rx="1" filter="url(#hudGlow)"/>
+            </g>
+
+            <!-- ================= BOTTOM-RIGHT BRACKET ================= -->
+            <!-- Outer baseline from x=862 to 998 at y=547, chamfers to (1014, 531), goes up to y=480 -->
+            <path d="M 862 547 L 998 547 L 1014 531 L 1014 480" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
+            <!-- Three slanted slashes /// on the horizontal baseline -->
+            <g fill="#00e5ff" transform="translate(925, 546) skewX(-32)">
+                <rect x="0" y="0" width="3" height="7" rx="1" filter="url(#hudGlow)"/>
+                <rect x="5.5" y="0" width="3" height="7" rx="1" filter="url(#hudGlow)"/>
+                <rect x="11" y="0" width="3" height="7" rx="1" filter="url(#hudGlow)"/>
             </g>
         </svg>
+
+        <!-- Four Coordinate Crosshairs '+' -->
+        <div class="crosshair ch-tl">+</div>
+        <div class="crosshair ch-tr">+</div>
+        <div class="crosshair ch-bl">+</div>
+        <div class="crosshair ch-br">+</div>
+
+        <!-- Outer Crosshairs touching reactor perimeter -->
+        <div class="crosshair ch-center-left">+</div>
+        <div class="crosshair ch-center-right">+</div>
+
+        <!-- Top-Left Clock Content -->
         <div class="clock-content">
             <div class="clock-pill"></div>
             <div class="clock-data target-glitch">
@@ -837,77 +835,47 @@
                 <div id="hudDate" class="clock-date" data-text="-- --- ----">-- --- ----</div>
             </div>
         </div>
-    </div>
 
-    <!-- ======================================================== -->
-    <!-- TOP-RIGHT: SYSTEM ONLINE STATUS WIDGET                   -->
-    <!-- ======================================================== -->
-    <div class="hud-status-widget">
-        <svg class="status-frame-svg" viewBox="0 0 200 55">
-            <!-- Top line, 45-deg chamfer down-right, vertical down, small inward notch -->
-            <path d="M 10 10 L 165 10 L 178 23 L 178 46 L 175 46" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
-        </svg>
+        <!-- Top-Right System Online Status Content -->
         <div class="status-content">
             <div class="status-dot"></div>
             <span class="status-label">SYSTEM ONLINE</span>
         </div>
-    </div>
 
-    <!-- ======================================================== -->
-    <!-- MAIN STAGE (Center Reactor + Wings)                      -->
-    <!-- ======================================================== -->
-    <div class="main-stage">
-        
-        <!-- Left Wing: THINK / ANALYZE / EXECUTE -->
-        <div class="hud-wing wing-left">
-            <div class="wing-text">THINK &nbsp;/&nbsp; ANALYZE &nbsp;/&nbsp; EXECUTE</div>
-            <div class="wing-line-bar">
-                <div class="wing-pill-node"></div>
-                <div class="wing-end-dot"></div>
-            </div>
-        </div>
-
-        <!-- Center Rotating HUD Reactor (Using circle.png) -->
-        <div class="hud-cluster">
-            <div class="circle-rotating-wrap">
-                <img src="circle.png" class="circle-image" alt="HYDRA Core">
-            </div>
-            <div class="core-center-disc">
-                <h1 class="core-brand-text" id="coreTitle">HYDRA</h1>
-            </div>
-        </div>
-
-        <!-- Right Wing: YOUR AI ASSISTANT -->
-        <div class="hud-wing wing-right">
-            <div class="wing-text">YOUR AI ASSISTANT</div>
-            <div class="wing-line-bar">
-                <div class="wing-dot-node"></div>
-                <div class="wing-start-dot"></div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- BOTTOM-LEFT: TELEMETRY CARD                              -->
-    <!-- ======================================================== -->
-    <div class="hud-telemetry-widget">
-        <svg class="telemetry-frame-svg" viewBox="0 0 250 130">
-            <!-- Outer bottom-left corner line with 45-deg chamfers -->
-            <path d="M 0 12 L 5 18 L 5 108 L 15 118 L 135 118" fill="none" stroke="rgba(0, 216, 246, 0.45)" stroke-width="1.5" />
+        <!-- Main Stage (Center Reactor + Wings) -->
+        <div class="main-stage">
             
-            <!-- Card frame outline with chamfers -->
-            <!-- Top line at y=16 going across above ONLINE, then chamfers down-right -->
-            <path d="M 14 16 L 96 16 L 108 28 L 140 28 L 148 36 L 148 58 L 186 96 L 196 96" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
-            <path d="M 14 16 L 14 96 L 145 96" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
+            <!-- Left Wing at Canva Coordinates (x: 164 to 393, y: 281) -->
+            <div class="wing-left-wrap">
+                <div class="wing-text">THINK &nbsp;/&nbsp; ANALYZE &nbsp;/&nbsp; EXECUTE</div>
+                <div class="wing-line-bar">
+                    <div class="wing-pill-node"></div>
+                    <div class="wing-end-dot"></div>
+                </div>
+            </div>
 
-            <!-- Three slashes /// at the bottom right chamfer -->
-            <g fill="#00e5ff" transform="translate(148, 95) skewX(-32)">
-                <rect x="0" y="0" width="3" height="6.5" rx="1" filter="url(#hudGlow)"/>
-                <rect x="5.5" y="0" width="3" height="6.5" rx="1" filter="url(#hudGlow)"/>
-                <rect x="11" y="0" width="3" height="6.5" rx="1" filter="url(#hudGlow)"/>
-            </g>
-        </svg>
+            <!-- Center Rotating HUD Reactor (Using circle.png at 512, 281) -->
+            <div class="hud-cluster">
+                <div class="circle-rotating-wrap">
+                    <img src="circle.png" class="circle-image" alt="HYDRA Core">
+                </div>
+                <div class="core-center-disc">
+                    <h1 class="core-brand-text" id="coreTitle">HYDRA</h1>
+                </div>
+            </div>
+
+            <!-- Right Wing at Canva Coordinates (x: 630 to 824, y: 281) -->
+            <div class="wing-right-wrap">
+                <div class="wing-text">YOUR AI ASSISTANT</div>
+                <div class="wing-line-bar">
+                    <div class="wing-dot-node"></div>
+                    <div class="wing-start-dot"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Bottom-Left Telemetry Card Content -->
         <div class="telemetry-card-content target-glitch">
             <div class="telemetry-accent-pill"></div>
             <div class="telemetry-inner-body">
@@ -940,29 +908,14 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- ======================================================== -->
-    <!-- BOTTOM-RIGHT: INTERACTIVE ACTION BUTTON                  -->
-    <!-- ======================================================== -->
-    <div class="hud-action-widget">
-        <svg class="action-frame-svg" viewBox="0 0 200 100">
-            <!-- Corner bracket wrapping around outside of button: horizontal under button, chamfers up-right, goes up -->
-            <path d="M 0 88 L 152 88 L 174 66 L 174 12" fill="none" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" />
-            
-            <!-- Three slanted slashes /// on the horizontal baseline -->
-            <g fill="#00e5ff" transform="translate(75, 77) skewX(-32)">
-                <rect x="0" y="0" width="3" height="7" rx="1" filter="url(#hudGlow)"/>
-                <rect x="5.5" y="0" width="3" height="7" rx="1" filter="url(#hudGlow)"/>
-                <rect x="11" y="0" width="3" height="7" rx="1" filter="url(#hudGlow)"/>
-            </g>
-        </svg>
+        <!-- Bottom-Right Action Button -->
         <div class="action-btn-container" id="containerBtn">
             <div class="action-neon-arc"></div>
             
             <input type="text" class="cmd-text-input" id="cmdInput" placeholder="Enter system command..." autocomplete="off">
 
-            <!-- Chat Bubble Icon with cutout lines -->
+            <!-- Chat Bubble Icon with cutout lines matching Canva -->
             <svg class="chat-icon" id="iconAction" viewBox="0 0 24 24">
                 <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
                 <line x1="7" y1="8" x2="15" y2="8" stroke="#02141f" stroke-width="2" stroke-linecap="round"/>
@@ -974,24 +927,25 @@
                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="#00e5ff"/>
             </svg>
         </div>
-    </div>
 
-    <!-- Quick Info Slide-out Panel (Compatible with main.py) -->
-    <div class="info-panel" id="infoPanel">
-        <div class="info-left-col" id="infoLeftCol"></div>
-        <div class="info-right-col">
-            <h2 id="infoTitle">Intelligence Intel</h2>
-            <p id="infoDescription">Awaiting query parameters...</p>
+        <!-- Quick Info Slide-out Panel (Compatible with main.py) -->
+        <div class="info-panel" id="infoPanel">
+            <div class="info-left-col" id="infoLeftCol"></div>
+            <div class="info-right-col">
+                <h2 id="infoTitle">Intelligence Intel</h2>
+                <p id="infoDescription">Awaiting query parameters...</p>
+            </div>
         </div>
-    </div>
 
-    <!-- Full-Screen Deep Dive Panel (Compatible with main.py) -->
-    <div class="deep-dive-panel" id="deepDivePanel">
-        <div class="dd-header" id="ddTitle">Target Deep Dive</div>
-        <div class="dd-content">
-            <div class="dd-images" id="ddImages"></div>
-            <div class="dd-text" id="ddText">Processing deeper context...</div>
+        <!-- Full-Screen Deep Dive Panel (Compatible with main.py) -->
+        <div class="deep-dive-panel" id="deepDivePanel">
+            <div class="dd-header" id="ddTitle">Target Deep Dive</div>
+            <div class="dd-content">
+                <div class="dd-images" id="ddImages"></div>
+                <div class="dd-text" id="ddText">Processing deeper context...</div>
+            </div>
         </div>
+
     </div>
 
     <!-- Full-Screen Lightbox Modal -->
@@ -1000,6 +954,14 @@
     </div>
 
     <script>
+        // Automatic Dynamic Scaling to Maintain Exact Proportions on ANY Screen
+        function resizeHUD() {
+            const scale = Math.min(window.innerWidth / 1024, window.innerHeight / 575);
+            document.documentElement.style.setProperty('--hud-scale', scale);
+        }
+        window.addEventListener('resize', resizeHUD);
+        resizeHUD();
+
         const containerBtn = document.getElementById('containerBtn');
         const cmdInput = document.getElementById('cmdInput');
         const iconAction = document.getElementById('iconAction');
