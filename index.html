@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,9 +9,19 @@
     <!-- Google Fonts for authentic Sci-Fi HUD aesthetics -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap"
+        rel="stylesheet">
     <style>
         :root {
+            --bg-color: #f0f7fe;
+            --cyan-glow: #00b4d8;
+            --cyan-bright: #00e5ff;
+            --cyan-line: #0096c7;
+            --cyan-dim: rgba(0, 180, 240, 0.25);
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --text-primary: #18346b;
+            --text-secondary: #2c4d87;
+            --text-cyan: #0077b6;
             --hud-scale: 1;
         }
 
@@ -22,14 +33,15 @@
             -webkit-user-drag: none;
         }
 
-        html, body {
+        html,
+        body {
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            margin: 0;
-            padding: 0;
             background-color: #000d17;
             font-family: 'Share Tech Mono', 'Rajdhani', monospace, sans-serif;
+            margin: 0;
+            padding: 0;
         }
 
         /* Fullscreen Theme Layers with Top-to-Bottom Crop-Scan Support */
@@ -59,7 +71,7 @@
             --text-secondary: #2c4d87;
             --text-cyan: #0077b6;
             background-color: #f0f7fe;
-            background-image: 
+            background-image:
                 radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.95) 0%, rgba(240, 248, 255, 0.6) 45%, rgba(225, 238, 252, 0.85) 100%),
                 radial-gradient(circle at 10% 90%, rgba(0, 180, 240, 0.08) 0%, transparent 45%);
             color: #18346b;
@@ -118,13 +130,13 @@
             overflow: visible;
         }
 
-        /* Background Grid */
+        /* Visible Futuristic Background Grid in Light Form */
         .bg-grid {
             position: absolute;
             inset: 0;
             width: 1024px;
             height: 575px;
-            background-image: 
+            background-image:
                 linear-gradient(rgba(0, 150, 240, 0.12) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0, 150, 240, 0.12) 1px, transparent 1px);
             background-size: 50px 50px;
@@ -139,7 +151,7 @@
                 linear-gradient(90deg, rgba(0, 216, 246, 0.12) 1px, transparent 1px);
         }
 
-        /* Master Full-Canvas 1024x575 Vector Overlays */
+        /* Master Full-Canvas 1024x575 Vector Overlays (Exact Canva Paths) */
         .hud-master-svg {
             position: absolute;
             inset: 0;
@@ -166,16 +178,41 @@
             pointer-events: none;
             text-shadow: 0 0 6px rgba(0, 180, 240, 0.4);
         }
-        .ch-tl { left: 138px; top: 146px; }
-        .ch-tr { left: 837px; top: 146px; }
-        .ch-bl { left: 138px; top: 412px; }
-        .ch-br { left: 837px; top: 412px; }
-        .ch-center-left { left: 383px; top: 274px; }
-        .ch-center-right { left: 638px; top: 274px; }
 
         .theme-dark .crosshair {
             color: rgba(0, 216, 246, 0.55);
             text-shadow: 0 0 6px rgba(0, 216, 246, 0.5);
+        }
+
+        .ch-tl {
+            left: 138px;
+            top: 146px;
+        }
+
+        .ch-tr {
+            left: 837px;
+            top: 146px;
+        }
+
+        .ch-bl {
+            left: 138px;
+            top: 412px;
+        }
+
+        .ch-br {
+            left: 837px;
+            top: 412px;
+        }
+
+        /* Outer crosshair nodes touching outer reactor circle */
+        .ch-center-left {
+            left: 383px;
+            top: 274px;
+        }
+
+        .ch-center-right {
+            left: 638px;
+            top: 274px;
         }
 
         /* ======================================================== */
@@ -213,9 +250,9 @@
 
         .clock-time {
             font-family: 'Share Tech Mono', monospace;
-            font-size: 25px;
+            font-size: 23px;
             font-weight: 700;
-            letter-spacing: 5px;
+            letter-spacing: 4.5px;
             color: #18346b;
             text-shadow: 0 0 8px rgba(0, 180, 240, 0.25);
             line-height: 1.1;
@@ -338,8 +375,17 @@
         }
 
         @keyframes pulse-dot {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.25); opacity: 0.65; }
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.25);
+                opacity: 0.65;
+            }
         }
 
         .status-label {
@@ -387,7 +433,7 @@
             z-index: 10;
         }
 
-        /* Rotating circle Container */
+        /* Rotating circle.png Container */
         .circle-rotating-wrap {
             position: absolute;
             width: 280px;
@@ -416,11 +462,16 @@
         }
 
         @keyframes spin-clockwise {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
-        /* Stationary Core Center Disc Over circle */
+        /* Seamless Stationary Core Center Disc Over circle.png */
         .core-center-disc {
             position: absolute;
             width: 104px;
@@ -472,11 +523,12 @@
         .wing-text {
             font-family: 'Share Tech Mono', monospace;
             font-size: 10.5px;
-            letter-spacing: 3px;
-            color: #18346b;
-            font-weight: 700;
+            letter-spacing: 2px;
+            color: #2c4d87;
+            text-transform: uppercase;
+            margin-bottom: 7px;
             white-space: nowrap;
-            user-select: none;
+            font-weight: 700;
         }
 
         .theme-dark .wing-text {
@@ -484,25 +536,31 @@
             text-shadow: 0 0 6px rgba(0, 216, 246, 0.5);
         }
 
+        /* SVG Wing lines with chamfer jog */
         .wing-pill-node {
             position: absolute;
-            left: 154px;
+            left: 133px;
             top: 277px;
-            width: 22px;
-            height: 7px;
-            background: #00e5ff;
-            border-radius: 4px;
-            box-shadow: 0 0 8px #00e5ff, 0 0 16px rgba(0, 229, 255, 0.8);
-            z-index: 12;
+            width: 15px;
+            height: 6px;
+            background: var(--cyan-bright);
+            border-radius: 2px;
+            box-shadow: 0 0 8px rgba(0, 229, 255, 0.8);
+            z-index: 6;
             pointer-events: none;
+        }
+
+        .theme-dark .wing-pill-node {
+            background: #00e5ff;
+            box-shadow: 0 0 8px #00e5ff, 0 0 16px rgba(0, 229, 255, 0.8);
         }
 
         /* Right Wing at Exact Canva Coordinates */
         .wing-right-wrap {
             position: absolute;
-            right: 137px;
+            left: 636px;
             top: 257px;
-            width: 250px;
+            width: 251px;
             display: flex;
             flex-direction: column;
             align-items: flex-end;
@@ -510,16 +568,20 @@
             z-index: 5;
         }
 
+        .wing-right-wrap .wing-text {
+            margin-bottom: 7px;
+        }
+
         .wing-dot-node {
             position: absolute;
-            left: 825px;
-            top: 278px;
-            width: 6.5px;
-            height: 6.5px;
-            background: #3b82f6;
+            left: 852px;
+            top: 277px;
+            width: 6px;
+            height: 6px;
+            background: #0963fd;
             border-radius: 50%;
-            box-shadow: 0 0 8px #3b82f6, 0 0 14px rgba(59, 130, 246, 0.7);
-            z-index: 12;
+            box-shadow: 0 0 8px rgba(9, 99, 253, 0.8);
+            z-index: 6;
             pointer-events: none;
         }
 
@@ -529,58 +591,66 @@
         }
 
         /* ======================================================== */
-        /* BOTTOM-LEFT: TELEMETRY CARD CONTENT                      */
+        /* BOTTOM-LEFT: TELEMETRY CONTENT                           */
         /* ======================================================== */
         .telemetry-card-content {
             position: absolute;
-            left: 24px;
-            top: 442px;
-            width: 200px;
+            left: 20px;
+            top: 462px;
+            width: 180px;
             display: flex;
-            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
             z-index: 20;
-            pointer-events: auto;
         }
 
         .telemetry-accent-pill {
-            position: absolute;
-            left: 0;
-            top: 20px;
-            width: 3px;
-            height: 72px;
-            background: var(--cyan-line);
-            box-shadow: 0 0 8px var(--cyan-line);
+            width: 3.5px;
+            height: 56px;
+            background: var(--cyan-glow);
             border-radius: 2px;
+            box-shadow: 0 0 8px rgba(0, 180, 240, 0.7);
+            margin-top: 2px;
+        }
+
+        .theme-dark .telemetry-accent-pill {
+            background: #00e5ff;
+            box-shadow: 0 0 8px #00e5ff;
         }
 
         .telemetry-inner-body {
-            padding-left: 12px;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 5px;
+            width: 100%;
         }
 
         .telemetry-header {
             display: flex;
             align-items: center;
             gap: 7px;
-            padding-bottom: 2px;
         }
 
         .telemetry-dot {
             width: 6px;
             height: 6px;
-            border-radius: 50%;
             background: var(--cyan-bright);
-            box-shadow: 0 0 6px var(--cyan-bright);
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(0, 229, 255, 0.8);
+        }
+
+        .theme-dark .telemetry-dot {
+            background: #00e5ff;
+            box-shadow: 0 0 8px #00e5ff;
         }
 
         .telemetry-title {
             font-family: 'Share Tech Mono', monospace;
             font-size: 11px;
             font-weight: 700;
-            color: var(--text-cyan);
             letter-spacing: 2px;
+            color: var(--text-cyan);
+            text-transform: uppercase;
         }
 
         .theme-dark .telemetry-title {
@@ -596,19 +666,20 @@
 
         .telemetry-row {
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
             font-family: 'Share Tech Mono', monospace;
-            font-size: 10px;
-            padding-right: 4px;
+            font-size: 10.5px;
+            letter-spacing: 1.2px;
         }
 
         .row-label {
             display: flex;
             align-items: center;
-            gap: 5px;
-            color: var(--cyan-line);
-            letter-spacing: 1.2px;
+            gap: 7px;
+            color: var(--text-secondary);
+            opacity: 0.95;
+            font-weight: 600;
         }
 
         .theme-dark .row-label {
@@ -811,7 +882,7 @@
             z-index: 25;
         }
 
-        .main-stage.swiped-left ~ .info-panel {
+        .main-stage.swiped-left~.info-panel {
             opacity: 1;
             pointer-events: auto;
         }
@@ -825,8 +896,15 @@
             max-height: 100%;
             padding-right: 6px;
         }
-        .info-left-col::-webkit-scrollbar { width: 4px; }
-        .info-left-col::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 2px; }
+
+        .info-left-col::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .info-left-col::-webkit-scrollbar-thumb {
+            background: var(--cyan-dim);
+            border-radius: 2px;
+        }
 
         .info-card {
             background: rgba(255, 255, 255, 0.88);
@@ -839,6 +917,17 @@
             backdrop-filter: blur(8px);
             color: #18346b;
         }
+
+        .theme-dark .info-card {
+            background: rgba(1, 14, 23, 0.92);
+            border: 1px solid rgba(0, 216, 246, 0.4);
+            color: #ffffff;
+        }
+
+        .theme-dark .info-card .detail-txt {
+            color: #e0f7fa;
+        }
+
         .info-card img {
             width: 100%;
             height: 110px;
@@ -847,6 +936,7 @@
             border: 1px solid rgba(0, 180, 240, 0.3);
             cursor: pointer;
         }
+
         .info-card .source-txt {
             font-size: 11px;
             color: var(--text-cyan);
@@ -854,20 +944,12 @@
             letter-spacing: 1px;
             font-weight: 700;
         }
+
         .info-card .detail-txt {
             font-size: 12px;
             opacity: 0.95;
             line-height: 1.4;
             color: #18346b;
-        }
-
-        .theme-dark .info-card {
-            background: rgba(1, 14, 23, 0.92);
-            border: 1px solid rgba(0, 216, 246, 0.4);
-            color: #ffffff;
-        }
-        .theme-dark .info-card .detail-txt {
-            color: #e0f7fa;
         }
 
         .info-right-col {
@@ -882,19 +964,6 @@
             backdrop-filter: blur(8px);
             color: #18346b;
         }
-        .info-right-col h2 {
-            font-family: 'Share Tech Mono', sans-serif;
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--text-cyan);
-            border-bottom: 1px solid var(--cyan-dim);
-            padding-bottom: 8px;
-        }
-        .info-right-col p {
-            font-size: 14px;
-            line-height: 1.5;
-            opacity: 0.95;
-        }
 
         .theme-dark .info-right-col {
             background: rgba(1, 14, 23, 0.92);
@@ -902,145 +971,248 @@
             color: #ffffff;
         }
 
-        /* Full-Screen Deep Dive Overlay */
+        .info-right-col h2 {
+            font-family: 'Share Tech Mono', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: #18346b;
+            letter-spacing: 2px;
+            border-bottom: 1px solid rgba(0, 180, 240, 0.4);
+            padding-bottom: 8px;
+        }
+
+        .theme-dark .info-right-col h2 {
+            color: #00e5ff;
+            border-bottom: 1px solid rgba(0, 216, 246, 0.4);
+        }
+
+        .info-right-col p {
+            font-size: 13.5px;
+            line-height: 1.6;
+            opacity: 0.95;
+            color: #2c4d87;
+            overflow-y: auto;
+        }
+
+        .theme-dark .info-right-col p {
+            color: #e0f7fa;
+        }
+
+        /* Deep Dive HUD (Full Screen) */
         .deep-dive-panel {
             position: absolute;
             inset: 0;
-            background: rgba(240, 248, 255, 0.95);
-            backdrop-filter: blur(16px);
-            z-index: 150;
+            background: rgba(240, 247, 254, 0.98);
+            z-index: 40;
             display: flex;
             flex-direction: column;
-            padding: 40px;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateX(100%);
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s;
+            padding: 40px;
+            overflow: hidden;
         }
-        body.deep-dive-active .deep-dive-panel {
-            opacity: 1;
-            pointer-events: auto;
-        }
+
         .theme-dark .deep-dive-panel {
             background: rgba(0, 13, 23, 0.96);
         }
 
-        .dd-header {
-            font-family: 'Share Tech Mono', sans-serif;
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--text-cyan);
-            border-bottom: 1.5px solid var(--cyan-line);
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+        .deep-dive-active .deep-dive-panel {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0);
         }
+
+        .deep-dive-active .main-stage,
+        .deep-dive-active .clock-content,
+        .deep-dive-active .status-content,
+        .deep-dive-active .telemetry-card-content,
+        .deep-dive-active .action-btn-container,
+        .deep-dive-active .hud-master-svg,
+        .deep-dive-active .info-panel {
+            transform: translateX(-150%) !important;
+            opacity: 0;
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s;
+        }
+
+        .dd-header {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 30px;
+            color: #18346b;
+            margin-bottom: 18px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            border-bottom: 2px solid var(--cyan-glow);
+            padding-bottom: 8px;
+        }
+
+        .theme-dark .dd-header {
+            color: #00e5ff;
+            border-bottom: 2px solid #00e5ff;
+        }
+
         .dd-content {
             display: flex;
-            gap: 30px;
-            height: 100%;
-            overflow-y: auto;
+            gap: 25px;
+            height: calc(100% - 65px);
         }
+
         .dd-images {
-            flex: 1;
+            flex: 0.35;
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: 1fr 1fr;
             gap: 12px;
-            max-height: 100%;
             overflow-y: auto;
+            align-content: start;
         }
+
         .dd-images img {
             width: 100%;
-            height: 140px;
+            height: 130px;
             object-fit: cover;
             border-radius: 6px;
             border: 1px solid rgba(0, 180, 240, 0.4);
             cursor: pointer;
             transition: transform 0.2s ease;
         }
-        .dd-images img:hover { transform: scale(1.03); }
-        .dd-text {
-            flex: 1.2;
-            font-size: 15px;
-            line-height: 1.6;
-            overflow-y: auto;
-            padding-right: 15px;
+
+        .dd-images img:hover {
+            transform: scale(1.03);
         }
+
+        .dd-text {
+            flex: 0.65;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0, 180, 240, 0.4);
+            border-radius: 12px;
+            padding: 22px;
+            overflow-y: auto;
+            line-height: 1.7;
+            font-size: 14.5px;
+            color: #18346b;
+        }
+
+        .theme-dark .dd-text {
+            background: rgba(1, 14, 23, 0.9);
+            border: 1px solid rgba(0, 216, 246, 0.4);
+            color: #ffffff;
+        }
+
         .dd-text h3 {
             font-family: 'Share Tech Mono', monospace;
             color: var(--text-cyan);
-            margin: 16px 0 6px 0;
+            margin-top: 14px;
+            margin-bottom: 6px;
             font-size: 17px;
-            border-bottom: 1px dashed var(--cyan-dim);
-            padding-bottom: 4px;
-        }
-        .dd-text p {
-            margin-bottom: 12px;
-            opacity: 0.95;
+            text-transform: uppercase;
         }
 
-        /* Lightbox Image Modal */
+        .theme-dark .dd-text h3 {
+            color: #00e5ff;
+        }
+
+        .dd-text p {
+            margin-bottom: 10px;
+            color: #2c4d87;
+        }
+
+        .theme-dark .dd-text p {
+            color: #e0f7fa;
+        }
+
+        /* Lightbox Modal */
         .img-modal {
             position: fixed;
             inset: 0;
-            background: rgba(0, 13, 23, 0.88);
-            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 99999;
             opacity: 0;
             pointer-events: none;
+            z-index: 1000;
             transition: opacity 0.3s ease;
         }
+
         .img-modal.active {
             opacity: 1;
             pointer-events: auto;
         }
+
         .img-modal img {
-            max-width: 90vw;
-            max-height: 85vh;
+            max-width: 90%;
+            max-height: 90%;
+            border: 2px solid var(--cyan-glow);
             border-radius: 8px;
-            border: 1.5px solid var(--cyan-glow);
-            box-shadow: 0 0 35px rgba(0, 180, 240, 0.5);
+            box-shadow: 0 0 25px rgba(0, 180, 240, 0.6);
         }
 
-        /* Sporadic Glitch Animations */
+        /* Sporadic Glitch Effect on HUD Data */
         .glitch-active {
             position: relative;
         }
-        .glitch-active::before, .glitch-active::after {
+
+        .glitch-active::before,
+        .glitch-active::after {
             content: attr(data-text);
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none;
+            background: var(--bg-color);
         }
+
         .glitch-active::before {
             left: 2px;
-            text-shadow: -1px 0 rgba(0, 229, 255, 0.7);
-            clip-path: inset(20% 0 30% 0);
-            animation: sporadic-glitch-1 0.35s infinite linear alternate-reverse;
+            text-shadow: -2px 0 rgba(255, 0, 80, 0.7);
+            animation: sporadic-glitch-1 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
         }
+
         .glitch-active::after {
             left: -2px;
-            text-shadow: 1px 0 rgba(141, 118, 250, 0.7);
-            clip-path: inset(50% 0 10% 0);
-            animation: sporadic-glitch-2 0.35s infinite linear alternate-reverse;
+            text-shadow: -2px 0 rgba(0, 180, 240, 0.7);
+            animation: sporadic-glitch-2 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite reverse;
         }
 
         @keyframes sporadic-glitch-1 {
-            0% { clip-path: inset(40% 0 20% 0); transform: translate(-2px, 1px); }
-            50% { clip-path: inset(60% 0 10% 0); transform: translate(2px, -1px); }
-            100% { clip-path: inset(30% 0 50% 0); transform: translate(1px, -1px); }
+            0% {
+                clip-path: inset(20% 0 80% 0);
+                transform: translate(-2px, 1px);
+            }
+
+            50% {
+                clip-path: inset(60% 0 10% 0);
+                transform: translate(2px, -1px);
+            }
+
+            100% {
+                clip-path: inset(30% 0 50% 0);
+                transform: translate(1px, -1px);
+            }
         }
+
         @keyframes sporadic-glitch-2 {
-            0% { clip-path: inset(10% 0 60% 0); transform: translate(2px, -1px); }
-            50% { clip-path: inset(70% 0 10% 0); transform: translate(2px, -2px); }
-            100% { clip-path: inset(5% 0 80% 0); transform: translate(-1px, 1px); }
+            0% {
+                clip-path: inset(10% 0 60% 0);
+                transform: translate(2px, -1px);
+            }
+
+            50% {
+                clip-path: inset(70% 0 10% 0);
+                transform: translate(2px, -2px);
+            }
+
+            100% {
+                clip-path: inset(5% 0 80% 0);
+                transform: translate(-1px, 1px);
+            }
         }
     </style>
 </head>
+
 <body>
 
     <!-- ================================================================= -->
@@ -1052,8 +1224,8 @@
             <!-- Background Grid in Light Form -->
             <div class="bg-grid"></div>
 
-            <!-- Master 1024x575 SVG Layer -->
-            <svg class="hud-master-svg" viewBox="0 0 1024 575">
+            <!-- Master 1024x575 SVG Layer: All Exact Corner Lines, Chamfers, and Slashes -->
+            <svg class="hud-master-svg" id="hudMasterSvg" viewBox="0 0 1024 575">
                 <defs>
                     <filter id="hudGlow" x="-20%" y="-20%" width="140%" height="140%">
                         <feGaussianBlur stdDeviation="1.5" result="blur" />
@@ -1062,6 +1234,10 @@
                             <feMergeNode in="SourceGraphic" />
                         </feMerge>
                     </filter>
+                    <linearGradient id="cyanLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#38bdf8" />
+                        <stop offset="100%" stop-color="#0096c7" />
+                    </linearGradient>
                     <linearGradient id="blOuterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" stop-color="#9d9eff" />
                         <stop offset="45%" stop-color="#38bdf8" />
@@ -1088,63 +1264,82 @@
                     </linearGradient>
                 </defs>
 
-                <!-- TOP-LEFT CLOCK FRAME -->
-                <path d="M 12 65 L 12 40 L 24 28 L 168 28 L 180 40 L 180 72 L 146 106 L 36 106 L 0 142" fill="none" stroke="url(#tlGrad)" stroke-width="1.5" />
+                <!-- ================= TOP-LEFT CLOCK FRAME (Exact Hexagonal HUD Capsule) ================= -->
+                <!-- Top line at y=28, chamfers at x=168 down-right, bottom line at y=106, chamfer drop to (0, 142) -->
+                <path d="M 12 65 L 12 40 L 24 28 L 168 28 L 180 40 L 180 72 L 146 106 L 36 106 L 0 142" fill="none"
+                    stroke="url(#tlGrad)" stroke-width="1.5" />
+                <!-- Three slanted slashes /// at the bottom-left chamfer -->
                 <g fill="#00b4d8" transform="translate(13, 91) skewX(-32)">
-                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
-                    <rect x="6" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
-                    <rect x="12" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
+                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                    <rect x="6" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                    <rect x="12" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
                 </g>
 
-                <!-- TOP-RIGHT SYSTEM ONLINE -->
+                <!-- ================= TOP-RIGHT SYSTEM ONLINE (Exact Hexagonal HUD Capsule) ================= -->
                 <path d="M 850 44 L 868 44" fill="none" stroke="url(#trGrad)" stroke-width="1.5" />
-                <path d="M 868 44 L 886 26 L 1004 26 L 1014 36 L 1014 58" fill="none" stroke="url(#trGrad)" stroke-width="1.5" />
-                <path d="M 868 44 L 886 62 L 1004 62 L 1014 72 L 1014 86 L 1024 96" fill="none" stroke="url(#trGrad)" stroke-width="1.5" />
+                <path d="M 868 44 L 886 26 L 1004 26 L 1014 36 L 1014 58" fill="none" stroke="url(#trGrad)"
+                    stroke-width="1.5" />
+                <path d="M 868 44 L 886 62 L 1004 62 L 1014 72 L 1014 86 L 1024 96" fill="none" stroke="url(#trGrad)"
+                    stroke-width="1.5" />
 
-                <!-- CENTER REACTOR CARDINAL AXES & TICKS -->
-                <path d="M 511 138 L 511 168 M 511 378 L 511 408" stroke="#0096c7" stroke-width="1.2" fill="none"/>
-                <circle cx="511" cy="151" r="3.5" fill="#0077b6"/>
-                <circle cx="511" cy="400" r="3.5" fill="#0077b6"/>
-                <circle cx="383" cy="274" r="3.5" fill="#0077b6"/>
-                <circle cx="638" cy="274" r="3.5" fill="#0077b6"/>
+                <!-- ================= CENTER REACTOR CARDINAL AXES & TICKS ================= -->
+                <path d="M 511 138 L 511 168 M 511 378 L 511 408" stroke="#0096c7" stroke-width="1.2" fill="none" />
+                <circle cx="511" cy="151" r="3.5" fill="#0077b6" />
+                <circle cx="511" cy="400" r="3.5" fill="#0077b6" />
+                <circle cx="383" cy="274" r="3.5" fill="#0077b6" />
+                <circle cx="638" cy="274" r="3.5" fill="#0077b6" />
 
-                <!-- WINGS SVG PATHS -->
-                <path d="M 126 280 L 336 280 L 346 274 L 383 274" stroke="rgba(0, 160, 240, 0.7)" stroke-width="1.5" fill="none"/>
-                <path d="M 638 274 L 677 274 L 687 280 L 887 280" stroke="url(#rwLineGrad)" stroke-width="1.5" fill="none"/>
+                <!-- ================= WINGS SVG PATHS WITH EXACT CHAMFER JOG ================= -->
+                <path d="M 126 280 L 336 280 L 346 274 L 383 274" stroke="rgba(0, 160, 240, 0.7)" stroke-width="1.5"
+                    fill="none" />
+                <path d="M 638 274 L 677 274 L 687 280 L 887 280" stroke="url(#rwLineGrad)" stroke-width="1.5"
+                    fill="none" />
 
-                <!-- BOTTOM-LEFT TELEMETRY FRAME -->
-                <path d="M 0 400 L 12 412 L 12 532 L 24 544 L 245 544 L 253 536 L 305 536" fill="none" stroke="url(#blOuterGrad)" stroke-width="1.5" />
-                <path d="M 24 452 L 34 442 L 160 442 L 178 460 L 246 460 L 320 534 L 330 544" fill="none" stroke="#00b4d8" stroke-width="1.5" />
+                <!-- ================= BOTTOM-LEFT TELEMETRY FRAME (Exact Canva Paths) ================= -->
+                <!-- Outer corner baseline: starts at (0, 400), down to (12, 532), chamfer to (24, 544), baseline to (245, 544), step up to (305, 536) -->
+                <path d="M 0 400 L 12 412 L 12 532 L 24 544 L 245 544 L 253 536 L 305 536" fill="none"
+                    stroke="url(#blOuterGrad)" stroke-width="1.5" />
+                <!-- Telemetry card frame: top line at y=442, chamfer down to y=462, diagonal down to baseline -->
+                <path d="M 24 452 L 34 442 L 160 442 L 178 460 L 246 460 L 320 534 L 330 544" fill="none" stroke="#00b4d8"
+                    stroke-width="1.5" />
                 <path d="M 24 452 L 24 516 L 34 526 L 110 526" fill="none" stroke="#00b4d8" stroke-width="1.5" />
+
+                <!-- Three slashes /// at the bottom right of telemetry card -->
                 <g fill="#00b4d8" transform="translate(225, 537) skewX(-32)">
-                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
-                    <rect x="6.5" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
-                    <rect x="13" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
+                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                    <rect x="6.5" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                    <rect x="13" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
                 </g>
 
-                <!-- BOTTOM-RIGHT BRACKET -->
-                <path d="M 775 547 L 785 539 L 880 539 L 880 542 L 1004 542 L 1014 532 L 1014 480 L 1010 476 L 1010 460 L 1024 446" fill="none" stroke="url(#brCornerGrad)" stroke-width="1.5" />
+                <!-- ================= BOTTOM-RIGHT BRACKET ================= -->
+                <!-- Outer baseline and chamfer corner -->
+                <path
+                    d="M 775 547 L 785 539 L 880 539 L 880 542 L 1004 542 L 1014 532 L 1014 480 L 1010 476 L 1010 460 L 1024 446"
+                    fill="none" stroke="url(#brCornerGrad)" stroke-width="1.5" />
+                <!-- Three slanted slashes /// on the horizontal baseline -->
                 <g fill="#00b4d8" transform="translate(865, 533) skewX(-32)">
-                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
-                    <rect x="6.5" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
-                    <rect x="13" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)"/>
+                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                    <rect x="6.5" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                    <rect x="13" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
                 </g>
             </svg>
 
-            <!-- Coordinate Crosshairs -->
+            <!-- Four Coordinate Crosshairs '+' -->
             <div class="crosshair ch-tl">+</div>
             <div class="crosshair ch-tr">+</div>
             <div class="crosshair ch-bl">+</div>
             <div class="crosshair ch-br">+</div>
+
+            <!-- Outer Crosshairs touching reactor perimeter -->
             <div class="crosshair ch-center-left">+</div>
             <div class="crosshair ch-center-right">+</div>
 
-            <!-- Top-Left Clock -->
+            <!-- Top-Left Clock Content -->
             <div class="clock-content">
                 <div class="clock-pill"></div>
                 <div class="clock-data target-glitch">
-                    <div class="clock-time" data-text="--:--:--">--:--:--</div>
-                    <div class="clock-date" data-text="-- --- ----">-- --- ----</div>
+                    <div id="hudTime" class="clock-time" data-text="--:--:--">--:--:--</div>
+                    <div id="hudDate" class="clock-date" data-text="-- --- ----">-- --- ----</div>
                 </div>
             </div>
 
@@ -1166,7 +1361,7 @@
                 </svg>
             </button>
 
-            <!-- Top-Right System Online Status -->
+            <!-- Top-Right System Online Status Content -->
             <div class="status-content">
                 <div class="status-dot"></div>
                 <span class="status-label">SYSTEM ONLINE</span>
@@ -1174,88 +1369,114 @@
 
             <!-- Main Stage (Center Reactor + Wings) -->
             <div class="main-stage">
+
+                <!-- Left Wing Text -->
                 <div class="wing-left-wrap">
                     <div class="wing-text">THINK &nbsp;/&nbsp; ANALYZE &nbsp;/&nbsp; EXECUTE</div>
                 </div>
+                <!-- Pill Node on Left Wing -->
                 <div class="wing-pill-node"></div>
 
+                <!-- Center Rotating HUD Reactor (Using circle.png at 511, 274) -->
                 <div class="hud-cluster">
                     <div class="circle-rotating-wrap">
-                        <img src="circle_light.png" class="circle-image" alt="HYDRA Core" onerror="this.onerror=null; this.src='circle.png';">
+                        <img src="circle.png" class="circle-image" alt="HYDRA Core">
                     </div>
                     <div class="core-center-disc">
-                        <h1 class="core-brand-text">HYDRA</h1>
+                        <h1 class="core-brand-text" id="coreTitle">HYDRA</h1>
                     </div>
                 </div>
 
+                <!-- Right Wing Text -->
                 <div class="wing-right-wrap">
                     <div class="wing-text">YOUR AI ASSISTANT</div>
                 </div>
+                <!-- Dot Node on Right Wing -->
                 <div class="wing-dot-node"></div>
+
             </div>
 
-            <!-- Bottom-Left Telemetry Card -->
+            <!-- Bottom-Left Telemetry Card Content -->
             <div class="telemetry-card-content target-glitch">
                 <div class="telemetry-accent-pill"></div>
                 <div class="telemetry-inner-body">
                     <div class="telemetry-header">
                         <div class="telemetry-dot"></div>
-                        <span class="telemetry-title" data-text="ONLINE">ONLINE</span>
+                        <span id="hudNetStatus" class="telemetry-title" data-text="ONLINE">ONLINE</span>
                     </div>
                     <div class="telemetry-rows">
                         <div class="telemetry-row">
                             <div class="row-label">
-                                <svg class="hud-icon" viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1"/></svg>
+                                <svg class="hud-icon" viewBox="0 0 24 24">
+                                    <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                                    <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                                    <circle cx="12" cy="20" r="1" />
+                                </svg>
                                 <span>NETWORK</span>
                             </div>
-                            <span class="row-val val-ssid" data-text="Connected">Connected</span>
+                            <span id="hudSSID" class="row-val val-ssid" data-text="Connected">Connected</span>
                         </div>
                         <div class="telemetry-row">
                             <div class="row-label">
-                                <svg class="hud-icon" viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="16"/><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/></svg>
+                                <svg class="hud-icon" viewBox="0 0 24 24">
+                                    <line x1="6" y1="20" x2="6" y2="16" />
+                                    <line x1="12" y1="20" x2="12" y2="10" />
+                                    <line x1="18" y1="20" x2="18" y2="4" />
+                                </svg>
                                 <span>SIGNAL</span>
                             </div>
-                            <span class="row-val val-signal" data-text="Good">Good</span>
+                            <span id="hudSignal" class="row-val val-signal" data-text="Good">Good</span>
                         </div>
                         <div class="telemetry-row">
                             <div class="row-label">
-                                <svg class="hud-icon" viewBox="0 0 24 24"><line x1="7" y1="18" x2="7" y2="6"/><polyline points="3 10 7 6 11 10"/><line x1="17" y1="6" x2="17" y2="18"/><polyline points="13 14 17 18 21 14"/></svg>
+                                <svg class="hud-icon" viewBox="0 0 24 24">
+                                    <line x1="7" y1="18" x2="7" y2="6" />
+                                    <polyline points="3 10 7 6 11 10" />
+                                    <line x1="17" y1="6" x2="17" y2="18" />
+                                    <polyline points="13 14 17 18 21 14" />
+                                </svg>
                                 <span>RATE</span>
                             </div>
-                            <span class="row-val val-speed" data-text="43.2 KB/s">43.2 KB/s</span>
+                            <span id="hudSpeed" class="row-val val-speed" data-text="43.2 KB/s">43.2 KB/s</span>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Bottom-Right Action Button -->
-            <div class="action-btn-container">
-                <input type="text" class="cmd-text-input" placeholder="Enter system command..." autocomplete="off">
-                <svg class="chat-icon" viewBox="0 0 24 24">
-                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-                    <line x1="7" y1="8" x2="15" y2="8" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
-                    <line x1="7" y1="12" x2="17" y2="12" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+            <div class="action-btn-container" id="containerBtn">
+                <input type="text" class="cmd-text-input" id="cmdInput" placeholder="Enter system command..."
+                    autocomplete="off">
+
+                <!-- Chat Bubble Icon with cutout lines matching Canva -->
+                <svg class="chat-icon" id="iconAction" viewBox="0 0 24 24">
+                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+                    <line x1="7" y1="8" x2="15" y2="8" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
+                    <line x1="7" y1="12" x2="17" y2="12" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
                 </svg>
-                <svg class="send-icon" viewBox="0 0 24 24">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="#00b4d8"/>
+
+                <!-- Send Icon -->
+                <svg class="send-icon" id="btnSend" viewBox="0 0 24 24">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="#00b4d8" />
                 </svg>
             </div>
 
-            <!-- Quick Info Slide-out Panel -->
-            <div class="info-panel">
-                <div class="info-left-col"></div>
+            <!-- Quick Info Slide-out Panel (Compatible with main.py) -->
+            <div class="info-panel" id="infoPanel">
+                <div class="info-left-col" id="infoLeftCol"></div>
                 <div class="info-right-col">
-                    <h2 class="info-title">Intelligence Intel</h2>
-                    <p class="info-description">Awaiting query parameters...</p>
+                    <h2 id="infoTitle" class="info-title">Intelligence Intel</h2>
+                    <p id="infoDescription" class="info-description">Awaiting query parameters...</p>
                 </div>
             </div>
 
-            <!-- Full-Screen Deep Dive Panel -->
-            <div class="deep-dive-panel">
-                <div class="dd-header dd-title">Target Deep Dive</div>
+            <!-- Full-Screen Deep Dive Panel (Compatible with main.py) -->
+            <div class="deep-dive-panel" id="deepDivePanel">
+                <div class="dd-header" id="ddTitle">Target Deep Dive</div>
                 <div class="dd-content">
-                    <div class="dd-images"></div>
-                    <div class="dd-text">Processing deeper context...</div>
+                    <div class="dd-images" id="ddImages"></div>
+                    <div class="dd-text" id="ddText">Processing deeper context...</div>
                 </div>
             </div>
 
@@ -1308,45 +1529,54 @@
                 </defs>
 
                 <!-- TOP-LEFT CLOCK FRAME -->
-                <path d="M 12 65 L 12 40 L 24 28 L 168 28 L 180 40 L 180 72 L 146 106 L 36 106 L 0 142" fill="none" stroke="url(#tlGradDark)" stroke-width="1.5" />
+                <path d="M 12 65 L 12 40 L 24 28 L 168 28 L 180 40 L 180 72 L 146 106 L 36 106 L 0 142" fill="none"
+                    stroke="url(#tlGradDark)" stroke-width="1.5" />
                 <g fill="#00e5ff" transform="translate(13, 91) skewX(-32)">
-                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)"/>
-                    <rect x="6" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)"/>
-                    <rect x="12" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)"/>
+                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)" />
+                    <rect x="6" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)" />
+                    <rect x="12" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)" />
                 </g>
 
                 <!-- TOP-RIGHT SYSTEM ONLINE -->
                 <path d="M 850 44 L 868 44" fill="none" stroke="url(#trGradDark)" stroke-width="1.5" />
-                <path d="M 868 44 L 886 26 L 1004 26 L 1014 36 L 1014 58" fill="none" stroke="url(#trGradDark)" stroke-width="1.5" />
-                <path d="M 868 44 L 886 62 L 1004 62 L 1014 72 L 1014 86 L 1024 96" fill="none" stroke="url(#trGradDark)" stroke-width="1.5" />
+                <path d="M 868 44 L 886 26 L 1004 26 L 1014 36 L 1014 58" fill="none" stroke="url(#trGradDark)"
+                    stroke-width="1.5" />
+                <path d="M 868 44 L 886 62 L 1004 62 L 1014 72 L 1014 86 L 1024 96" fill="none" stroke="url(#trGradDark)"
+                    stroke-width="1.5" />
 
                 <!-- CENTER REACTOR CARDINAL AXES & TICKS -->
-                <path d="M 511 138 L 511 168 M 511 378 L 511 408" stroke="#00d8f6" stroke-width="1.2" fill="none"/>
-                <circle cx="511" cy="151" r="3.5" fill="#00e5ff"/>
-                <circle cx="511" cy="400" r="3.5" fill="#00e5ff"/>
-                <circle cx="383" cy="274" r="3.5" fill="#00e5ff"/>
-                <circle cx="638" cy="274" r="3.5" fill="#00e5ff"/>
+                <path d="M 511 138 L 511 168 M 511 378 L 511 408" stroke="#00d8f6" stroke-width="1.2" fill="none" />
+                <circle cx="511" cy="151" r="3.5" fill="#00e5ff" />
+                <circle cx="511" cy="400" r="3.5" fill="#00e5ff" />
+                <circle cx="383" cy="274" r="3.5" fill="#00e5ff" />
+                <circle cx="638" cy="274" r="3.5" fill="#00e5ff" />
 
                 <!-- WINGS SVG PATHS -->
-                <path d="M 126 280 L 336 280 L 346 274 L 383 274" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5" fill="none"/>
-                <path d="M 638 274 L 677 274 L 687 280 L 887 280" stroke="url(#rwLineGradDark)" stroke-width="1.5" fill="none"/>
+                <path d="M 126 280 L 336 280 L 346 274 L 383 274" stroke="rgba(0, 216, 246, 0.7)" stroke-width="1.5"
+                    fill="none" />
+                <path d="M 638 274 L 677 274 L 687 280 L 887 280" stroke="url(#rwLineGradDark)" stroke-width="1.5"
+                    fill="none" />
 
                 <!-- BOTTOM-LEFT TELEMETRY FRAME -->
-                <path d="M 0 400 L 12 412 L 12 532 L 24 544 L 245 544 L 253 536 L 305 536" fill="none" stroke="url(#blOuterGradDark)" stroke-width="1.5" />
-                <path d="M 24 452 L 34 442 L 160 442 L 178 460 L 246 460 L 320 534 L 330 544" fill="none" stroke="#00d8f6" stroke-width="1.5" />
+                <path d="M 0 400 L 12 412 L 12 532 L 24 544 L 245 544 L 253 536 L 305 536" fill="none"
+                    stroke="url(#blOuterGradDark)" stroke-width="1.5" />
+                <path d="M 24 452 L 34 442 L 160 442 L 178 460 L 246 460 L 320 534 L 330 544" fill="none" stroke="#00d8f6"
+                    stroke-width="1.5" />
                 <path d="M 24 452 L 24 516 L 34 526 L 110 526" fill="none" stroke="#00d8f6" stroke-width="1.5" />
                 <g fill="#00e5ff" transform="translate(225, 537) skewX(-32)">
-                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)"/>
-                    <rect x="6.5" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)"/>
-                    <rect x="13" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)"/>
+                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)" />
+                    <rect x="6.5" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)" />
+                    <rect x="13" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)" />
                 </g>
 
                 <!-- BOTTOM-RIGHT BRACKET -->
-                <path d="M 775 547 L 785 539 L 880 539 L 880 542 L 1004 542 L 1014 532 L 1014 480 L 1010 476 L 1010 460 L 1024 446" fill="none" stroke="url(#brCornerGradDark)" stroke-width="1.5" />
+                <path
+                    d="M 775 547 L 785 539 L 880 539 L 880 542 L 1004 542 L 1014 532 L 1014 480 L 1010 476 L 1010 460 L 1024 446"
+                    fill="none" stroke="url(#brCornerGradDark)" stroke-width="1.5" />
                 <g fill="#00e5ff" transform="translate(865, 533) skewX(-32)">
-                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)"/>
-                    <rect x="6.5" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)"/>
-                    <rect x="13" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)"/>
+                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)" />
+                    <rect x="6.5" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)" />
+                    <rect x="13" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlowDark)" />
                 </g>
             </svg>
 
@@ -1424,21 +1654,35 @@
                     <div class="telemetry-rows">
                         <div class="telemetry-row">
                             <div class="row-label">
-                                <svg class="hud-icon" viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1"/></svg>
+                                <svg class="hud-icon" viewBox="0 0 24 24">
+                                    <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                                    <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                                    <circle cx="12" cy="20" r="1" />
+                                </svg>
                                 <span>NETWORK</span>
                             </div>
                             <span class="row-val val-ssid" data-text="Connected">Connected</span>
                         </div>
                         <div class="telemetry-row">
                             <div class="row-label">
-                                <svg class="hud-icon" viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="16"/><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/></svg>
+                                <svg class="hud-icon" viewBox="0 0 24 24">
+                                    <line x1="6" y1="20" x2="6" y2="16" />
+                                    <line x1="12" y1="20" x2="12" y2="10" />
+                                    <line x1="18" y1="20" x2="18" y2="4" />
+                                </svg>
                                 <span>SIGNAL</span>
                             </div>
                             <span class="row-val val-signal" data-text="Good">Good</span>
                         </div>
                         <div class="telemetry-row">
                             <div class="row-label">
-                                <svg class="hud-icon" viewBox="0 0 24 24"><line x1="7" y1="18" x2="7" y2="6"/><polyline points="3 10 7 6 11 10"/><line x1="17" y1="6" x2="17" y2="18"/><polyline points="13 14 17 18 21 14"/></svg>
+                                <svg class="hud-icon" viewBox="0 0 24 24">
+                                    <line x1="7" y1="18" x2="7" y2="6" />
+                                    <polyline points="3 10 7 6 11 10" />
+                                    <line x1="17" y1="6" x2="17" y2="18" />
+                                    <polyline points="13 14 17 18 21 14" />
+                                </svg>
                                 <span>RATE</span>
                             </div>
                             <span class="row-val val-speed" data-text="43.2 KB/s">43.2 KB/s</span>
@@ -1451,12 +1695,12 @@
             <div class="action-btn-container">
                 <input type="text" class="cmd-text-input" placeholder="Enter system command..." autocomplete="off">
                 <svg class="chat-icon" viewBox="0 0 24 24">
-                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-                    <line x1="7" y1="8" x2="15" y2="8" stroke="#000d17" stroke-width="2" stroke-linecap="round"/>
-                    <line x1="7" y1="12" x2="17" y2="12" stroke="#000d17" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+                    <line x1="7" y1="8" x2="15" y2="8" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" />
+                    <line x1="7" y1="12" x2="17" y2="12" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" />
                 </svg>
                 <svg class="send-icon" viewBox="0 0 24 24">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="#00e5ff"/>
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="#00e5ff" />
                 </svg>
             </div>
 
@@ -1532,7 +1776,7 @@
             scanLine.style.top = '0%';
             scanLine.style.opacity = '1';
             
-            const duration = 1150; // ms: crisp scanner sweep speed
+            const duration = 1150; // ms: authentic crisp scanner sweep speed
             let startTime = null;
             
             function scanFrame(now) {
@@ -1568,9 +1812,9 @@
             const command = input.value.trim();
             if (command) {
                 const lower = command.toLowerCase();
-                if (lower.includes('dark mode') || lower.includes('night mode') || lower === 'dark' || lower.includes('theme dark')) {
+                if (lower.includes('dark mode') || lower.includes('night mode') || lower === 'dark' || lower.includes('theme dark') || lower.includes('switch to dark') || lower.includes('change to dark') || lower.includes('enable dark')) {
                     setTheme('dark');
-                } else if (lower.includes('light mode') || lower.includes('day mode') || lower === 'light' || lower.includes('theme light')) {
+                } else if (lower.includes('light mode') || lower.includes('day mode') || lower === 'light' || lower.includes('theme light') || lower.includes('switch to light') || lower.includes('change to light') || lower.includes('enable light')) {
                     setTheme('light');
                 } else if (lower.includes('switch theme') || lower.includes('toggle theme') || lower.includes('change theme') || lower.includes('switch mode') || lower.includes('toggle mode')) {
                     toggleTheme();
@@ -1587,7 +1831,7 @@
             const cmdInput = containerBtn.querySelector('.cmd-text-input');
             const btnSend = containerBtn.querySelector('.send-icon');
 
-            containerBtn.addEventListener('click', function(e) {
+            containerBtn.addEventListener('click', function (e) {
                 if (!containerBtn.classList.contains('expanded')) {
                     containerBtn.classList.add('expanded');
                     if (cmdInput) cmdInput.focus();
@@ -1595,14 +1839,14 @@
             });
 
             if (btnSend) {
-                btnSend.addEventListener('click', function(e) {
+                btnSend.addEventListener('click', function (e) {
                     e.stopPropagation();
                     if (cmdInput) handleCommandSubmit(cmdInput, containerBtn);
                 });
             }
 
             if (cmdInput) {
-                cmdInput.addEventListener('keydown', function(e) {
+                cmdInput.addEventListener('keydown', function (e) {
                     if (e.key === 'Enter') {
                         handleCommandSubmit(cmdInput, containerBtn);
                     } else if (e.key === 'Escape') {
@@ -1615,7 +1859,7 @@
         });
 
         // Close expanded command bar on outside click
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             document.querySelectorAll('.action-btn-container.expanded').forEach(containerBtn => {
                 if (!containerBtn.contains(e.target)) {
                     containerBtn.classList.remove('expanded');
@@ -1630,12 +1874,12 @@
                 coreEl.innerText = text;
             });
         }
-        
+
         function updateHUD() {
             const now = new Date();
             const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
             const timeStr = now.toLocaleTimeString('en-GB', { hour12: false });
-            
+
             document.querySelectorAll('.clock-time').forEach(hudTime => {
                 hudTime.innerText = timeStr;
                 hudTime.setAttribute('data-text', timeStr);
@@ -1691,18 +1935,18 @@
                 document.querySelectorAll('.info-left-col').forEach(leftCol => {
                     leftCol.innerHTML = '';
                     items.forEach(item => {
-                        let defaultImg = currentTheme === 'dark' ? 'circle_dark.png' : 'circle_light.png';
+                        let defaultImg = currentTheme === 'dark' ? 'circle_dark.png' : 'circle.png';
                         let imgSrc = item.img ? item.img : defaultImg;
                         leftCol.innerHTML += `
                             <div class="info-card">
-                                <img src="${imgSrc}" alt="Preview" onerror="this.onerror=null; this.src='circle_light.png';" onclick="openImageModal(this.src)">
+                                <img src="${imgSrc}" alt="Preview" onerror="this.onerror=null; this.src='circle.png';" onclick="openImageModal(this.src)">
                                 <div class="source-txt">${item.source || 'HYDRA ARCHIVE'}</div>
                                 <div class="detail-txt">${item.desc}</div>
                             </div>`;
                     });
                 });
                 triggerScreenSwipe(true);
-            }, 300); 
+            }, 300);
         }
 
         function resetScreenSwipe() {
@@ -1711,7 +1955,7 @@
         }
 
         function openImageModal(src) {
-            if (src.includes('circle')) return;
+            if (src.includes('circle.png')) return;
             document.getElementById('modalImg').src = src;
             document.getElementById('imgModal').classList.add('active');
         }
@@ -1723,18 +1967,20 @@
         function openDeepDiveHUD(title, htmlContent, imagesList) {
             document.querySelectorAll('.dd-title').forEach(el => el.innerText = title);
             document.querySelectorAll('.dd-text').forEach(el => el.innerHTML = htmlContent);
-            
-            document.querySelectorAll('.dd-images').forEach(imgContainer => {
+
+            const imgContainer = document.getElementById('ddImages');
+            if (imgContainer) {
                 imgContainer.innerHTML = '';
                 imagesList.forEach(src => {
-                    if (src && !src.includes('circle')) {
+                    if (src && !src.includes('circle.png')) {
                         imgContainer.innerHTML += `<img src="${src}" onclick="openImageModal(this.src)" onerror="this.style.display='none'">`;
                     }
                 });
-            });
+            }
 
             document.body.classList.add('deep-dive-active');
         }
     </script>
 </body>
+
 </html>

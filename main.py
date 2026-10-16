@@ -644,7 +644,7 @@ class HydraPage(QWebEnginePage):
             return
 
         # ---> THEME SCAN SWITCH COMMANDS <---
-        if any(w in cmd_lower for w in ["dark mode", "night mode", "dark theme", "switch to dark", "enable dark", "turn on dark mode", "set theme to dark"]):
+        if any(w in cmd_lower for w in ["dark mode", "night mode", "dark theme", "switch to dark", "enable dark", "turn on dark mode", "set theme to dark", "change to dark"]):
             GUI_SIGNALS.js_signal.emit("setTheme('dark');")
             reply = "Initiating scan to dark mode, sir."
             self.speak_voice(reply)
@@ -652,7 +652,7 @@ class HydraPage(QWebEnginePage):
             save_chat_message("assistant", reply)
             return
 
-        if any(w in cmd_lower for w in ["light mode", "day mode", "light theme", "switch to light", "enable light", "turn on light mode", "set theme to light"]):
+        if any(w in cmd_lower for w in ["light mode", "day mode", "light theme", "switch to light", "enable light", "turn on light mode", "set theme to light", "change to light"]):
             GUI_SIGNALS.js_signal.emit("setTheme('light');")
             reply = "Initiating scan to light mode, sir."
             self.speak_voice(reply)
