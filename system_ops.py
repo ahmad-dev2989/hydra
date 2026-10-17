@@ -906,11 +906,23 @@ class SystemDriver:
 
     # --- NETWORK CONTROL ---
     def toggle_wifi(self, enable=True):
-        state = "ENABLED" if enable else "DISABLED"
         try:
-            cmd = f'netsh interface set interface name="Wi-Fi" admin={state}'
-            subprocess.run(cmd, shell=True, capture_output=True)
-            return True, f"Wi-Fi adapter {state.lower()}"
+            if not enable:
+                res_disc = subprocess.run('netsh wlan disconnect', shell=True, capture_output=True, text=True)
+                subprocess.run('netsh interface set interface name="Wi-Fi" admin=DISABLED', shell=True, capture_output=True, text=True)
+                if res_disc.returncode == 0:
+                    return True, "Wi-Fi disconnected and turned off, sir."
+                return False, "Failed to turn off Wi-Fi."
+            else:
+                subprocess.run('netsh interface set interface name="Wi-Fi" admin=ENABLED', shell=True, capture_output=True)
+                p = subprocess.run('netsh wlan show profiles', shell=True, capture_output=True, text=True)
+                profiles = re.findall(r'All User Profile\s*:\s*(.*)', p.stdout)
+                for prof in profiles:
+                    prof_name = prof.strip()
+                    c = subprocess.run(f'netsh wlan connect name="{prof_name}"', shell=True, capture_output=True, text=True)
+                    if c.returncode == 0:
+                        return True, f"Wi-Fi connected to {prof_name}, sir."
+                return True, "Wi-Fi adapter enabled, sir."
         except Exception as e:
             return False, str(e)
 

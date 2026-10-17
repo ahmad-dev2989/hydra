@@ -1010,9 +1010,9 @@ class HydraPage(QWebEnginePage):
                     success, state = SYS_DRIVER.execute_command(action, payload)
 
                     if action == "WIFI_ON":
-                        reply = "Wi-Fi adapter enabled, sir." if success else "Failed to enable Wi-Fi."
+                        reply = state if success else "Failed to enable Wi-Fi."
                     elif action == "WIFI_OFF":
-                        reply = "Wi-Fi adapter disabled, sir." if success else "Failed to disable Wi-Fi."
+                        reply = state if success else "Failed to disable Wi-Fi."
                     elif action == "WIFI_CONNECT":
                         reply = f"Connected to {state}, sir." if success else f"Connection to {payload} failed."
                     elif action == "OPEN_APP":
