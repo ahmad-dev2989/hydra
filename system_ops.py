@@ -3,22 +3,483 @@ import os
 import psutil
 import difflib
 import shutil
+import winreg
+import json
+import time
+import re
+import threading
+from typing import Dict, List, Optional, Tuple
+
+def is_unwanted_target(name: str, path: str = "") -> bool:
+    low = (name + " " + path).lower()
+    unwanted = [
+        "uninstall", "unins000", "uninstaller", "installer", "setup.exe",
+        "readme", "documentation", "manual", "license", "release notes",
+        "help", "troubleshoot", "diagnostic", "feedback hub", "get help"
+    ]
+    return any(u in low for u in unwanted)
+
+class AppIndexEngine:
+    def __init__(self, cache_file: str = None):
+        if cache_file is None:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            cache_file = os.path.join(base_dir, "apps_index_cache.json")
+        self.cache_file = cache_file
+        self.lock = threading.Lock()
+        self.apps: Dict[str, dict] = {}
+        
+        self.aliases: Dict[str, str] = {
+            "calc": "calculator",
+            "calculator": "calculator",
+            "cal": "calculator",
+            "cmd": "command prompt",
+            "terminal": "command prompt",
+            "powershell": "powershell",
+            "ps": "powershell",
+            "code": "visual studio code",
+            "vscode": "visual studio code",
+            "vs code": "visual studio code",
+            "vscod": "visual studio code",
+            "chrome": "google chrome",
+            "google chrome": "google chrome",
+            "crom": "google chrome",
+            "chome": "google chrome",
+            "browser": "brave",
+            "web browser": "brave",
+            "brave browser": "brave",
+            "brav": "brave",
+            "word": "word",
+            "winword": "word",
+            "ms word": "word",
+            "wrd": "word",
+            "excel": "excel",
+            "ms excel": "excel",
+            "excl": "excel",
+            "powerpoint": "powerpoint",
+            "ppt": "powerpoint",
+            "ms powerpoint": "powerpoint",
+            "note": "notepad",
+            "notepad": "notepad",
+            "notpad": "notepad",
+            "text editor": "notepad",
+            "paint": "paint",
+            "mspaint": "paint",
+            "explorer": "file explorer",
+            "files": "file explorer",
+            "my computer": "file explorer",
+            "this pc": "file explorer",
+            "taskmgr": "task manager",
+            "task manager": "task manager",
+            "settings": "settings",
+            "windows settings": "settings",
+            "config": "settings",
+            "canva": "canva",
+            "cana": "canva",
+            "canv": "canva",
+            "cnva": "canva",
+            "spotify": "spotify",
+            "spotfy": "spotify",
+            "music": "spotify",
+            "discord": "discord",
+            "dc": "discord",
+            "whatsapp": "whatsapp",
+            "watsapp": "whatsapp",
+            "watsap": "whatsapp",
+            "telegram": "telegram",
+            "tg": "telegram",
+            "edge": "microsoft edge",
+            "ms edge": "microsoft edge",
+            "fl studio": "fl studio 2024",
+            "fl": "fl studio 2024",
+            "camera": "camera",
+            "snip": "snipping tool",
+            "snipping tool": "snipping tool",
+        }
+        self.builtin_system_apps = {
+            "settings": {"name": "Settings", "target": "ms-settings:", "type": "PROTOCOL", "exe_name": "SystemSettings.exe"},
+            "control panel": {"name": "Control Panel", "target": "control", "type": "SYSTEM", "exe_name": "control.exe"},
+            "command prompt": {"name": "Command Prompt", "target": "cmd", "type": "SYSTEM", "exe_name": "cmd.exe"},
+            "powershell": {"name": "PowerShell", "target": "powershell", "type": "SYSTEM", "exe_name": "powershell.exe"},
+            "task manager": {"name": "Task Manager", "target": "taskmgr", "type": "SYSTEM", "exe_name": "Taskmgr.exe"},
+            "calculator": {"name": "Calculator", "target": "calc", "type": "SYSTEM", "exe_name": "CalculatorApp.exe"},
+            "notepad": {"name": "Notepad", "target": "notepad", "type": "SYSTEM", "exe_name": "Notepad.exe"},
+            "paint": {"name": "Paint", "target": "mspaint", "type": "SYSTEM", "exe_name": "mspaint.exe"},
+            "snipping tool": {"name": "Snipping Tool", "target": "snippingtool", "type": "SYSTEM", "exe_name": "SnippingTool.exe"},
+            "file explorer": {"name": "File Explorer", "target": "explorer", "type": "SYSTEM", "exe_name": "explorer.exe"},
+            "bluetooth settings": {"name": "Bluetooth Settings", "target": "ms-settings:bluetooth", "type": "PROTOCOL", "exe_name": "SystemSettings.exe"},
+            "wifi settings": {"name": "Wi-Fi Settings", "target": "ms-settings:network-wifi", "type": "PROTOCOL", "exe_name": "SystemSettings.exe"},
+            "network settings": {"name": "Network Settings", "target": "ms-settings:network", "type": "PROTOCOL", "exe_name": "SystemSettings.exe"},
+            "sound settings": {"name": "Sound Settings", "target": "ms-settings:sound", "type": "PROTOCOL", "exe_name": "SystemSettings.exe"},
+            "display settings": {"name": "Display Settings", "target": "ms-settings:display", "type": "PROTOCOL", "exe_name": "SystemSettings.exe"},
+            "camera": {"name": "Camera", "target": "microsoft.windows.camera:", "type": "PROTOCOL", "exe_name": "WindowsCamera.exe"},
+        }
+        self.apps = dict(self.builtin_system_apps)
+
+    def load_cache(self) -> bool:
+        if os.path.exists(self.cache_file):
+            try:
+                with open(self.cache_file, "r", encoding="utf-8") as f:
+                    cached = json.load(f)
+                    with self.lock:
+                        self.apps.update(cached)
+                return True
+            except Exception as e:
+                print(f"[AppIndexEngine] Cache read error: {e}")
+        return False
+
+    def save_cache(self):
+        try:
+            with open(self.cache_file, "w", encoding="utf-8") as f:
+                with self.lock:
+                    json.dump(self.apps, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"[AppIndexEngine] Cache write error: {e}")
+
+    def scan_system(self):
+        start_time = time.time()
+        discovered = dict(self.builtin_system_apps)
+
+        # 1. Scan UWP / StartApps via PowerShell Get-StartApps
+        try:
+            ps_cmd = 'Get-StartApps | ConvertTo-Json'
+            res = subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-Command', ps_cmd],
+                                 capture_output=True, text=True, encoding='utf-8', timeout=6)
+            if res.returncode == 0 and res.stdout.strip():
+                try:
+                    data = json.loads(res.stdout)
+                    if isinstance(data, dict): data = [data]
+                    for item in data:
+                        name = item.get("Name", "").strip()
+                        appid = item.get("AppID", "").strip()
+                        if name and appid and not is_unwanted_target(name, appid):
+                            low_name = name.lower()
+                            target = f"shell:AppsFolder\\{appid}"
+                            exe_candidate = name + ".exe"
+                            if "\\" in appid:
+                                exe_candidate = os.path.basename(appid)
+
+                            entry = {
+                                "name": name,
+                                "target": target,
+                                "type": "UWP",
+                                "exe_name": exe_candidate
+                            }
+                            discovered[low_name] = entry
+                            
+                            clean_name = re.sub(r'[^a-zA-Z0-9 ]', '', low_name).strip()
+                            if clean_name and clean_name != low_name:
+                                discovered[clean_name] = entry
+                except Exception as ex:
+                    print(f"[AppIndexEngine] JSON parse error: {ex}")
+        except Exception as e:
+            print(f"[AppIndexEngine] PowerShell Get-StartApps scan error: {e}")
+
+        # 2. LocalAppData Programs
+        local_programs = os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs')
+        if os.path.exists(local_programs):
+            for root, dirs, files in os.walk(local_programs):
+                for f in files:
+                    if f.lower().endswith('.exe') and not is_unwanted_target(f, root):
+                        app_name = os.path.splitext(f)[0]
+                        low_name = app_name.lower().strip()
+                        full_path = os.path.join(root, f)
+                        entry = {
+                            "name": app_name,
+                            "target": full_path,
+                            "type": "EXE",
+                            "exe_name": f
+                        }
+                        if low_name not in discovered or discovered[low_name]["type"] != "UWP":
+                            discovered[low_name] = entry
+
+        # 3. Scan Start Menu and Desktop .lnk Shortcuts
+        paths_to_scan = [
+            os.path.join(os.environ.get('PROGRAMDATA', r'C:\ProgramData'), r'Microsoft\Windows\Start Menu\Programs'),
+            os.path.join(os.environ.get('APPDATA', ''), r'Microsoft\Windows\Start Menu\Programs'),
+            os.path.join(os.environ.get('USERPROFILE', ''), 'Desktop'),
+            r'C:\Users\Public\Desktop',
+        ]
+
+        for base_path in paths_to_scan:
+            if not os.path.exists(base_path):
+                continue
+            for root, _, files in os.walk(base_path):
+                for f in files:
+                    if is_unwanted_target(f, root):
+                        continue
+                    low_f = f.lower()
+                    if low_f.endswith('.lnk') or low_f.endswith('.url'):
+                        app_name = os.path.splitext(f)[0]
+                        low_name = app_name.lower().strip()
+                        full_path = os.path.join(root, f)
+                        entry = {
+                            "name": app_name,
+                            "target": full_path,
+                            "type": "LNK",
+                            "exe_name": app_name + ".exe"
+                        }
+                        if low_name not in discovered:
+                            discovered[low_name] = entry
+                        clean_name = re.sub(r'[^a-zA-Z0-9 ]', '', low_name).strip()
+                        if clean_name and clean_name not in discovered:
+                            discovered[clean_name] = entry
+
+        # 4. Scan Registry App Paths
+        reg_roots = [
+            (winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths'),
+            (winreg.HKEY_CURRENT_USER, r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths')
+        ]
+        for hkey, subkey in reg_roots:
+            try:
+                with winreg.OpenKey(hkey, subkey) as key:
+                    num_subkeys = winreg.QueryInfoKey(key)[0]
+                    for i in range(num_subkeys):
+                        try:
+                            key_name = winreg.EnumKey(key, i)
+                            if is_unwanted_target(key_name):
+                                continue
+                            with winreg.OpenKey(key, key_name) as app_key:
+                                exe_path, _ = winreg.QueryValueEx(app_key, '')
+                                if exe_path and os.path.exists(exe_path) and not is_unwanted_target(exe_path):
+                                    base_name = os.path.splitext(key_name)[0].lower()
+                                    display_name = base_name.capitalize()
+                                    entry = {
+                                        "name": display_name,
+                                        "target": exe_path,
+                                        "type": "EXE",
+                                        "exe_name": os.path.basename(exe_path)
+                                    }
+                                    if base_name not in discovered:
+                                        discovered[base_name] = entry
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+        with self.lock:
+            self.apps.update(discovered)
+        self.save_cache()
+        elapsed = time.time() - start_time
+        print(f"[AppIndexEngine] Background indexer finished in {elapsed:.2f}s. {len(self.apps)} apps registered.")
+
+    def start_background_indexer(self):
+        thread = threading.Thread(target=self.scan_system, daemon=True)
+        thread.start()
+
+    def clean_query(self, raw_query: str) -> str:
+        if not raw_query:
+            return ""
+        q = raw_query.lower().strip()
+        q = re.sub(r'[!?,.:;]', '', q).strip()
+
+        # Remove leading assistant wake words
+        wake_words = ["hydra ", "hey hydra ", "ok hydra ", "okay hydra "]
+        for w in wake_words:
+            if q.startswith(w):
+                q = q[len(w):].strip()
+                break
+
+        # Remove conversational request phrases
+        polite_prefixes = [
+            "can you please ", "could you please ", "can you ", "could you ",
+            "please ", "i want to ", "i would like to ", "help me ", "go ahead and "
+        ]
+        for p in polite_prefixes:
+            if q.startswith(p):
+                q = q[len(p):].strip()
+                break
+
+        # Remove command verbs for open/launch/close/kill
+        verb_prefixes = [
+            "open the app ", "launch the app ", "start the app ", "run the app ",
+            "close the app ", "kill the app ", "terminate the app ",
+            "open the application ", "launch the application ",
+            "open the ", "launch the ", "start the ", "run the ",
+            "close the ", "kill the ", "terminate the ",
+            "open app ", "launch app ", "start app ", "run app ",
+            "close app ", "kill app ",
+            "open ", "launch ", "start ", "run ", "pull up ", "bring up ", "fire up ",
+            "close ", "kill ", "terminate ", "shut down ", "stop "
+        ]
+        for v in verb_prefixes:
+            if q.startswith(v):
+                q = q[len(v):].strip()
+                break
+
+        # Remove trailing fillers
+        trailing_fillers = [
+            " please", " for me", " quickly", " right now", " immediately",
+            " app", " application", " software"
+        ]
+        for tf in trailing_fillers:
+            if q.endswith(tf):
+                q = q[:-len(tf)].strip()
+
+        return q
+
+    def resolve_app(self, raw_query: str) -> Tuple[Optional[dict], str, bool]:
+        """
+        Returns: (app_dict_or_None, display_name, is_typo_corrected)
+        """
+        clean = self.clean_query(raw_query)
+        if not clean:
+            return None, "", False
+
+        with self.lock:
+            apps_snapshot = dict(self.apps)
+
+        # Stage 1: Explicit Alias
+        if clean in self.aliases:
+            alias_key = self.aliases[clean]
+            if alias_key in apps_snapshot:
+                is_typo = (clean != alias_key)
+                return apps_snapshot[alias_key], apps_snapshot[alias_key]["name"], is_typo
+            clean = alias_key
+
+        # Stage 2: Exact Key Match
+        if clean in apps_snapshot:
+            return apps_snapshot[clean], apps_snapshot[clean]["name"], False
+
+        # Stage 3: Exact Word Boundary Match (e.g. 'code' -> 'Visual Studio Code')
+        candidate_keys = list(apps_snapshot.keys())
+        for k in candidate_keys:
+            words = k.split()
+            if clean in words:
+                return apps_snapshot[k], apps_snapshot[k]["name"], False
+
+        # Stage 4: Substring match (for length >= 4)
+        if len(clean) >= 4:
+            for k in candidate_keys:
+                if clean in k:
+                    return apps_snapshot[k], apps_snapshot[k]["name"], False
+
+        # Stage 5: Typo / Fuzzy Matching via difflib SequenceMatcher
+        best_key = None
+        best_score = 0.0
+
+        for k in candidate_keys:
+            ratio = difflib.SequenceMatcher(None, clean, k).ratio()
+            disp_ratio = difflib.SequenceMatcher(None, clean, apps_snapshot[k]["name"].lower()).ratio()
+            score = max(ratio, disp_ratio)
+            
+            len_diff = abs(len(clean) - len(k))
+            if len_diff <= 2 and score > best_score:
+                best_score = score
+                best_key = k
+            elif score > best_score:
+                best_score = score
+                best_key = k
+
+        threshold = 0.55 if len(clean) >= 4 else 0.70
+        if best_key and best_score >= threshold:
+            matched_app = apps_snapshot[best_key]
+            return matched_app, matched_app["name"], True
+
+        return None, clean, False
+
+    def launch(self, raw_query: str) -> Tuple[bool, str, str]:
+        """
+        Resolves app and launches it immediately.
+        Returns: (success, spoken_response, app_name)
+        """
+        app_entry, app_name, is_typo = self.resolve_app(raw_query)
+        if not app_entry:
+            clean = self.clean_query(raw_query)
+            try:
+                subprocess.Popen(f"cmd /c start {clean}", shell=True)
+                return True, f"Attempting to launch {clean}, sir.", clean
+            except Exception:
+                return False, f"Could not find an application matching '{clean}' on your laptop, sir.", clean
+
+        target = app_entry["target"]
+        target_type = app_entry["type"]
+        display_name = app_entry["name"]
+
+        try:
+            if target_type == "UWP":
+                os.startfile(target)
+            elif target_type == "LNK":
+                os.startfile(target)
+            elif target_type == "EXE":
+                if os.path.exists(target):
+                    subprocess.Popen([target])
+                else:
+                    os.startfile(target)
+            elif target_type == "PROTOCOL":
+                os.startfile(target)
+            elif target_type == "SYSTEM":
+                subprocess.Popen(f"cmd /c start {target}", shell=True)
+            else:
+                os.startfile(target)
+
+            if is_typo:
+                spoken = f"Identified {display_name}. Opening {display_name} on your screen, sir."
+            else:
+                spoken = f"Opening {display_name}, sir."
+            return True, spoken, display_name
+        except Exception as e:
+            try:
+                subprocess.Popen(f"cmd /c start {target}", shell=True)
+                return True, f"Opening {display_name}, sir.", display_name
+            except Exception as e2:
+                return False, f"Error launching {display_name}: {e2}", display_name
+
+    def close(self, raw_query: str) -> Tuple[bool, str, str]:
+        """
+        Resolves app and terminates running process.
+        Returns: (success, spoken_response, app_name)
+        """
+        app_entry, app_name, is_typo = self.resolve_app(raw_query)
+        target_name = app_name if app_entry else self.clean_query(raw_query)
+
+        exe_names = []
+        if app_entry and app_entry.get("exe_name"):
+            exe_names.append(app_entry["exe_name"])
+        clean_target = target_name.lower().replace(" ", "")
+        exe_names.append(f"{target_name}.exe")
+        exe_names.append(f"{clean_target}.exe")
+
+        closed_any = False
+        try:
+            for proc in psutil.process_iter(['name', 'exe', 'pid']):
+                try:
+                    pname = (proc.info.get('name') or "").lower()
+                    if any(candidate.lower() == pname for candidate in exe_names) or (clean_target in pname and len(clean_target) >= 4):
+                        proc.kill()
+                        closed_any = True
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+        except Exception:
+            pass
+
+        for exe in set(exe_names):
+            try:
+                res = subprocess.run(["taskkill", "/f", "/im", exe], capture_output=True, text=True)
+                if res.returncode == 0:
+                    closed_any = True
+            except Exception:
+                pass
+
+        if closed_any:
+            return True, f"Closed {target_name}, sir.", target_name
+        else:
+            return False, f"Could not find an active {target_name} process to close, sir.", target_name
 
 class SystemDriver:
+    def __init__(self):
+        self.app_engine = AppIndexEngine()
+        # Fast load cache synchronously in <15ms
+        self.app_engine.load_cache()
+        # Start background scanner to keep registry/UWP apps completely fresh
+        self.app_engine.start_background_indexer()
+
     def open_application(self, name):
-        try:
-            subprocess.Popen(f"cmd /c start {name}", shell=True)
-            return True, f"Launched {name}"
-        except Exception as e:
-            return False, str(e)
+        success, spoken, app_name = self.app_engine.launch(name)
+        return success, spoken
 
     def close_application(self, name):
-        try:
-            clean_name = name if name.lower().endswith(".exe") else f"{name}.exe"
-            subprocess.run(["taskkill", "/f", "/im", clean_name], capture_output=True)
-            return True, f"Closed {name}"
-        except Exception as e:
-            return False, str(e)
+        success, spoken, app_name = self.app_engine.close(name)
+        return success, spoken
 
     def list_running_apps(self):
         apps = []

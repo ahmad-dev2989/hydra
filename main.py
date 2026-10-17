@@ -343,6 +343,10 @@ def retrieve_relevant_memories(current_command):
 
 def populate_apps_cache():
     global APPS_CACHE
+    if hasattr(SYS_DRIVER, "app_engine"):
+        with SYS_DRIVER.app_engine.lock:
+            for k, v in SYS_DRIVER.app_engine.apps.items():
+                APPS_CACHE[k] = v["target"]
     paths = [
         os.path.join(os.environ.get('PROGRAMDATA', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
         os.path.join(os.environ.get('APPDATA', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs')
@@ -740,7 +744,9 @@ class HydraPage(QWebEnginePage):
             LEARNING_SESSION_ACTIVE = False # Intercepts background loop!
             print("[BATCH LEARN] User spoke; pausing deep learning.")
 
-        if "close" in command or "exit" in command:
+        # Specific check to shutdown HYDRA itself only when explicitly asked
+        clean_quit = command.strip().lower()
+        if clean_quit in ["close", "exit", "quit", "shutdown hydra", "close hydra", "exit hydra", "quit hydra", "terminate hydra"]:
             reply = "Shutting down systems. Goodbye."
             self.speak_voice(reply)
             QApplication.quit()
@@ -974,8 +980,8 @@ class HydraPage(QWebEnginePage):
                 "WIFI_ON": ["turn on wifi", "enable wifi"],
                 "WIFI_OFF": ["turn off wifi", "disable wifi"],
                 "WIFI_CONNECT": ["connect to"],
-                "OPEN_APP": ["open ", "launch ", "start "],
-                "CLOSE_APP": ["close ", "kill ", "stop app "],
+                "OPEN_APP": ["open ", "launch ", "start ", "run ", "pull up ", "bring up ", "fire up "],
+                "CLOSE_APP": ["close ", "kill ", "terminate ", "stop app ", "shut down app ", "quit app ", "exit app "],
                 "LIST_APPS": ["list apps", "running apps", "open apps"],
                 "SEARCH_FILE": ["find file ", "locate file ", "where is "],
                 "CREATE_FOLDER": ["create folder ", "make folder ", "new folder "],
@@ -1003,9 +1009,9 @@ class HydraPage(QWebEnginePage):
                     elif action == "WIFI_CONNECT":
                         reply = f"Connected to {state}, sir." if success else f"Connection to {payload} failed."
                     elif action == "OPEN_APP":
-                        reply = f"Opening {payload}, sir." if success else f"Failed to launch {payload}."
+                        reply = state
                     elif action == "CLOSE_APP":
-                        reply = f"Closed {payload}, sir." if success else f"Could not find or close {payload}."
+                        reply = state
                     elif action == "LIST_APPS":
                         reply = f"Active processes: {state}" if success else "Could not retrieve process list."
                     elif action == "SEARCH_FILE":
@@ -1078,54 +1084,17 @@ class HydraPage(QWebEnginePage):
                         save_chat_message("assistant", reply)
                         return
 
-            launch_verbs = ["open ", "launch ", "start ", "run ", "pull up "]
+            # Direct App Launch Fallback (handles standalone names or short launch phrases)
+            launch_verbs = ["open ", "launch ", "start ", "run ", "pull up ", "bring up "]
             matched_verb = next((v for v in launch_verbs if clean_cmd.startswith(v)), None)
-
-            if matched_verb:
-                raw_target = clean_cmd.split(matched_verb, 1)[1].strip()
-                for filler in ["please", "for me", "quickly", "the ", "an ", "app ", "application "]:
-                    if raw_target.startswith(filler): raw_target = raw_target[len(filler):].strip()
-                    if raw_target.endswith(filler.strip()): raw_target = raw_target[:-len(filler.strip())].strip()
-
-                if raw_target:
-                    sys_maps = {
-                        "settings": "ms-settings:", "control panel": "control",
-                        "command prompt": "cmd", "file explorer": "explorer",
-                        "task manager": "taskmgr", "calculator": "calc",
-                        "notepad": "notepad", "chrome": "chrome", "spotify": "spotify"
-                    }
-                    all_known = list(sys_maps.keys()) + list(APPS_CACHE.keys())
-                    best_match = difflib.get_close_matches(raw_target, all_known, n=1, cutoff=0.35)
-                    app_name = best_match[0] if best_match else raw_target
-
-                    self.speak_voice(f"sir, opening {app_name}")
-
-                    try:
-                        if app_name in sys_maps:
-                            subprocess.Popen(f"cmd /c start {sys_maps[app_name]}", shell=True)
-                        elif app_name in APPS_CACHE:
-                            os.startfile(APPS_CACHE[app_name])
-                        else:
-                            subprocess.Popen(f"cmd /c start {app_name}", shell=True)
-                    except Exception as e:
-                        print(f"[FAST LAUNCH ERROR]: {e}")
-
-                    low = app_name.lower()
-                    if any(x in low for x in ["notepad", "word", "docs", "writer"]):
-                        followup = f"sir, {app_name} ready, do you want to write something on it?"
-                    elif any(x in low for x in ["spotify", "music", "youtube", "vlc"]):
-                        followup = "app ready sir, what do you like to listen to?"
-                    elif any(x in low for x in ["chrome", "edge", "browser", "google"]):
-                        followup = f"sir, {app_name} ready, what are we searching today?"
-                    elif any(x in low for x in ["canva", "photoshop", "paint", "figma"]):
-                        followup = f"sir, {app_name} ready, what are we designing today?"
-                    else:
-                        followup = f"sir, {app_name} ready, what do you want to do here?"
-
-                    time.sleep(3.2)
-                    self.speak_voice(followup)
-                    threading.Thread(target=lambda: save_chat_message("assistant", followup), daemon=True).start()
-                    return
+            target_query = clean_cmd.split(matched_verb, 1)[1].strip() if matched_verb else clean_cmd
+            
+            app_entry, app_name, is_typo = SYS_DRIVER.app_engine.resolve_app(target_query)
+            if app_entry and (matched_verb or len(clean_cmd.split()) <= 3):
+                success, reply, resolved_name = SYS_DRIVER.app_engine.launch(target_query)
+                self.speak_voice(reply)
+                save_chat_message("assistant", reply)
+                return
 
             intent_type = "CHAT"
             app_target = None
@@ -1477,47 +1446,9 @@ class HydraPage(QWebEnginePage):
 
             if app_target:
                 try:
-                    system_mappings = {
-                        "settings": "ms-settings:",
-                        "control panel": "control",
-                        "controlpanel": "control",
-                        "command prompt": "cmd",
-                        "file explorer": "explorer",
-                        "task manager": "taskmgr",
-                        "calculator": "calc",
-                        "notepad": "notepad",
-                        "chrome": "chrome"
-                    }
-                    all_targets = list(system_mappings.keys()) + list(APPS_CACHE.keys())
-                    matches = difflib.get_close_matches(app_target, all_targets, n=1, cutoff=0.4)
-                    if matches:
-                        matched_key = matches[0]
-                        if app_target != matched_key and app_target not in system_mappings and not is_state_handled:
-                            DIALOGUE_STATE = {
-                                "mode": "AWAITING_CONFIRMATION",
-                                "pending_action": "LAUNCH",
-                                "payload": matched_key
-                            }
-                            reply = f"Did you mean to open {matched_key}, sir?"
-                            print(f"[DIALOGUE MANAGER] Entering verification mode for: {matched_key}")
-                        else:
-                            print(f"[DEBUG] Executing Target Match: '{matched_key}'")
-                            self.speak_voice(f"opening {matched_key}")
-                            
-                            if matched_key in system_mappings:
-                                subprocess.Popen(f"cmd /c start {system_mappings[matched_key]}", shell=True)
-                            elif matched_key in APPS_CACHE:
-                                os.startfile(APPS_CACHE[matched_key])
-                                
-                            app_target = matched_key
-                            app_opened_successfully = True
-                            time.sleep(3.5)
-                    else:
-                        print(f"[DEBUG] Direct system execution fallback for: '{app_target}'")
-                        self.speak_voice(f"opening {app_target}")
-                        subprocess.Popen(f"cmd /c start {app_target}", shell=True)
-                        app_opened_successfully = True
-                        time.sleep(3.5)
+                    success, spoken_launch, launched_name = SYS_DRIVER.app_engine.launch(app_target)
+                    self.speak_voice(spoken_launch)
+                    app_opened_successfully = success
                 except Exception as e:
                     print(f"[DEBUG] System Automation Error: {e}")
 
