@@ -8,11 +8,18 @@ import json
 import time
 import re
 import threading
+import ctypes
 from typing import Dict, List, Optional, Tuple
-import pyautogui
-import pyperclip
 
-pyautogui.FAILSAFE = False
+try:
+    import pyautogui
+    import pyperclip
+    pyautogui.FAILSAFE = False
+    HAS_PYAUTOGUI = True
+except ImportError:
+    pyautogui = None
+    pyperclip = None
+    HAS_PYAUTOGUI = False
 
 def is_unwanted_target(name: str, path: str = "") -> bool:
     low = (name + " " + path).lower()
@@ -471,25 +478,58 @@ class AppIndexEngine:
 
 class HardwareDriver:
     def __init__(self):
-        self.screen_width, self.screen_height = pyautogui.size()
+        if HAS_PYAUTOGUI:
+            self.screen_width, self.screen_height = pyautogui.size()
+        else:
+            self.screen_width = ctypes.windll.user32.GetSystemMetrics(0)
+            self.screen_height = ctypes.windll.user32.GetSystemMetrics(1)
 
     def get_position(self):
-        x, y = pyautogui.position()
-        return x, y
+        if HAS_PYAUTOGUI:
+            x, y = pyautogui.position()
+            return x, y
+        class POINT(ctypes.Structure):
+            _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+        pt = POINT()
+        ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
+        return pt.x, pt.y
 
     def move_to(self, x, y, duration=0.15):
         x = max(0, min(self.screen_width - 1, int(x)))
         y = max(0, min(self.screen_height - 1, int(y)))
-        pyautogui.moveTo(x, y, duration=duration)
+        if HAS_PYAUTOGUI:
+            pyautogui.moveTo(x, y, duration=duration)
+        else:
+            ctypes.windll.user32.SetCursorPos(x, y)
         return True, f"Moved mouse to {x}, {y}, sir."
 
     def move_relative(self, dx, dy, duration=0.15):
-        pyautogui.moveRel(int(dx), int(dy), duration=duration)
-        x, y = pyautogui.position()
+        if HAS_PYAUTOGUI:
+            pyautogui.moveRel(int(dx), int(dy), duration=duration)
+            x, y = pyautogui.position()
+        else:
+            cur_x, cur_y = self.get_position()
+            x = max(0, min(self.screen_width - 1, cur_x + int(dx)))
+            y = max(0, min(self.screen_height - 1, cur_y + int(dy)))
+            ctypes.windll.user32.SetCursorPos(x, y)
         return True, f"Moved mouse to {x}, {y}, sir."
 
     def click(self, button="left", clicks=1):
-        pyautogui.click(button=button, clicks=clicks)
+        if HAS_PYAUTOGUI:
+            pyautogui.click(button=button, clicks=clicks)
+        else:
+            down_flag = 0x0002
+            up_flag = 0x0004
+            if button.lower() == "right":
+                down_flag, up_flag = 0x0008, 0x0010
+            elif button.lower() == "middle":
+                down_flag, up_flag = 0x0020, 0x0040
+            for _ in range(clicks):
+                ctypes.windll.user32.mouse_event(down_flag, 0, 0, 0, 0)
+                time.sleep(0.02)
+                ctypes.windll.user32.mouse_event(up_flag, 0, 0, 0, 0)
+                if clicks > 1:
+                    time.sleep(0.08)
         click_type = "Double clicked" if clicks == 2 else ("Triple clicked" if clicks == 3 else f"{button.capitalize()} clicked")
         return True, f"{click_type}, sir."
 
@@ -498,25 +538,47 @@ class HardwareDriver:
         return self.click(button=button, clicks=clicks)
 
     def mouse_down(self, button="left"):
-        pyautogui.mouseDown(button=button)
+        if HAS_PYAUTOGUI:
+            pyautogui.mouseDown(button=button)
+        else:
+            flag = 0x0008 if button.lower() == "right" else 0x0002
+            ctypes.windll.user32.mouse_event(flag, 0, 0, 0, 0)
         return True, f"Holding {button} mouse button, sir."
 
     def mouse_up(self, button="left"):
-        pyautogui.mouseUp(button=button)
+        if HAS_PYAUTOGUI:
+            pyautogui.mouseUp(button=button)
+        else:
+            flag = 0x0010 if button.lower() == "right" else 0x0004
+            ctypes.windll.user32.mouse_event(flag, 0, 0, 0, 0)
         return True, f"Released {button} mouse button, sir."
 
     def drag_to(self, x, y, duration=0.4):
         x = max(0, min(self.screen_width - 1, int(x)))
         y = max(0, min(self.screen_height - 1, int(y)))
-        pyautogui.dragTo(x, y, duration=duration)
+        if HAS_PYAUTOGUI:
+            pyautogui.dragTo(x, y, duration=duration)
+        else:
+            self.mouse_down("left")
+            time.sleep(0.05)
+            self.move_to(x, y)
+            time.sleep(0.05)
+            self.mouse_up("left")
         return True, f"Dragged to {x}, {y}, sir."
 
     def drag_relative(self, dx, dy, duration=0.4):
-        pyautogui.dragRel(int(dx), int(dy), duration=duration)
+        if HAS_PYAUTOGUI:
+            pyautogui.dragRel(int(dx), int(dy), duration=duration)
+        else:
+            cur_x, cur_y = self.get_position()
+            self.drag_to(cur_x + int(dx), cur_y + int(dy))
         return True, f"Dragged item, sir."
 
     def scroll(self, amount):
-        pyautogui.scroll(int(amount * 120))
+        if HAS_PYAUTOGUI:
+            pyautogui.scroll(int(amount * 120))
+        else:
+            ctypes.windll.user32.mouse_event(0x0800, 0, 0, int(amount * 120), 0)
         direction = "up" if amount > 0 else "down"
         return True, f"Scrolled {direction}, sir."
 
@@ -526,20 +588,37 @@ class HardwareDriver:
         if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
             text = text[1:-1]
         try:
-            old_clip = ""
-            try: old_clip = pyperclip.paste()
-            except: pass
-            
-            pyperclip.copy(text)
-            pyautogui.hotkey('ctrl', 'v')
-            time.sleep(0.05)
-            
-            try: pyperclip.copy(old_clip)
-            except: pass
-            return True, f"Typed requested text, sir."
+            if HAS_PYAUTOGUI and pyperclip:
+                old_clip = ""
+                try: old_clip = pyperclip.paste()
+                except: pass
+                
+                pyperclip.copy(text)
+                pyautogui.hotkey('ctrl', 'v')
+                time.sleep(0.05)
+                
+                try: pyperclip.copy(old_clip)
+                except: pass
+                return True, f"Typed requested text, sir."
+            else:
+                # Native Windows clipboard injection
+                buffer = text.encode('utf-16le') + b'\x00\x00'
+                h_mem = ctypes.windll.kernel32.GlobalAlloc(0x0002, len(buffer))
+                ptr = ctypes.windll.kernel32.GlobalLock(h_mem)
+                ctypes.memmove(ptr, buffer, len(buffer))
+                ctypes.windll.kernel32.GlobalUnlock(h_mem)
+                if ctypes.windll.user32.OpenClipboard(None):
+                    ctypes.windll.user32.EmptyClipboard()
+                    ctypes.windll.user32.SetClipboardData(13, h_mem)
+                    ctypes.windll.user32.CloseClipboard()
+                    self.hotkey("ctrl", "v")
+                    return True, f"Typed requested text, sir."
+                return False, "Failed to access clipboard."
         except Exception:
-            pyautogui.write(text, interval=0.01)
-            return True, f"Typed requested text, sir."
+            if HAS_PYAUTOGUI:
+                pyautogui.write(text, interval=0.01)
+                return True, f"Typed requested text, sir."
+            return False, "Typing execution failed."
 
     def press_key(self, key_name: str, count: int = 1):
         low = key_name.lower().strip()
@@ -565,15 +644,51 @@ class HardwareDriver:
         }
         actual_key = key_map.get(low, low)
         try:
-            for _ in range(count):
-                pyautogui.press(actual_key)
+            if HAS_PYAUTOGUI:
+                for _ in range(count):
+                    pyautogui.press(actual_key)
+            else:
+                vk_map = {
+                    "enter": 0x0D, "tab": 0x09, "space": 0x20, "backspace": 0x08,
+                    "esc": 0x1B, "delete": 0x2E, "up": 0x26, "down": 0x28, "left": 0x25,
+                    "right": 0x27, "home": 0x24, "end": 0x23, "pageup": 0x21, "pagedown": 0x22,
+                    "win": 0x5B, "f1": 0x70, "f2": 0x71, "f3": 0x72, "f4": 0x73, "f5": 0x74,
+                    "f6": 0x75, "f7": 0x76, "f8": 0x77, "f9": 0x78, "f10": 0x79, "f11": 0x7A, "f12": 0x7B
+                }
+                vk = vk_map.get(actual_key)
+                if vk:
+                    for _ in range(count):
+                        ctypes.windll.user32.keybd_event(vk, 0, 0, 0)
+                        time.sleep(0.02)
+                        ctypes.windll.user32.keybd_event(vk, 0, 2, 0)
             return True, f"Pressed {key_name.capitalize()}, sir."
         except Exception as e:
             return False, f"Failed to press key {key_name}: {e}"
 
     def hotkey(self, *keys):
         try:
-            pyautogui.hotkey(*keys)
+            if HAS_PYAUTOGUI:
+                pyautogui.hotkey(*keys)
+            else:
+                vk_map = {
+                    "ctrl": 0x11, "shift": 0x10, "alt": 0x12, "win": 0x5B,
+                    "enter": 0x0D, "tab": 0x09, "esc": 0x1B, "f4": 0x73, "f5": 0x74,
+                    "s": ord('S'), "c": ord('C'), "v": ord('V'), "a": ord('A'),
+                    "z": ord('Z'), "y": ord('Y'), "d": ord('D'), "r": ord('R'),
+                    "t": ord('T'), "w": ord('W')
+                }
+                vks = []
+                for k in keys:
+                    low = k.lower().strip()
+                    if low in vk_map: vks.append(vk_map[low])
+                    elif len(low) == 1 and low.isalnum(): vks.append(ord(low.upper()))
+                for vk in vks:
+                    ctypes.windll.user32.keybd_event(vk, 0, 0, 0)
+                    time.sleep(0.01)
+                time.sleep(0.03)
+                for vk in reversed(vks):
+                    ctypes.windll.user32.keybd_event(vk, 0, 2, 0)
+                    time.sleep(0.01)
             combo = " + ".join(k.capitalize() for k in keys)
             return True, f"Executed {combo}, sir."
         except Exception as e:
