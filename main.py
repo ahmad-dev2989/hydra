@@ -976,6 +976,13 @@ class HydraPage(QWebEnginePage):
                 save_chat_message("assistant", reply)
                 return
 
+            # ---> HARDWARE INPUT AUTOMATION (MOUSE & KEYBOARD) <---
+            hw_handled, hw_reply = SYS_DRIVER.execute_hardware(command)
+            if hw_handled:
+                self.speak_voice(hw_reply)
+                save_chat_message("assistant", hw_reply)
+                return
+
             commands = {
                 "WIFI_ON": ["turn on wifi", "enable wifi"],
                 "WIFI_OFF": ["turn off wifi", "disable wifi"],

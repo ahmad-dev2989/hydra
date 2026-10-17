@@ -9,6 +9,10 @@ import time
 import re
 import threading
 from typing import Dict, List, Optional, Tuple
+import pyautogui
+import pyperclip
+
+pyautogui.FAILSAFE = False
 
 def is_unwanted_target(name: str, path: str = "") -> bool:
     low = (name + " " + path).lower()
@@ -465,13 +469,294 @@ class AppIndexEngine:
         else:
             return False, f"Could not find an active {target_name} process to close, sir.", target_name
 
+class HardwareDriver:
+    def __init__(self):
+        self.screen_width, self.screen_height = pyautogui.size()
+
+    def get_position(self):
+        x, y = pyautogui.position()
+        return x, y
+
+    def move_to(self, x, y, duration=0.15):
+        x = max(0, min(self.screen_width - 1, int(x)))
+        y = max(0, min(self.screen_height - 1, int(y)))
+        pyautogui.moveTo(x, y, duration=duration)
+        return True, f"Moved mouse to {x}, {y}, sir."
+
+    def move_relative(self, dx, dy, duration=0.15):
+        pyautogui.moveRel(int(dx), int(dy), duration=duration)
+        x, y = pyautogui.position()
+        return True, f"Moved mouse to {x}, {y}, sir."
+
+    def click(self, button="left", clicks=1):
+        pyautogui.click(button=button, clicks=clicks)
+        click_type = "Double clicked" if clicks == 2 else ("Triple clicked" if clicks == 3 else f"{button.capitalize()} clicked")
+        return True, f"{click_type}, sir."
+
+    def click_at(self, x, y, button="left", clicks=1):
+        self.move_to(x, y, duration=0.1)
+        return self.click(button=button, clicks=clicks)
+
+    def mouse_down(self, button="left"):
+        pyautogui.mouseDown(button=button)
+        return True, f"Holding {button} mouse button, sir."
+
+    def mouse_up(self, button="left"):
+        pyautogui.mouseUp(button=button)
+        return True, f"Released {button} mouse button, sir."
+
+    def drag_to(self, x, y, duration=0.4):
+        x = max(0, min(self.screen_width - 1, int(x)))
+        y = max(0, min(self.screen_height - 1, int(y)))
+        pyautogui.dragTo(x, y, duration=duration)
+        return True, f"Dragged to {x}, {y}, sir."
+
+    def drag_relative(self, dx, dy, duration=0.4):
+        pyautogui.dragRel(int(dx), int(dy), duration=duration)
+        return True, f"Dragged item, sir."
+
+    def scroll(self, amount):
+        pyautogui.scroll(int(amount * 120))
+        direction = "up" if amount > 0 else "down"
+        return True, f"Scrolled {direction}, sir."
+
+    def type_text(self, text: str):
+        if not text:
+            return False, "No text provided to type, sir."
+        if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
+            text = text[1:-1]
+        try:
+            old_clip = ""
+            try: old_clip = pyperclip.paste()
+            except: pass
+            
+            pyperclip.copy(text)
+            pyautogui.hotkey('ctrl', 'v')
+            time.sleep(0.05)
+            
+            try: pyperclip.copy(old_clip)
+            except: pass
+            return True, f"Typed requested text, sir."
+        except Exception:
+            pyautogui.write(text, interval=0.01)
+            return True, f"Typed requested text, sir."
+
+    def press_key(self, key_name: str, count: int = 1):
+        low = key_name.lower().strip()
+        key_map = {
+            "enter": "enter", "return": "enter",
+            "tab": "tab",
+            "space": "space", "spacebar": "space",
+            "backspace": "backspace", "back": "backspace",
+            "escape": "esc", "esc": "esc",
+            "delete": "delete", "del": "delete",
+            "up": "up", "arrow up": "up",
+            "down": "down", "arrow down": "down",
+            "left": "left", "arrow left": "left",
+            "right": "right", "arrow right": "right",
+            "home": "home", "end": "end",
+            "pageup": "pageup", "pgup": "pageup",
+            "pagedown": "pagedown", "pgdn": "pagedown",
+            "f1": "f1", "f2": "f2", "f3": "f3", "f4": "f4", "f5": "f5",
+            "f6": "f6", "f7": "f7", "f8": "f8", "f9": "f9", "f10": "f10",
+            "f11": "f11", "f12": "f12",
+            "win": "win", "windows": "win",
+            "capslock": "capslock"
+        }
+        actual_key = key_map.get(low, low)
+        try:
+            for _ in range(count):
+                pyautogui.press(actual_key)
+            return True, f"Pressed {key_name.capitalize()}, sir."
+        except Exception as e:
+            return False, f"Failed to press key {key_name}: {e}"
+
+    def hotkey(self, *keys):
+        try:
+            pyautogui.hotkey(*keys)
+            combo = " + ".join(k.capitalize() for k in keys)
+            return True, f"Executed {combo}, sir."
+        except Exception as e:
+            return False, f"Failed to execute shortcut: {e}"
+
+    def parse_and_execute(self, command: str) -> Tuple[bool, Optional[str]]:
+        if not command:
+            return False, None
+        raw_cmd = command.strip()
+        cmd = raw_cmd.lower()
+        cmd = re.sub(r'[!?.]', '', cmd).strip()
+        
+        for w in ["hydra ", "hey hydra ", "ok hydra ", "okay hydra "]:
+            if cmd.startswith(w):
+                cmd = cmd[len(w):].strip()
+
+        # 1. SCROLLING
+        if any(w in cmd for w in ["scroll to top", "scroll top", "go to top"]):
+            return self.hotkey("ctrl", "home")
+        if any(w in cmd for w in ["scroll to bottom", "scroll bottom", "go to bottom"]):
+            return self.hotkey("ctrl", "end")
+        
+        if "scroll" in cmd:
+            scroll_down_match = re.search(r'scroll down(?:\s*(?:by\s*)?(\d+))?', cmd)
+            if scroll_down_match:
+                amount = int(scroll_down_match.group(1)) if scroll_down_match.group(1) else 6
+                return self.scroll(-amount)
+
+            scroll_up_match = re.search(r'scroll up(?:\s*(?:by\s*)?(\d+))?', cmd)
+            if scroll_up_match:
+                amount = int(scroll_up_match.group(1)) if scroll_up_match.group(1) else 6
+                return self.scroll(amount)
+
+            if "down" in cmd:
+                return self.scroll(-6)
+            if "up" in cmd:
+                return self.scroll(6)
+
+        # 2. MOUSE CLICKS
+        if cmd in ["double click", "double-click", "double click mouse", "double click please"]:
+            return self.click("left", clicks=2)
+        if cmd in ["triple click", "triple-click"]:
+            return self.click("left", clicks=3)
+        if cmd in ["right click", "right click mouse", "right-click", "context menu"]:
+            return self.click("right", clicks=1)
+        if cmd in ["middle click", "middle-click"]:
+            return self.click("middle", clicks=1)
+        if cmd in ["click", "left click", "click mouse", "click here", "press click"]:
+            return self.click("left", clicks=1)
+
+        click_coord_match = re.search(r'click (?:at|on)?\s*(\d+)[,\s]+(\d+)', cmd)
+        if click_coord_match:
+            x, y = int(click_coord_match.group(1)), int(click_coord_match.group(2))
+            return self.click_at(x, y)
+
+        # 3. MOUSE MOVEMENT
+        move_coord_match = re.search(r'(?:move|cursor|mouse) (?:to)?\s*(\d+)[,\s]+(\d+)', cmd)
+        if move_coord_match:
+            x, y = int(move_coord_match.group(1)), int(move_coord_match.group(2))
+            return self.move_to(x, y)
+
+        if any(w in cmd for w in ["mouse to center", "cursor to center", "mouse to middle", "cursor to middle"]):
+            return self.move_to(self.screen_width // 2, self.screen_height // 2)
+        if any(w in cmd for w in ["mouse to top left", "cursor to top left"]):
+            return self.move_to(50, 50)
+        if any(w in cmd for w in ["mouse to top right", "cursor to top right"]):
+            return self.move_to(self.screen_width - 50, 50)
+        if any(w in cmd for w in ["mouse to bottom left", "cursor to bottom left"]):
+            return self.move_to(50, self.screen_height - 50)
+        if any(w in cmd for w in ["mouse to bottom right", "cursor to bottom right"]):
+            return self.move_to(self.screen_width - 50, self.screen_height - 50)
+
+        rel_match = re.search(r'(?:move )?(?:mouse |cursor )?(up|down|left|right)(?:\s*(?:by\s*)?(\d+))?', cmd)
+        if rel_match and any(w in cmd for w in ["move", "mouse", "cursor"]):
+            direction = rel_match.group(1)
+            dist = int(rel_match.group(2)) if rel_match.group(2) else 150
+            if direction == "up": return self.move_relative(0, -dist)
+            if direction == "down": return self.move_relative(0, dist)
+            if direction == "left": return self.move_relative(-dist, 0)
+            if direction == "right": return self.move_relative(dist, 0)
+
+        if any(w in cmd for w in ["where is the mouse", "where is mouse", "mouse position", "cursor position", "current coordinates"]):
+            x, y = self.get_position()
+            return True, f"Mouse cursor is currently at coordinates {x} by {y} on your {self.screen_width} by {self.screen_height} screen, sir."
+
+        # Drag and drop
+        drag_coord_match = re.search(r'drag (?:to)?\s*(\d+)[,\s]+(\d+)', cmd)
+        if drag_coord_match:
+            x, y = int(drag_coord_match.group(1)), int(drag_coord_match.group(2))
+            return self.drag_to(x, y)
+
+        drag_rel_match = re.search(r'drag (?:mouse |cursor )?(up|down|left|right)(?:\s*(?:by\s*)?(\d+))?', cmd)
+        if drag_rel_match:
+            direction = drag_rel_match.group(1)
+            dist = int(drag_rel_match.group(2)) if drag_rel_match.group(2) else 200
+            dx = -dist if direction == "left" else (dist if direction == "right" else 0)
+            dy = -dist if direction == "up" else (dist if direction == "down" else 0)
+            return self.drag_relative(dx, dy)
+
+        if any(w in cmd for w in ["hold mouse", "hold left click", "mouse down"]):
+            return self.mouse_down("left")
+        if any(w in cmd for w in ["release mouse", "release left click", "mouse up"]):
+            return self.mouse_up("left")
+
+        # 4. TYPING TEXT (Preserve case from raw_cmd)
+        type_match = re.search(r'^(?:type|write|enter text)\s+(.*)', raw_cmd, re.IGNORECASE)
+        if type_match:
+            text_to_type = type_match.group(1).strip()
+            if text_to_type.lower().startswith("this:"):
+                text_to_type = text_to_type[5:].strip()
+            elif text_to_type.lower().startswith("this "):
+                text_to_type = text_to_type[5:].strip()
+            return self.type_text(text_to_type)
+
+        # 5. KEYBOARD PRESSES
+        key_press_triggers = {
+            "enter": ["press enter", "hit enter", "press return", "hit return"],
+            "tab": ["press tab", "hit tab"],
+            "escape": ["press escape", "press esc", "hit escape"],
+            "space": ["press space", "hit space", "press spacebar", "hit spacebar"],
+            "backspace": ["press backspace", "hit backspace"],
+            "delete": ["press delete", "hit delete"],
+            "up": ["press up", "arrow up", "hit up"],
+            "down": ["press down", "arrow down", "hit down"],
+            "left": ["press left", "arrow left"],
+            "right": ["press right", "arrow right"],
+            "home": ["press home"],
+            "end": ["press end"],
+            "pageup": ["page up", "press page up"],
+            "pagedown": ["page down", "press page down"],
+            "f5": ["press f5", "refresh", "refresh page", "reload page", "reload"],
+            "f11": ["full screen", "fullscreen", "press f11", "toggle full screen"]
+        }
+        for key_name, triggers in key_press_triggers.items():
+            if cmd in triggers or any(cmd == t for t in triggers):
+                return self.press_key(key_name)
+
+        # 6. HOTKEYS & SHORTCUTS
+        hotkey_triggers = [
+            (["select all", "press ctrl a", "select everything"], ["ctrl", "a"], "Selected all content, sir."),
+            (["copy", "copy this", "press ctrl c", "copy text", "copy that"], ["ctrl", "c"], "Copied to clipboard, sir."),
+            (["paste", "paste this", "press ctrl v", "paste here", "paste text"], ["ctrl", "v"], "Pasted from clipboard, sir."),
+            (["undo", "undo that", "undo this", "press ctrl z"], ["ctrl", "z"], "Action undone, sir."),
+            (["redo", "redo that", "redo this", "press ctrl y"], ["ctrl", "y"], "Action redone, sir."),
+            (["save file", "save document", "save this", "press ctrl s"], ["ctrl", "s"], "Saved, sir."),
+            (["find text", "find on page", "press ctrl f", "search on page"], ["ctrl", "f"], "Opened find dialog, sir."),
+            (["new tab", "open new tab", "press ctrl t"], ["ctrl", "t"], "Opened new tab, sir."),
+            (["close tab", "close current tab", "press ctrl w"], ["ctrl", "w"], "Closed tab, sir."),
+            (["reopen tab", "restore tab", "press ctrl shift t"], ["ctrl", "shift", "t"], "Reopened closed tab, sir."),
+            (["switch window", "switch app", "alt tab", "next window", "switch task"], ["alt", "tab"], "Switched active window, sir."),
+            (["close window", "close active window", "press alt f4"], ["alt", "f4"], "Closed active window, sir."),
+            (["show desktop", "minimize all", "hide all windows", "press win d", "go to desktop"], ["win", "d"], "Toggled desktop view, sir."),
+            (["maximize window", "maximize", "press win up"], ["win", "up"], "Maximized window, sir."),
+            (["minimize window", "minimize", "press win down"], ["win", "down"], "Minimized window, sir."),
+            (["snap left", "snap window left", "press win left"], ["win", "left"], "Snapped window to left half, sir."),
+            (["snap right", "snap window right", "press win right"], ["win", "right"], "Snapped window to right half, sir."),
+            (["take screenshot", "screenshot", "screen capture", "capture screen", "press win shift s", "snip screen"], ["win", "shift", "s"], "Snipping tool activated, sir."),
+            (["open run", "run dialog", "press win r"], ["win", "r"], "Opened Run dialog, sir."),
+            (["open task manager", "task manager shortcut", "press ctrl shift esc"], ["ctrl", "shift", "esc"], "Pulling up Task Manager, sir."),
+            (["clipboard history", "open clipboard", "press win v"], ["win", "v"], "Opened clipboard history, sir."),
+            (["zoom in", "press ctrl plus"], ["ctrl", "+"], "Zoomed in, sir."),
+            (["zoom out", "press ctrl minus"], ["ctrl", "-"], "Zoomed out, sir."),
+            (["reset zoom", "press ctrl zero"], ["ctrl", "0"], "Reset zoom, sir.")
+        ]
+
+        for triggers, keys, reply in hotkey_triggers:
+            if any(cmd == t or cmd.startswith(t) for t in triggers):
+                self.hotkey(*keys)
+                return True, reply
+
+        return False, None
+
 class SystemDriver:
     def __init__(self):
         self.app_engine = AppIndexEngine()
+        self.hardware = HardwareDriver()
         # Fast load cache synchronously in <15ms
         self.app_engine.load_cache()
         # Start background scanner to keep registry/UWP apps completely fresh
         self.app_engine.start_background_indexer()
+
+    def execute_hardware(self, command):
+        return self.hardware.parse_and_execute(command)
 
     def open_application(self, name):
         success, spoken, app_name = self.app_engine.launch(name)
@@ -694,6 +979,8 @@ class SystemDriver:
             return False, f"Failed to change extension: {e}"
 
     def execute_command(self, action, payload=None):
+        if action == "HARDWARE":
+            return self.execute_hardware(payload)
         if action == "OPEN_APP":
             return self.open_application(payload)
         if action == "CLOSE_APP":
