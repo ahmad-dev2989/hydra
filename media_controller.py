@@ -208,6 +208,20 @@ class MediaController:
             _send_media_key(VK_MEDIA_PLAY_PAUSE)
         return True
 
+    def pause(self):
+        """Ensures playback is paused."""
+        state = self.get_state()
+        if state.get("status") == "PLAYING":
+            return self.toggle_play_pause()
+        return True
+
+    def play(self):
+        """Ensures playback is active."""
+        state = self.get_state()
+        if state.get("status") != "PLAYING":
+            return self.toggle_play_pause()
+        return True
+
     async def _async_toggle_play_pause(self):
         try:
             manager = await SMTCManager.request_async()

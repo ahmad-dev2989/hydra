@@ -556,24 +556,35 @@ class VerifiedStepExecutor:
             alert_str = f"\nATTENTION / OBSTACLE REPORT:\n{last_problem}\nPlease analyze the new screen capture to diagnose why and provide the corrective action." if last_problem else ""
 
             sys_prompt = (
-                "You are HYDRA's Real-Time Desktop Vision-in-the-Loop Agent.\n"
+                "You are HYDRA's Real-Time Desktop Machine Actuator Controller.\n"
+                "IMPORTANT: You are NOT communicating with a human user. You are communicating directly with an automated robot actuator.\n"
+                "The ACTION line is parsed directly by an automated parser. You MUST NEVER output conversational English, prose, or descriptions in ACTION.\n"
                 f"User Goal: '{task_text}'\n"
                 f"Target Application: {app_name}\n"
                 f"Step: {step_idx}/{max_steps}\n"
                 f"Screen Resolution: {screen_w}x{screen_h}\n\n"
                 f"Steps executed so far:\n{hist_str}\n"
                 f"{alert_str}\n\n"
-                "Examine the screenshot carefully. Identify the application state, determine what must be done next to make progress, and output your answer in this exact format:\n\n"
-                "OBSERVATION: <describe what is currently visible on screen>\n"
-                "REASONING: <why this specific next step is needed to achieve the goal>\n"
-                "ACTION: <single executable command from the list below>\n\n"
-                "Supported Action Commands:\n"
-                "- click(x=..., y=...)  (normalized 0.0-1.0 or pixel coordinates)\n"
-                "- hotkey('key1', 'key2') (e.g. hotkey('ctrl', 'l'), hotkey('ctrl', 'k'), hotkey('space'), hotkey('enter'))\n"
-                "- type_text('text') (types text into active field and presses Enter)\n"
-                "- open_app('app_name')\n"
-                "- wait(seconds=1.0)\n"
-                "- complete() (only when the goal is achieved and visually verified on screen)"
+                "KEYBOARD SHORTCUT PRIORITY (FASTEST & SIMULTANEOUS):\n"
+                "Always prioritize keyboard shortcuts over moving the mouse cursor when available, because hotkeys press simultaneously and execute instantly:\n"
+                "- To focus Search in Spotify or Browsers: hotkey('ctrl', 'l') or hotkey('ctrl', 'k')\n"
+                "- To play or pause music: hotkey('space')\n"
+                "- To submit a search or confirmation: hotkey('enter')\n"
+                "- To select all in an input field: hotkey('ctrl', 'a')\n\n"
+                "WHEN MOUSE CLICKING IS REQUIRED:\n"
+                "You MUST specify exact normalized (0.0 to 1.0) coordinates based on the screenshot:\n"
+                "- click(x=..., y=...)   (e.g., click(x=0.454, y=0.036) for search bar, click(x=0.35, y=0.33) for first song play button)\n\n"
+                "EXACT SUPPORTED MACHINE COMMANDS:\n"
+                "1. hotkey('key1', 'key2')  -> e.g. hotkey('ctrl', 'l'), hotkey('ctrl', 'k'), hotkey('space'), hotkey('enter')\n"
+                "2. type_text('text')        -> types text into active field and presses Enter\n"
+                "3. click(x=0.454, y=0.036)  -> clicks at exact normalized coordinates\n"
+                "4. open_app('app_name')     -> switches or launches application\n"
+                "5. wait(seconds=1.0)        -> waits for rendering\n"
+                "6. complete()               -> ONLY when the requested song is playing or goal is achieved\n\n"
+                "Output format MUST be strictly:\n"
+                "OBSERVATION: <concise description of visible UI state>\n"
+                "REASONING: <brief 1-sentence reasoning for next step>\n"
+                "ACTION: <single executable command from the list above>\n"
             )
 
             user_query = f"Goal: {task_text}. Current Step {step_idx}/{max_steps}. Analyze live screen and specify next action."
@@ -710,61 +721,90 @@ class VerifiedStepExecutor:
         img_w: int = 1707,
         img_h: int = 960
     ) -> Tuple[bool, str]:
-        """Executes a single action command string parsed from Vision AI."""
+        """
+        Executes a single action command string parsed from Vision AI.
+        Supports both exact machine syntax and robust natural-language fallback parsing.
+        """
         if not pyautogui:
             return True, "Simulated (pyautogui not installed)"
 
         self._ensure_app_foreground(app_name)
         act_clean = act_str.strip()
+        low_act = act_clean.lower()
 
         try:
-            # 1. click(x=..., y=...)
-            m_click = re.search(r"click\s*\(\s*(?:x\s*=\s*)?([0-9\.]+)\s*,\s*(?:y\s*=\s*)?([0-9\.]+)\s*\)", act_clean, re.I)
-            if m_click:
-                x_val = float(m_click.group(1))
-                y_val = float(m_click.group(2))
-                if 0.0 <= x_val <= 1.0 and 0.0 <= y_val <= 1.0:
-                    px = int(x_val * screen_w)
-                    py = int(y_val * screen_h)
-                elif img_w > 0 and x_val <= img_w * 1.05 and y_val <= img_h * 1.05:
-                    # Scaled from captured image coordinates to actual desktop pixel resolution
-                    px = int((x_val / img_w) * screen_w)
-                    py = int((y_val / img_h) * screen_h)
-                else:
-                    px = int(x_val)
-                    py = int(y_val)
-                pyautogui.click(px, py)
-                return True, f"Clicked at ({px}, {py})"
+            # 0. Check for complete()
+            if any(w in low_act for w in ["complete()", "complete", "goal achieved", "task completed", "finished"]):
+                return True, "Task completion confirmed"
 
-            # 2. hotkey('k1', 'k2', ...)
+            # 1. Exact hotkey syntax: hotkey('k1', 'k2', ...)
             m_hotkey = re.search(r"hotkey\s*\((.*?)\)", act_clean, re.I)
             if m_hotkey:
                 raw_keys = m_hotkey.group(1)
                 keys = [k.strip(" '\"").lower() for k in raw_keys.split(",") if k.strip(" '\"")]
                 # Spotify play/pause shortcut
-                if "spotify" in app_name.lower() and ("space" in keys or "play" in act_clean.lower()):
+                if "spotify" in app_name.lower() and ("space" in keys or "play" in low_act):
                     MEDIA_CONTROLLER.toggle_play_pause()
                     pyautogui.press("space")
-                    return True, "Toggled Spotify playback"
-                # Spotify search shortcut
+                    return True, "Toggled Spotify playback simultaneously with Space"
+                # Spotify search shortcut (Ctrl+K and Ctrl+L)
                 if "spotify" in app_name.lower() and (("ctrl" in keys and "l" in keys) or ("ctrl" in keys and "k" in keys)):
                     pyautogui.hotkey("ctrl", "k")
                     time.sleep(0.1)
                     pyautogui.hotkey("ctrl", "l")
-                    return True, "Triggered Spotify search shortcut"
+                    time.sleep(0.1)
+                    search_px = int(0.454 * screen_w)
+                    search_py = int(0.036 * screen_h)
+                    pyautogui.click(search_px, search_py)
+                    return True, "Pressed Ctrl+L/Ctrl+K simultaneously and focused search bar"
                 pyautogui.hotkey(*keys)
-                return True, f"Pressed hotkey {'+'.join(keys)}"
+                return True, f"Pressed hotkey {'+'.join(keys)} simultaneously"
 
-            # 3. type_text('text')
+            # 2. Natural language hotkey detection (e.g. "press ctrl+l", "press ctrl + k", "press space")
+            if any(k in low_act for k in ["ctrl+l", "ctrl + l", "ctrl+k", "ctrl + k", "ctrl l", "ctrl k"]):
+                if "spotify" in app_name.lower():
+                    pyautogui.hotkey("ctrl", "k")
+                    time.sleep(0.1)
+                    pyautogui.hotkey("ctrl", "l")
+                    time.sleep(0.1)
+                    search_px = int(0.454 * screen_w)
+                    search_py = int(0.036 * screen_h)
+                    pyautogui.click(search_px, search_py)
+                    return True, "Focused search bar via simultaneous Ctrl+L / Ctrl+K shortcut"
+                pyautogui.hotkey("ctrl", "l")
+                return True, "Pressed Ctrl+L simultaneously"
+
+            if any(k in low_act for k in ["press space", "hit space", "spacebar", "space bar"]):
+                if "spotify" in app_name.lower():
+                    MEDIA_CONTROLLER.toggle_play_pause()
+                pyautogui.press("space")
+                return True, "Pressed Space key simultaneously"
+
+            # 3. Natural language search bar clicking / focusing
+            # Matches: "Click on the search bar at the top of the Spotify window that contains the text 'What do you want to play?'"
+            if any(w in low_act for w in ["search bar", "search field", "search input", "what do you want to play"]):
+                if "spotify" in app_name.lower():
+                    # Press simultaneous shortcut Ctrl+K / Ctrl+L AND click pill
+                    pyautogui.hotkey("ctrl", "k")
+                    time.sleep(0.1)
+                    pyautogui.hotkey("ctrl", "l")
+                    time.sleep(0.1)
+                    search_px = int(0.454 * screen_w)
+                    search_py = int(0.036 * screen_h)
+                    pyautogui.click(search_px, search_py)
+                    return True, f"Focused Spotify search bar using shortcut Ctrl+L / Ctrl+K and clicked ({search_px}, {search_py})"
+
+            # 4. Exact type_text('text') syntax
             m_type = re.search(r"type(?:_text)?\s*\(\s*['\"](.*?)['\"]\s*\)", act_clean, re.I)
             if m_type:
                 text_to_type = m_type.group(1)
-                # If Spotify and typing search query, ensure search input is focused first
                 if "spotify" in app_name.lower():
                     search_px = int(0.454 * screen_w)
                     search_py = int(0.036 * screen_h)
                     pyautogui.click(search_px, search_py)
-                    time.sleep(0.25)
+                    time.sleep(0.2)
+                    pyautogui.hotkey("ctrl", "k")
+                    time.sleep(0.1)
                     pyautogui.hotkey("ctrl", "a")
                     time.sleep(0.1)
                 else:
@@ -780,46 +820,102 @@ class VerifiedStepExecutor:
                 pyautogui.press("enter")
                 return True, f"Typed text '{text_to_type}' and pressed Enter"
 
-            # 4. open_app('app_name')
-            m_open = re.search(r"open(?:_app)?\s*\(\s*['\"](.*?)['\"]\s*\)", act_clean, re.I)
-            if m_open:
-                target_app = m_open.group(1)
-                self._ensure_app_foreground(target_app)
-                return True, f"Switched to application '{target_app}'"
+            # 5. Natural language typing detection (e.g. "type 'laapata' and press enter", "search for 'laapata'")
+            if "type" in low_act or "search for" in low_act:
+                match = re.search(r"['\"](.*?)['\"]", act_clean)
+                if match:
+                    text_to_type = match.group(1)
+                else:
+                    words = act_clean.split("type", 1)[-1].split("and", 1)[0].strip(" '\".,:")
+                    text_to_type = words or "song"
 
-            # 5. wait(seconds=...)
-            m_wait = re.search(r"wait\s*\(\s*(?:seconds\s*=\s*)?([0-9\.]+)\s*\)", act_clean, re.I)
-            if m_wait:
-                sec = float(m_wait.group(1))
-                time.sleep(sec)
-                return True, f"Waited {sec} seconds"
+                if "spotify" in app_name.lower():
+                    search_px = int(0.454 * screen_w)
+                    search_py = int(0.036 * screen_h)
+                    pyautogui.click(search_px, search_py)
+                    time.sleep(0.2)
+                    pyautogui.hotkey("ctrl", "k")
+                    time.sleep(0.1)
+                    pyautogui.hotkey("ctrl", "a")
+                    time.sleep(0.1)
+                else:
+                    pyautogui.hotkey("ctrl", "a")
+                    time.sleep(0.1)
 
-            # 6. Semantic Spotify Actions
-            low_act = act_clean.lower()
+                if pyperclip:
+                    pyperclip.copy(text_to_type)
+                    pyautogui.hotkey("ctrl", "v")
+                else:
+                    pyautogui.typewrite(text_to_type, interval=0.03)
+                time.sleep(0.25)
+                pyautogui.press("enter")
+                return True, f"Parsed and typed text '{text_to_type}' and pressed Enter"
+
+            # 6. click(x=..., y=...) exact syntax with coordinate scaling
+            m_click = re.search(r"click\s*\(\s*(?:x\s*=\s*)?([0-9\.]+)\s*,\s*(?:y\s*=\s*)?([0-9\.]+)\s*\)", act_clean, re.I)
+            if m_click:
+                x_val = float(m_click.group(1))
+                y_val = float(m_click.group(2))
+                if 0.0 <= x_val <= 1.0 and 0.0 <= y_val <= 1.0:
+                    px = int(x_val * screen_w)
+                    py = int(y_val * screen_h)
+                elif img_w > 0 and x_val <= img_w * 1.05 and y_val <= img_h * 1.05:
+                    px = int((x_val / img_w) * screen_w)
+                    py = int((y_val / img_h) * screen_h)
+                else:
+                    px = int(x_val)
+                    py = int(y_val)
+                pyautogui.click(px, py)
+                return True, f"Clicked at ({px}, {py})"
+
+            # 7. Semantic Spotify Play Actions
             if "spotify" in app_name.lower():
                 if any(w in low_act for w in ["first song", "top result", "first result", "song row"]):
                     song_px = int(0.35 * screen_w)
                     song_py = int(0.33 * screen_h)
                     pyautogui.click(song_px, song_py)
                     time.sleep(0.3)
-                    MEDIA_CONTROLLER.play()
-                    return True, f"Clicked top search result at ({song_px}, {song_py})"
+                    if hasattr(MEDIA_CONTROLLER, "play"):
+                        MEDIA_CONTROLLER.play()
+                    else:
+                        MEDIA_CONTROLLER.toggle_play_pause()
+                    pyautogui.press("space")
+                    return True, f"Clicked top search result at ({song_px}, {song_py}) and started playback"
 
-                if any(w in low_act for w in ["play button", "green circle", "play track", "start playback"]) and "search" not in low_act:
+                if any(w in low_act for w in ["play button", "green circle", "play track", "start playback", "play song", "play"]) and "search" not in low_act:
                     MEDIA_CONTROLLER.toggle_play_pause()
                     pyautogui.press("space")
-                    return True, "Triggered Spotify playback via play action"
+                    return True, "Triggered Spotify playback via play action and Space key"
 
-            # Fallback direct keyboard commands
-            if "space" in act_clean.lower():
+            # 8. open_app('app_name')
+            m_open = re.search(r"open(?:_app)?\s*\(\s*['\"](.*?)['\"]\s*\)", act_clean, re.I)
+            if m_open:
+                target_app = m_open.group(1)
+                self._ensure_app_foreground(target_app)
+                return True, f"Switched to application '{target_app}'"
+
+            # 9. wait(seconds=...)
+            m_wait = re.search(r"wait\s*\(\s*(?:seconds\s*=\s*)?([0-9\.]+)\s*\)", act_clean, re.I)
+            if m_wait:
+                sec = float(m_wait.group(1))
+                time.sleep(sec)
+                return True, f"Waited {sec} seconds"
+
+            # 10. Direct keyboard keys
+            if "space" in low_act:
                 if "spotify" in app_name.lower():
                     MEDIA_CONTROLLER.toggle_play_pause()
                 pyautogui.press("space")
                 return True, "Pressed space bar"
 
-            if "enter" in act_clean.lower():
+            if "enter" in low_act:
                 pyautogui.press("enter")
                 return True, "Pressed enter"
+
+            # If click was mentioned with no coordinates, click center
+            if "click" in low_act:
+                pyautogui.click()
+                return True, f"Performed click for '{act_clean}'"
 
             return True, f"Action '{act_clean}' executed"
 
