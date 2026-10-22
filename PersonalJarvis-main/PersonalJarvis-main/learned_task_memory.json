@@ -856,5 +856,97 @@
     "confidence": 0.99,
     "last_success": 1792584517.9757829,
     "last_duration": 9.301287174224854
+  },
+  "spotify:open_spotify_and_click_play_button": {
+    "id": "spotify:open_spotify_and_click_play_button",
+    "application": "spotify",
+    "intent": "OPEN SPOTIFY AND CLICK PLAY BUTTON",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app",
+        "target": "Spotify",
+        "details": "Open the Spotify application."
+      },
+      {
+        "step": 2,
+        "action": "wait",
+        "target": "Spotify window",
+        "details": "Wait until Spotify opens and the main UI is visible."
+      },
+      {
+        "step": 3,
+        "action": "hotkey",
+        "target": "Space",
+        "details": "Press Space to toggle play/pause and functionally click the play button."
+      },
+      {
+        "step": 4,
+        "action": "wait",
+        "target": "audio_playback",
+        "details": "Wait until audio playback is confirmed and the song begins."
+      },
+      {
+        "step": 5,
+        "action": "scan_screen_verify",
+        "target": "playback_state",
+        "details": "Scan screen and verify that the song is currently playing (e.g., pause icon displayed, progress bar moving)."
+      },
+      {
+        "step": 6,
+        "action": "complete",
+        "target": "goal",
+        "details": "Task completed successfully."
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792689473.7447143
+  },
+  "spotify:unknown_task": {
+    "id": "spotify:unknown_task",
+    "application": "spotify",
+    "intent": "UNKNOWN TASK",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app",
+        "target": "Spotify",
+        "details": "Open the Spotify application."
+      },
+      {
+        "step": 2,
+        "action": "wait",
+        "target": "Spotify window",
+        "details": "Wait until Spotify opens and the main UI is visible."
+      },
+      {
+        "step": 3,
+        "action": "hotkey",
+        "target": "Space",
+        "details": "Press Space to toggle play/pause and functionally click the play button."
+      },
+      {
+        "step": 4,
+        "action": "wait",
+        "target": "audio_playback",
+        "details": "Wait until audio playback is confirmed and the song begins."
+      },
+      {
+        "step": 5,
+        "action": "scan_screen_verify",
+        "target": "playback_state",
+        "details": "Scan screen and verify that the song is currently playing (e.g., pause icon displayed, progress bar moving)."
+      },
+      {
+        "step": 6,
+        "action": "complete",
+        "target": "goal",
+        "details": "Task completed successfully."
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792691943.7715507
   }
 }

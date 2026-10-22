@@ -342,15 +342,44 @@ class HydraPage(QWebEnginePage):
             speak_voice("Interface is operating in high-clarity Light HUD mode, sir.")
             return
 
-        # Autonomous Desktop Goal & Keyboard-First Planning (Phase 2)
+        # Normalizes voice or typed command typos (e.g. "theem" -> "theme")
+        def _normalize_command(text: str) -> str:
+            s = text.lower()
+            typo_map = {
+                "theem": "theme",
+                "thems": "themes",
+                "antigravty": "antigravity",
+                "antigraviti": "antigravity",
+                "anti gravity": "antigravity",
+                "spotfy": "spotify",
+                "spotifi": "spotify",
+                "sopitfy": "spotify",
+                "chrme": "chrome",
+                "notpad": "notepad",
+                "vscod": "vscode",
+            }
+            for typo, repl in typo_map.items():
+                s = re.sub(rf"\b{re.escape(typo)}\b", repl, s)
+            return s
+
+        cmd_normalized = _normalize_command(cmd_clean)
+        cmd_norm_lower = cmd_normalized.lower()
+
+        # Autonomous Desktop Goal & Keyboard-First Planning (Phase 2 & Phase 3)
         # Bypasses cloud plugin barriers for native desktop app control
-        is_action_goal = any(kw in cmd_lower for kw in [
-            "find ", "play ", "like ", "add to liked", "change theme", "set theme",
-            "open app", "mute spotify", "unmute spotify", "search for "
-        ]) or (
-            any(app in cmd_lower for app in ["spotify", "antigrav", "chrome", "brave", "notepad", "vscode", "whatsapp", "calc"])
-            and any(act in cmd_lower for act in ["play", "find", "search", "open", "theme", "mute", "like", "type", "add", "send"])
-        )
+        KNOWN_APPS = ["spotify", "antigrav", "chrome", "brave", "notepad", "vscode", "vs code", "whatsapp", "calc", "calculator", "browser"]
+        ACTION_VERBS = [
+            "play", "pause", "resume", "stop", "next", "prev", "mute", "unmute", "volume",
+            "find", "search", "open", "launch", "close", "click", "press", "toggle",
+            "type", "theme", "like", "add", "save", "circle", "button", "switch", "liked"
+        ]
+
+        has_app = any(app in cmd_norm_lower for app in KNOWN_APPS)
+        has_action = any(act in cmd_norm_lower for act in ACTION_VERBS)
+
+        is_action_goal = has_app or (has_action and any(kw in cmd_norm_lower for kw in [
+            "song", "music", "track", "tab", "window", "file", "app", "code", "light", "dark", "playlist"
+        ]))
 
         if is_action_goal:
             def goal_worker():
@@ -358,7 +387,8 @@ class HydraPage(QWebEnginePage):
                     from goal_decomposer import decompose_goal_plan, format_plan_for_display
                     from verified_executor import VERIFIED_EXECUTOR
 
-                    plan = decompose_goal_plan(cmd_clean)
+                    # Use normalized query for optimal planner accuracy
+                    plan = decompose_goal_plan(cmd_normalized)
                     print("\n" + format_plan_for_display(plan))
 
                     steps = plan.get("steps", [])

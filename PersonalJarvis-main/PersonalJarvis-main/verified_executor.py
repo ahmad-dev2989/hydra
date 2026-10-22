@@ -159,14 +159,43 @@ class VerifiedStepExecutor:
             # Build verification question for this specific step
             verify_prompt = self._build_verification_prompt(action_type, target, details, app_name)
             
-            v_ok, v_details, v_raw = self.verifier.adaptive_wait_until_verified(
-                step_description=f"Step {idx}: {details}",
-                verification_prompt=verify_prompt,
-                app_name=app_name,
-                timeout=6.5,
-                interval=0.5,
-                status_callback=status_callback
-            )
+            # Fast verification for audio playback via SMTC if active
+            is_audio_step = any(w in f"{details} {target}".lower() for w in ["play", "space", "playback", "audio", "green circle"])
+            if is_audio_step and "spotify" in app_name.lower():
+                try:
+                    state = MEDIA_CONTROLLER.get_state()
+                    if state.get("status") == "PLAYING":
+                        v_ok = True
+                        v_details = f"Audio playback confirmed active: '{state.get('title')}' by {state.get('artist')}"
+                        v_raw = {"verified": True, "app_state": "ready", "reason": v_details}
+                        print(f"[SMTC VERIFIED] {v_details}")
+                    else:
+                        v_ok, v_details, v_raw = self.verifier.adaptive_wait_until_verified(
+                            step_description=f"Step {idx}: {details}",
+                            verification_prompt=verify_prompt,
+                            app_name=app_name,
+                            timeout=6.5,
+                            interval=0.5,
+                            status_callback=status_callback
+                        )
+                except Exception:
+                    v_ok, v_details, v_raw = self.verifier.adaptive_wait_until_verified(
+                        step_description=f"Step {idx}: {details}",
+                        verification_prompt=verify_prompt,
+                        app_name=app_name,
+                        timeout=6.5,
+                        interval=0.5,
+                        status_callback=status_callback
+                    )
+            else:
+                v_ok, v_details, v_raw = self.verifier.adaptive_wait_until_verified(
+                    step_description=f"Step {idx}: {details}",
+                    verification_prompt=verify_prompt,
+                    app_name=app_name,
+                    timeout=6.5,
+                    interval=0.5,
+                    status_callback=status_callback
+                )
 
             step_record["verified"] = v_ok
             step_record["visual_observation"] = v_details
@@ -198,8 +227,21 @@ class VerifiedStepExecutor:
         return True, success_reply, execution_log
 
     def _ensure_app_foreground(self, app_name: str):
-        """Ensures the application window is brought to foreground."""
+        """Ensures the application window is brought to foreground without stealing focus if active."""
+        if not app_name:
+            return
         low_app = app_name.lower()
+        try:
+            import ctypes
+            u = ctypes.windll.user32
+            fg_hwnd = u.GetForegroundWindow()
+            win = WINDOW_MGR.resolve_window(app_name)
+            if win and fg_hwnd == win.get("hwnd"):
+                # Already active foreground window! Do not pulse Alt or touch focus
+                return
+        except Exception:
+            pass
+
         if "spotify" in low_app:
             WINDOW_MGR.switch_to("spotify")
         elif "antigrav" in low_app or "code" in low_app:
@@ -214,24 +256,34 @@ class VerifiedStepExecutor:
 
     def _perform_action(self, action_type: str, target: str, details: str, app_name: str) -> Tuple[bool, str]:
         """Performs native actuation: launching, typing, hotkey pressing, or clicking."""
-        # Always guarantee target application is focused before any input
         self._ensure_app_foreground(app_name)
 
         if not pyautogui:
             return True, "Simulated (pyautogui not installed)"
 
         try:
+            low_det = details.lower()
+            low_target = (target or "").lower()
+
             if action_type == "open_app":
                 self._ensure_app_foreground(target or app_name)
                 return True, f"Focused/opened {target or app_name}"
 
             elif action_type == "hotkey":
-                # Parse hotkey string like "Ctrl+L" or "Ctrl+Shift+P"
+                # Spotify play / toggle
+                if "spotify" in app_name.lower() and ("space" in low_target or "play" in low_det or "circle" in low_det):
+                    MEDIA_CONTROLLER.toggle_play_pause()
+                    pyautogui.press("space")
+                    return True, "Toggled Spotify playback"
+
+                # Parse hotkey string like "Ctrl+L", "Ctrl+Shift+P", "Ctrl+,"
                 keys = [k.strip().lower() for k in re.split(r'[\+\s]+', target) if k.strip()]
-                if not keys and "ctrl+l" in details.lower():
+                if not keys and "ctrl+l" in low_det:
                     keys = ["ctrl", "l"]
-                elif not keys and "ctrl+shift+p" in details.lower():
+                elif not keys and "ctrl+shift+p" in low_det:
                     keys = ["ctrl", "shift", "p"]
+                elif not keys and "ctrl+," in low_det:
+                    keys = ["ctrl", ","]
                 
                 if keys:
                     pyautogui.hotkey(*keys)
@@ -248,6 +300,15 @@ class VerifiedStepExecutor:
                     words = details.split("Type", 1)[-1].split("and", 1)[0].strip(" '\"")
                     text_to_type = words or "search"
 
+                # If typing search in Spotify, ensure search bar is focused first
+                if "spotify" in app_name.lower() and ("search" in low_det or "search" in low_target):
+                    pyautogui.hotkey("ctrl", "l")
+                    time.sleep(0.2)
+
+                # Select all first to overwrite any existing query
+                pyautogui.hotkey("ctrl", "a")
+                time.sleep(0.1)
+
                 # Use clipboard paste for instant, 100% accurate text entry
                 if pyperclip:
                     pyperclip.copy(text_to_type)
@@ -256,7 +317,7 @@ class VerifiedStepExecutor:
                     pyautogui.typewrite(text_to_type, interval=0.03)
 
                 time.sleep(0.2)
-                if "enter" in details.lower():
+                if "enter" in low_det or action_type == "type_text":
                     pyautogui.press("enter")
                     time.sleep(0.4)
 
@@ -272,24 +333,34 @@ class VerifiedStepExecutor:
                 return True, "Waited for UI render"
 
             elif action_type in ["move_cursor", "click"]:
-                # If clicking Play in Spotify, space bar is the universal instant trigger
-                if "spotify" in app_name.lower() and "play" in details.lower():
+                # If clicking Play / Green circle in Spotify, toggle playback
+                if "spotify" in app_name.lower() and any(w in low_det for w in ["play", "circle", "pause"]):
+                    MEDIA_CONTROLLER.toggle_play_pause()
                     pyautogui.press("space")
-                    return True, "Triggered Spotify playback via Space/Play action"
+                    return True, "Triggered Spotify playback via play action"
                 
-                # If adding to liked songs in Spotify, use native shortcut or safe click
-                if "spotify" in app_name.lower() and ("plus" in details.lower() or "add" in details.lower()):
-                    # Alt+Shift+B is Spotify native shortcut to save current track to Liked Songs
+                # If adding to liked songs in Spotify, use native shortcut
+                if "spotify" in app_name.lower() and ("plus" in low_det or "add" in low_det or "like" in low_det):
                     pyautogui.hotkey("alt", "shift", "b")
                     time.sleep(0.2)
                     return True, "Saved song to Liked Songs via Spotify shortcut"
 
                 # If navigating to liked songs on sidebar
-                if "spotify" in app_name.lower() and "liked" in details.lower():
-                    # Click on left sidebar playlist area
+                if "spotify" in app_name.lower() and "liked" in low_det:
                     pyautogui.click(140, 310)
                     time.sleep(0.3)
                     return True, "Navigated to Liked Songs in left sidebar"
+
+                # Theme selection in Antigravity
+                if "theme" in low_det and "antigrav" in app_name.lower():
+                    pyautogui.hotkey("ctrl", "k")
+                    time.sleep(0.1)
+                    pyautogui.hotkey("ctrl", "t")
+                    time.sleep(0.4)
+                    pyautogui.write("Light", interval=0.03)
+                    time.sleep(0.2)
+                    pyautogui.press("enter")
+                    return True, "Selected Light Theme in Antigravity"
 
                 pyautogui.click()
                 return True, f"Clicked on {target or 'target'}"
@@ -305,31 +376,48 @@ class VerifiedStepExecutor:
     def _build_verification_prompt(self, action_type: str, target: str, details: str, app_name: str) -> str:
         """Constructs a targeted visual question for Nemotron-3.5-Super-VL."""
         low_det = details.lower()
+        low_target = (target or "").lower()
+        combined = f"{low_det} {low_target}"
 
-        if action_type == "open_app" or "open" in low_det:
+        # 1. Open / launch app
+        if action_type == "open_app" or (("open" in combined or "launch" in combined) and "app" in combined):
             return f"Verify if {app_name} is currently open and visible on screen with its main interface loaded."
 
-        if action_type == "hotkey" or "ctrl+l" in low_det:
-            return f"In {app_name}, is the search bar focused, active, or ready for text input?"
-
-        if action_type == "type_text" or "type" in low_det:
-            match = re.search(r"['\"](.*?)['\"]", details)
-            txt = match.group(1) if match else "query text"
-            return f"In {app_name}, is '{txt}' entered into the search bar, or are search results starting to appear?"
-
-        if "results" in low_det or "search" in low_det:
-            return f"In {app_name}, are search results or tracks displayed on the screen?"
-
-        if "play" in low_det or "playback" in low_det:
+        # 2. Audio playback / play / pause / space / green circle
+        if any(w in combined for w in ["space", "play", "pause", "playback", "green circle", "green button", "audio"]):
             return f"In {app_name}, is audio playing or is a play/pause button or track progress bar visible on the playback bar?"
 
-        if "liked" in low_det or "plus" in low_det or "playlist" in low_det:
-            return f"In {app_name}, is the song present in Liked Songs, added to the playlist, or is the Liked Songs view visible and active?"
+        # 3. Search bar focusing (Ctrl+L, Ctrl+K)
+        if any(w in combined for w in ["ctrl+l", "ctrl+k", "search_bar", "search bar", "focus search"]):
+            return f"In {app_name}, is the search input field or search bar focused with a text cursor, or ready for typing?"
 
-        if "theme" in low_det:
-            return f"In {app_name}, has the color theme changed or is the theme selection menu visible?"
+        # 4. Text typing
+        if action_type == "type_text" or "type" in low_det:
+            match = re.search(r"['\"](.*?)['\"]", details)
+            txt = match.group(1) if match else (target or "query")
+            return f"In {app_name}, is '{txt}' entered into the search field, or are search results matching '{txt}' visible on screen?"
 
-        # Default fallback visual prompt
+        # 5. Search results
+        if any(w in combined for w in ["search_results", "results_list", "results", "song row"]):
+            return f"In {app_name}, are search results or tracks matching the query displayed on the screen?"
+
+        # 6. Liked songs / playlist
+        if any(w in combined for w in ["liked", "plus", "playlist", "heart", "favorite", "save"]):
+            return f"In {app_name}, is the song added to Liked Songs, or is the Liked Songs view visible and active?"
+
+        # 7. Theme change
+        if any(w in combined for w in ["theme", "color theme", "light", "dark"]):
+            return f"In {app_name}, has the color theme changed or is the theme picker/settings menu visible?"
+
+        # 8. Command palette / Settings
+        if any(w in combined for w in ["command palette", "ctrl+shift+p", "settings", "ctrl+,"]):
+            return f"In {app_name}, is the command palette or settings interface visible?"
+
+        # 9. Wait for window / render
+        if action_type == "wait" or "wait" in low_det:
+            return f"In {app_name}, has the window or UI finished loading and is visible without a blank screen?"
+
+        # Default fallback
         return f"Verify if the following step succeeded on screen: '{details}' in {app_name}."
 
 
