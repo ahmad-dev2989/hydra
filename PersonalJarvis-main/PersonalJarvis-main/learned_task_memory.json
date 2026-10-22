@@ -948,5 +948,51 @@
     "verified_by": "nvidia/Nemotron-3.5-Super-VL",
     "success_count": 1,
     "last_verified_timestamp": 1792691943.7715507
+  },
+  "spotify:open_spotify_and_click_green_circle": {
+    "id": "spotify:open_spotify_and_click_green_circle",
+    "application": "spotify",
+    "intent": "OPEN SPOTIFY AND CLICK GREEN CIRCLE",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app",
+        "target": "Spotify",
+        "details": "Open Spotify application."
+      },
+      {
+        "step": 2,
+        "action": "wait",
+        "target": "Spotify window",
+        "details": "Wait until Spotify window is fully rendered and active."
+      },
+      {
+        "step": 3,
+        "action": "hotkey",
+        "target": "Space",
+        "details": "Press Space to toggle play/pause, effectively clicking the green play circle."
+      },
+      {
+        "step": 4,
+        "action": "wait",
+        "target": "audio_playback",
+        "details": "Wait briefly to confirm playback state."
+      },
+      {
+        "step": 5,
+        "action": "scan_screen_verify",
+        "target": "playback_state",
+        "details": "Scan screen and verify that the green play circle is active or song is playing."
+      },
+      {
+        "step": 6,
+        "action": "complete",
+        "target": "goal",
+        "details": "Task completed successfully."
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792692925.98542
   }
 }

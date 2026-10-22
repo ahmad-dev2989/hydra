@@ -260,7 +260,7 @@ class VisualStateVerifier:
         step_description: str,
         verification_prompt: str,
         app_name: str = "",
-        timeout: float = 7.0,
+        timeout: float = 16.0,
         interval: float = 0.5,
         status_callback=None
     ) -> Tuple[bool, str, Dict[str, Any]]:

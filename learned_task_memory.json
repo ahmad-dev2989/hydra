@@ -857,10 +857,102 @@
     "last_success": 1792584517.9757829,
     "last_duration": 9.301287174224854
   },
-  "spotify:find_laapata_play_that_song_and_also_add_that_in_my_liked_playlist": {
-    "id": "spotify:find_laapata_play_that_song_and_also_add_that_in_my_liked_playlist",
+  "spotify:open_spotify_and_click_play_button": {
+    "id": "spotify:open_spotify_and_click_play_button",
     "application": "spotify",
-    "intent": "FIND LAAPATA, PLAY THAT SONG AND ALSO ADD THAT IN MY LIKED PLAYLIST",
+    "intent": "OPEN SPOTIFY AND CLICK PLAY BUTTON",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app",
+        "target": "Spotify",
+        "details": "Open the Spotify application."
+      },
+      {
+        "step": 2,
+        "action": "wait",
+        "target": "Spotify window",
+        "details": "Wait until Spotify opens and the main UI is visible."
+      },
+      {
+        "step": 3,
+        "action": "hotkey",
+        "target": "Space",
+        "details": "Press Space to toggle play/pause and functionally click the play button."
+      },
+      {
+        "step": 4,
+        "action": "wait",
+        "target": "audio_playback",
+        "details": "Wait until audio playback is confirmed and the song begins."
+      },
+      {
+        "step": 5,
+        "action": "scan_screen_verify",
+        "target": "playback_state",
+        "details": "Scan screen and verify that the song is currently playing (e.g., pause icon displayed, progress bar moving)."
+      },
+      {
+        "step": 6,
+        "action": "complete",
+        "target": "goal",
+        "details": "Task completed successfully."
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792689473.7447143
+  },
+  "spotify:unknown_task": {
+    "id": "spotify:unknown_task",
+    "application": "spotify",
+    "intent": "UNKNOWN TASK",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app",
+        "target": "Spotify",
+        "details": "Open the Spotify application."
+      },
+      {
+        "step": 2,
+        "action": "wait",
+        "target": "Spotify window",
+        "details": "Wait until Spotify opens and the main UI is visible."
+      },
+      {
+        "step": 3,
+        "action": "hotkey",
+        "target": "Space",
+        "details": "Press Space to toggle play/pause and functionally click the play button."
+      },
+      {
+        "step": 4,
+        "action": "wait",
+        "target": "audio_playback",
+        "details": "Wait until audio playback is confirmed and the song begins."
+      },
+      {
+        "step": 5,
+        "action": "scan_screen_verify",
+        "target": "playback_state",
+        "details": "Scan screen and verify that the song is currently playing (e.g., pause icon displayed, progress bar moving)."
+      },
+      {
+        "step": 6,
+        "action": "complete",
+        "target": "goal",
+        "details": "Task completed successfully."
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792691943.7715507
+  },
+  "spotify:open_spotify_and_click_green_circle": {
+    "id": "spotify:open_spotify_and_click_green_circle",
+    "application": "spotify",
+    "intent": "OPEN SPOTIFY AND CLICK GREEN CIRCLE",
     "steps": [
       {
         "step": 1,
@@ -872,88 +964,28 @@
         "step": 2,
         "action": "wait",
         "target": "Spotify window",
-        "details": "Wait until Spotify opens and UI is visible."
+        "details": "Wait until Spotify window is fully rendered and active."
       },
       {
         "step": 3,
         "action": "hotkey",
-        "target": "Ctrl+L",
-        "details": "Press Ctrl+L on keyboard to instantly focus search bar."
+        "target": "Space",
+        "details": "Press Space to toggle play/pause, effectively clicking the green play circle."
       },
       {
         "step": 4,
-        "action": "type_text",
-        "target": "search_bar",
-        "details": "Type 'laapata' and press Enter."
+        "action": "wait",
+        "target": "audio_playback",
+        "details": "Wait briefly to confirm playback state."
       },
       {
         "step": 5,
-        "action": "wait",
-        "target": "search_results",
-        "details": "Wait until search results appear."
+        "action": "scan_screen_verify",
+        "target": "playback_state",
+        "details": "Scan screen and verify that the green play circle is active or song is playing."
       },
       {
         "step": 6,
-        "action": "scan_screen",
-        "target": "results_list",
-        "details": "Scan screen and locate the row where 'laapata' is written."
-      },
-      {
-        "step": 7,
-        "action": "move_cursor",
-        "target": "play_button",
-        "details": "Move cursor to the Play button on the 'laapata' song row."
-      },
-      {
-        "step": 8,
-        "action": "click",
-        "target": "play_button",
-        "details": "Click Play button."
-      },
-      {
-        "step": 9,
-        "action": "wait",
-        "target": "audio_playback",
-        "details": "Wait until song plays."
-      },
-      {
-        "step": 10,
-        "action": "scan_screen_verify",
-        "target": "playback_state",
-        "details": "Scan screen and verify that the song is currently playing."
-      },
-      {
-        "step": 11,
-        "action": "move_cursor",
-        "target": "plus_icon",
-        "details": "Move cursor to the plus (+) icon on that song row."
-      },
-      {
-        "step": 12,
-        "action": "click",
-        "target": "plus_icon",
-        "details": "Click plus (+) icon to add song."
-      },
-      {
-        "step": 13,
-        "action": "move_cursor",
-        "target": "liked_songs_nav",
-        "details": "Move cursor to the purple square with heart icon (Liked Songs) on the left sidebar."
-      },
-      {
-        "step": 14,
-        "action": "click",
-        "target": "liked_songs_nav",
-        "details": "Click Liked Songs icon."
-      },
-      {
-        "step": 15,
-        "action": "scan_screen_verify",
-        "target": "liked_songs_list",
-        "details": "Scan screen and verify if 'laapata' is present in Liked Songs."
-      },
-      {
-        "step": 16,
         "action": "complete",
         "target": "goal",
         "details": "Task completed successfully."
@@ -961,6 +993,6 @@
     ],
     "verified_by": "nvidia/Nemotron-3.5-Super-VL",
     "success_count": 1,
-    "last_verified_timestamp": 1792686061.6868045
+    "last_verified_timestamp": 1792692925.98542
   }
 }

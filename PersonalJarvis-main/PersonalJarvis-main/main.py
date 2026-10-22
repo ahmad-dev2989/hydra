@@ -342,12 +342,16 @@ class HydraPage(QWebEnginePage):
             speak_voice("Interface is operating in high-clarity Light HUD mode, sir.")
             return
 
-        # Normalizes voice or typed command typos (e.g. "theem" -> "theme")
+        # Normalizes voice or typed command typos (e.g. "theem" -> "theme", "step playing" -> "stop playing")
         def _normalize_command(text: str) -> str:
             s = text.lower()
             typo_map = {
                 "theem": "theme",
                 "thems": "themes",
+                "step playing": "stop playing",
+                "step music": "stop music",
+                "step spotify": "stop spotify",
+                "step song": "stop song",
                 "antigravty": "antigravity",
                 "antigraviti": "antigravity",
                 "anti gravity": "antigravity",
@@ -384,29 +388,16 @@ class HydraPage(QWebEnginePage):
         if is_action_goal:
             def goal_worker():
                 try:
-                    from goal_decomposer import decompose_goal_plan, format_plan_for_display
                     from verified_executor import VERIFIED_EXECUTOR
 
-                    # Use normalized query for optimal planner accuracy
-                    plan = decompose_goal_plan(cmd_normalized)
-                    print("\n" + format_plan_for_display(plan))
-
-                    steps = plan.get("steps", [])
-                    app_name = plan.get("app", "the application")
-                    shortcuts = plan.get("shortcuts_used", [])
-                    shortcut_str = f" using {shortcuts[0]}" if shortcuts else ""
-
-                    if plan.get("found_in_database"):
-                        intro = f"Executing verified prior procedure with {len(steps)} steps for {app_name}, sir."
-                    else:
-                        intro = f"Executing plan with {len(steps)} steps for {app_name}{shortcut_str}, with visual verification."
-                    speak_voice(intro)
-
-                    # Phase 3: Visual State Verification & Slow-PC Adaptive Waiting
+                    # Phase 3: Dynamic Vision-In-The-Loop Agent & Verified Executor
                     def on_hud_status(status_text):
                         safe_emit_js(f"console.log('HYDRA_HUD: {status_text}');")
 
-                    success, final_reply, exec_logs = VERIFIED_EXECUTOR.execute_plan(plan, status_callback=on_hud_status)
+                    success, final_reply, exec_logs = VERIFIED_EXECUTOR.run_vision_agent_task(
+                        task_text=cmd_normalized,
+                        status_callback=on_hud_status
+                    )
                     speak_voice(final_reply)
 
                 except Exception as e:
