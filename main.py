@@ -1488,13 +1488,16 @@ class HydraPage(QWebEnginePage):
                         app_name = plan.get('app', 'the application')
                         shortcuts = plan.get('shortcuts_used', [])
                         shortcut_str = f' using {shortcuts[0]}' if shortcuts else ''
+                        from verified_executor import VERIFIED_EXECUTOR
                         if plan.get('found_in_database'):
-                            reply = f'Found verified prior plan in database with {len(steps)} steps for {app_name}, sir.'
+                            intro = f'Executing verified prior procedure with {len(steps)} steps for {app_name}, sir.'
                         else:
-                            reply = f'Decomposed detailed plan with {len(steps)} steps for {app_name}{shortcut_str}, sir.'
-                        self.speak_voice(reply)
+                            intro = f'Executing plan with {len(steps)} steps for {app_name}{shortcut_str}, with visual verification.'
+                        self.speak_voice(intro)
+                        success, final_reply, exec_logs = VERIFIED_EXECUTOR.execute_plan(plan)
+                        self.speak_voice(final_reply)
                         save_chat_message('user', command)
-                        save_chat_message('assistant', reply)
+                        save_chat_message('assistant', final_reply)
                         return
                     except Exception as e:
                         print(f'[GOAL ERROR] {e}')

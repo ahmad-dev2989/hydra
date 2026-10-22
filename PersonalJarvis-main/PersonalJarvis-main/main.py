@@ -356,6 +356,8 @@ class HydraPage(QWebEnginePage):
             def goal_worker():
                 try:
                     from goal_decomposer import decompose_goal_plan, format_plan_for_display
+                    from verified_executor import VERIFIED_EXECUTOR
+
                     plan = decompose_goal_plan(cmd_clean)
                     print("\n" + format_plan_for_display(plan))
 
@@ -365,13 +367,21 @@ class HydraPage(QWebEnginePage):
                     shortcut_str = f" using {shortcuts[0]}" if shortcuts else ""
 
                     if plan.get("found_in_database"):
-                        reply = f"Found verified prior plan in database with {len(steps)} steps for {app_name}, sir."
+                        intro = f"Executing verified prior procedure with {len(steps)} steps for {app_name}, sir."
                     else:
-                        reply = f"Decomposed detailed plan with {len(steps)} steps for {app_name}{shortcut_str}, sir."
-                    speak_voice(reply)
+                        intro = f"Executing plan with {len(steps)} steps for {app_name}{shortcut_str}, with visual verification."
+                    speak_voice(intro)
+
+                    # Phase 3: Visual State Verification & Slow-PC Adaptive Waiting
+                    def on_hud_status(status_text):
+                        safe_emit_js(f"console.log('HYDRA_HUD: {status_text}');")
+
+                    success, final_reply, exec_logs = VERIFIED_EXECUTOR.execute_plan(plan, status_callback=on_hud_status)
+                    speak_voice(final_reply)
+
                 except Exception as e:
                     print(f"[GOAL ERROR] {e}")
-                    speak_voice("I encountered an issue planning that action, sir.")
+                    speak_voice("I encountered an issue executing that action, sir.")
 
             threading.Thread(target=goal_worker, daemon=True).start()
             return
