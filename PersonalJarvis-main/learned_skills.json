@@ -1,0 +1,3327 @@
+{
+  "spotify:mute": {
+    "app": "spotify",
+    "intent": "mute spotify",
+    "description": "Mute Spotify playback volume to zero",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "down"
+        ],
+        "repeat": 15,
+        "delay": 0.03,
+        "description": "Reduce Spotify volume to zero"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:mute_spotify_sound": {
+    "app": "spotify",
+    "intent": "mute spotify sound",
+    "description": "Mute Spotify playback volume to zero",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "down"
+        ],
+        "repeat": 15,
+        "delay": 0.03,
+        "description": "Reduce Spotify volume to zero"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:mute_spotify_volume": {
+    "app": "spotify",
+    "intent": "mute spotify volume",
+    "description": "Mute Spotify playback volume to zero",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "down"
+        ],
+        "repeat": 15,
+        "delay": 0.03,
+        "description": "Reduce Spotify volume to zero"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:silence": {
+    "app": "spotify",
+    "intent": "silence spotify",
+    "description": "Silence Spotify music playback",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "down"
+        ],
+        "repeat": 15,
+        "delay": 0.03,
+        "description": "Reduce Spotify volume to zero"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:silence_spotify": {
+    "app": "spotify",
+    "intent": "silence spotify",
+    "description": "Silence Spotify music playback",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "down"
+        ],
+        "repeat": 15,
+        "delay": 0.03,
+        "description": "Reduce Spotify volume to zero"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:unmute": {
+    "app": "spotify",
+    "intent": "unmute spotify",
+    "description": "Restore Spotify volume to audible level",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "up"
+        ],
+        "repeat": 8,
+        "delay": 0.03,
+        "description": "Increase Spotify volume to medium level"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:unmute_spotify_sound": {
+    "app": "spotify",
+    "intent": "unmute spotify sound",
+    "description": "Restore Spotify volume to audible level",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "up"
+        ],
+        "repeat": 8,
+        "delay": 0.03,
+        "description": "Increase Spotify volume to medium level"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:volume_up": {
+    "app": "spotify",
+    "intent": "increase spotify volume",
+    "description": "Increase Spotify music playback volume",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "up"
+        ],
+        "repeat": 4,
+        "delay": 0.04,
+        "description": "Turn up Spotify volume"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:increase_volume": {
+    "app": "spotify",
+    "intent": "increase volume in spotify",
+    "description": "Increase Spotify volume",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "up"
+        ],
+        "repeat": 4,
+        "delay": 0.04,
+        "description": "Turn up Spotify volume"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:volume_down": {
+    "app": "spotify",
+    "intent": "decrease spotify volume",
+    "description": "Decrease Spotify music playback volume",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "down"
+        ],
+        "repeat": 4,
+        "delay": 0.04,
+        "description": "Turn down Spotify volume"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:decrease_volume": {
+    "app": "spotify",
+    "intent": "decrease volume in spotify",
+    "description": "Decrease Spotify volume",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "down"
+        ],
+        "repeat": 4,
+        "delay": 0.04,
+        "description": "Turn down Spotify volume"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:play": {
+    "app": "spotify",
+    "intent": "play spotify",
+    "description": "Resume Spotify music playback",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "space",
+        "description": "Resume play in Spotify"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:pause": {
+    "app": "spotify",
+    "intent": "pause spotify",
+    "description": "Pause Spotify music playback",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "space",
+        "description": "Pause playback in Spotify"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:play_pause": {
+    "app": "spotify",
+    "intent": "toggle playback spotify",
+    "description": "Toggle Spotify playback",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "space",
+        "description": "Toggle play/pause in Spotify"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:next_track": {
+    "app": "spotify",
+    "intent": "next track on spotify",
+    "description": "Skip to next music track in Spotify",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "right"
+        ],
+        "description": "Skip to next track"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:skip_song": {
+    "app": "spotify",
+    "intent": "skip song on spotify",
+    "description": "Skip to next music track in Spotify",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "right"
+        ],
+        "description": "Skip to next track"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:previous_track": {
+    "app": "spotify",
+    "intent": "previous track on spotify",
+    "description": "Go to previous track in Spotify",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "left"
+        ],
+        "description": "Go to previous track"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:shuffle_toggle": {
+    "app": "spotify",
+    "intent": "toggle shuffle on spotify",
+    "description": "Toggle shuffle mode on Spotify",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Toggle shuffle"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:repeat_toggle": {
+    "app": "spotify",
+    "intent": "toggle repeat on spotify",
+    "description": "Toggle repeat track in Spotify",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "r"
+        ],
+        "description": "Toggle repeat"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:like_song": {
+    "app": "spotify",
+    "intent": "like this song on spotify",
+    "description": "Save current playing song to your library",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "alt",
+          "shift",
+          "b"
+        ],
+        "description": "Like current song"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:search": {
+    "app": "spotify",
+    "intent": "search in spotify",
+    "description": "Focus Spotify search bar",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "k"
+        ],
+        "description": "Focus search input"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:create_blank_1080x1080": {
+    "app": "canva",
+    "intent": "create a blank 1080x1080 design",
+    "description": "Create a blank 1080x1080 custom dimension design in Canva",
+    "steps": [
+      {
+        "type": "click_text",
+        "target": "Create a design",
+        "region": "top_bar",
+        "description": "Click Create a design button"
+      },
+      {
+        "type": "wait",
+        "duration": 0.5
+      },
+      {
+        "type": "click_text",
+        "target": "Custom size",
+        "region": "dropdown",
+        "description": "Click Custom size option"
+      },
+      {
+        "type": "wait",
+        "duration": 0.4
+      },
+      {
+        "type": "type_input",
+        "field": "Width",
+        "value": "1080",
+        "description": "Enter width 1080"
+      },
+      {
+        "type": "press_key",
+        "key": "tab",
+        "description": "Tab to Height field"
+      },
+      {
+        "type": "type_input",
+        "field": "Height",
+        "value": "1080",
+        "description": "Enter height 1080"
+      },
+      {
+        "type": "press_key",
+        "key": "enter",
+        "description": "Create new design canvas"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:blank_1080x1080": {
+    "app": "canva",
+    "intent": "create blank 1080x1080 design in canva",
+    "description": "Create a blank 1080x1080 design in Canva",
+    "steps": [
+      {
+        "type": "click_text",
+        "target": "Create a design",
+        "region": "top_bar",
+        "description": "Click Create a design button"
+      },
+      {
+        "type": "wait",
+        "duration": 0.5
+      },
+      {
+        "type": "click_text",
+        "target": "Custom size",
+        "region": "dropdown",
+        "description": "Click Custom size option"
+      },
+      {
+        "type": "wait",
+        "duration": 0.4
+      },
+      {
+        "type": "type_input",
+        "field": "Width",
+        "value": "1080",
+        "description": "Enter width 1080"
+      },
+      {
+        "type": "press_key",
+        "key": "tab",
+        "description": "Tab to Height field"
+      },
+      {
+        "type": "type_input",
+        "field": "Height",
+        "value": "1080",
+        "description": "Enter height 1080"
+      },
+      {
+        "type": "press_key",
+        "key": "enter",
+        "description": "Create new design canvas"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:create_presentation": {
+    "app": "canva",
+    "intent": "create a presentation in canva",
+    "description": "Create a blank 1920x1080 presentation canvas in Canva",
+    "steps": [
+      {
+        "type": "click_text",
+        "target": "Create a design",
+        "region": "top_bar",
+        "description": "Click Create a design"
+      },
+      {
+        "type": "wait",
+        "duration": 0.4
+      },
+      {
+        "type": "click_text",
+        "target": "Presentation",
+        "region": "dropdown",
+        "description": "Click Presentation (16:9)"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:add_text_box": {
+    "app": "canva",
+    "intent": "add text box in canva",
+    "description": "Add a new text box to the active Canva design canvas",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "t",
+        "description": "Press T shortcut for Text"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:add_text": {
+    "app": "canva",
+    "intent": "add text in canva",
+    "description": "Add a new text box in Canva",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "t",
+        "description": "Press T shortcut for Text"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:add_rectangle": {
+    "app": "canva",
+    "intent": "add rectangle in canva",
+    "description": "Add a rectangle shape to Canva canvas",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "r",
+        "description": "Press R shortcut for Rectangle"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:add_circle": {
+    "app": "canva",
+    "intent": "add circle in canva",
+    "description": "Add a circle shape to Canva canvas",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "c",
+        "description": "Press C shortcut for Circle"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:add_line": {
+    "app": "canva",
+    "intent": "add line in canva",
+    "description": "Add a line element to Canva canvas",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "l",
+        "description": "Press L shortcut for Line"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:duplicate_element": {
+    "app": "canva",
+    "intent": "duplicate element in canva",
+    "description": "Duplicate selected element in Canva",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "d"
+        ],
+        "description": "Duplicate element"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:duplicate": {
+    "app": "canva",
+    "intent": "duplicate in canva",
+    "description": "Duplicate selected element in Canva",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "d"
+        ],
+        "description": "Duplicate element"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:group_elements": {
+    "app": "canva",
+    "intent": "group elements in canva",
+    "description": "Group selected elements in Canva",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "g"
+        ],
+        "description": "Group elements"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:ungroup_elements": {
+    "app": "canva",
+    "intent": "ungroup elements in canva",
+    "description": "Ungroup elements in Canva",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "g"
+        ],
+        "description": "Ungroup elements"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:download_design": {
+    "app": "canva",
+    "intent": "download design in canva",
+    "description": "Open download dialog to export design in Canva",
+    "steps": [
+      {
+        "type": "click_text",
+        "target": "Share",
+        "region": "top_bar",
+        "description": "Click Share button"
+      },
+      {
+        "type": "wait",
+        "duration": 0.4
+      },
+      {
+        "type": "click_text",
+        "target": "Download",
+        "region": "dropdown",
+        "description": "Click Download option"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:zoom_in": {
+    "app": "canva",
+    "intent": "zoom in on canva canvas",
+    "description": "Zoom in to Canva canvas",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "equal"
+        ],
+        "description": "Zoom in"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "canva:zoom_out": {
+    "app": "canva",
+    "intent": "zoom out on canva canvas",
+    "description": "Zoom out from Canva canvas",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "minus"
+        ],
+        "description": "Zoom out"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:save_file": {
+    "app": "code",
+    "intent": "save file in vs code",
+    "description": "Save active document in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Save current file"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:save": {
+    "app": "code",
+    "intent": "save file in vs code",
+    "description": "Save active file in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Save file"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:save_all": {
+    "app": "code",
+    "intent": "save all files in vs code",
+    "description": "Save all open files in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "k",
+          "s"
+        ],
+        "description": "Save all files"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:new_file": {
+    "app": "code",
+    "intent": "create new file in vs code",
+    "description": "Create new untitled editor file in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "n"
+        ],
+        "description": "New file"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:format_document": {
+    "app": "code",
+    "intent": "format document in vs code",
+    "description": "Auto-format current code file in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "shift",
+          "alt",
+          "f"
+        ],
+        "description": "Format document"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:format_code": {
+    "app": "code",
+    "intent": "format code in vs code",
+    "description": "Format code in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "shift",
+          "alt",
+          "f"
+        ],
+        "description": "Format document"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:toggle_terminal": {
+    "app": "code",
+    "intent": "toggle terminal in vs code",
+    "description": "Open or close integrated terminal in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "`"
+        ],
+        "description": "Toggle integrated terminal"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:open_terminal": {
+    "app": "code",
+    "intent": "open terminal in vs code",
+    "description": "Open integrated terminal in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "`"
+        ],
+        "description": "Open terminal"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:command_palette": {
+    "app": "code",
+    "intent": "open command palette in vs code",
+    "description": "Open Command Palette in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "p"
+        ],
+        "description": "Open Command Palette"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:toggle_sidebar": {
+    "app": "code",
+    "intent": "toggle sidebar in vs code",
+    "description": "Toggle primary sidebar visibility in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "b"
+        ],
+        "description": "Toggle primary sidebar"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:find_in_files": {
+    "app": "code",
+    "intent": "find in files in vs code",
+    "description": "Search across all files in workspace in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "f"
+        ],
+        "description": "Find across files"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:split_editor": {
+    "app": "code",
+    "intent": "split editor right in vs code",
+    "description": "Split editor pane to the right in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "\\"
+        ],
+        "description": "Split editor right"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:zen_mode": {
+    "app": "code",
+    "intent": "toggle zen mode in vs code",
+    "description": "Toggle distraction-free Zen mode in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "k",
+          "z"
+        ],
+        "description": "Toggle Zen mode"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "code:close_tab": {
+    "app": "code",
+    "intent": "close tab in vs code",
+    "description": "Close active editor tab in VS Code",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "w"
+        ],
+        "description": "Close editor tab"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:save_document": {
+    "app": "word",
+    "intent": "save document in word",
+    "description": "Save current document in Microsoft Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Save Word document"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:save": {
+    "app": "word",
+    "intent": "save document in word",
+    "description": "Save document in Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Save document"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:new_document": {
+    "app": "word",
+    "intent": "new document in word",
+    "description": "Create new blank document in Microsoft Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "n"
+        ],
+        "description": "Create new blank document"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:bold_text": {
+    "app": "word",
+    "intent": "bold text in word",
+    "description": "Make selected text bold in Microsoft Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "b"
+        ],
+        "description": "Toggle bold formatting"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:bold": {
+    "app": "word",
+    "intent": "bold text in word",
+    "description": "Bold text in Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "b"
+        ],
+        "description": "Toggle bold"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:italic_text": {
+    "app": "word",
+    "intent": "italicize text in word",
+    "description": "Make selected text italic in Microsoft Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "i"
+        ],
+        "description": "Toggle italic formatting"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:underline_text": {
+    "app": "word",
+    "intent": "underline text in word",
+    "description": "Underline selected text in Microsoft Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "u"
+        ],
+        "description": "Toggle underline formatting"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:align_center": {
+    "app": "word",
+    "intent": "align center in word",
+    "description": "Center-align text in Microsoft Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "e"
+        ],
+        "description": "Center align text"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:align_left": {
+    "app": "word",
+    "intent": "align left in word",
+    "description": "Left-align text in Microsoft Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "l"
+        ],
+        "description": "Left align text"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:align_right": {
+    "app": "word",
+    "intent": "align right in word",
+    "description": "Right-align text in Microsoft Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "r"
+        ],
+        "description": "Right align text"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:insert_page_break": {
+    "app": "word",
+    "intent": "insert page break in word",
+    "description": "Insert page break in Microsoft Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "enter"
+        ],
+        "description": "Insert page break"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:find_text": {
+    "app": "word",
+    "intent": "find text in word",
+    "description": "Open find navigation pane in Microsoft Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "f"
+        ],
+        "description": "Open Find pane"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:replace_text": {
+    "app": "word",
+    "intent": "replace text in word",
+    "description": "Open find and replace dialog in Microsoft Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "h"
+        ],
+        "description": "Open Find & Replace dialog"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "word:print_document": {
+    "app": "word",
+    "intent": "print document in word",
+    "description": "Open print dialog in Microsoft Word",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "p"
+        ],
+        "description": "Open Print dialog"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "excel:save_spreadsheet": {
+    "app": "excel",
+    "intent": "save spreadsheet in excel",
+    "description": "Save workbook in Microsoft Excel",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Save workbook"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "excel:save": {
+    "app": "excel",
+    "intent": "save workbook in excel",
+    "description": "Save workbook in Excel",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Save workbook"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "excel:new_worksheet": {
+    "app": "excel",
+    "intent": "new sheet in excel",
+    "description": "Insert new worksheet in Microsoft Excel",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "shift",
+          "f11"
+        ],
+        "description": "Insert new worksheet"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "excel:new_sheet": {
+    "app": "excel",
+    "intent": "insert new sheet in excel",
+    "description": "Insert new worksheet in Excel",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "shift",
+          "f11"
+        ],
+        "description": "Insert new sheet"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "excel:auto_sum": {
+    "app": "excel",
+    "intent": "auto sum in excel",
+    "description": "Insert AutoSum formula in Microsoft Excel",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "alt",
+          "="
+        ],
+        "description": "Insert AutoSum formula"
+      },
+      {
+        "type": "press_key",
+        "key": "enter",
+        "description": "Confirm formula"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "excel:sum": {
+    "app": "excel",
+    "intent": "sum formula in excel",
+    "description": "Insert AutoSum in Excel",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "alt",
+          "="
+        ],
+        "description": "Insert AutoSum"
+      },
+      {
+        "type": "press_key",
+        "key": "enter",
+        "description": "Confirm formula"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "excel:insert_row": {
+    "app": "excel",
+    "intent": "insert row in excel",
+    "description": "Insert new row above active selection in Excel",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "+"
+        ],
+        "description": "Insert row/cells"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "excel:filter_data": {
+    "app": "excel",
+    "intent": "filter data in excel",
+    "description": "Toggle data filters on selected range in Excel",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "l"
+        ],
+        "description": "Toggle filters"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "excel:format_currency": {
+    "app": "excel",
+    "intent": "format currency in excel",
+    "description": "Format selected cells as currency in Excel",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "$"
+        ],
+        "description": "Apply currency format"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "excel:format_percent": {
+    "app": "excel",
+    "intent": "format percentage in excel",
+    "description": "Format selected cells as percentage in Excel",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "%"
+        ],
+        "description": "Apply percentage format"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "excel:create_chart": {
+    "app": "excel",
+    "intent": "create chart in excel",
+    "description": "Create instant default chart from selected data in Excel",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "f11",
+        "description": "Create chart on new sheet"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "powerpoint:new_presentation": {
+    "app": "powerpoint",
+    "intent": "new presentation in powerpoint",
+    "description": "Create new presentation in PowerPoint",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "n"
+        ],
+        "description": "New presentation"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "powerpoint:new_slide": {
+    "app": "powerpoint",
+    "intent": "new slide in powerpoint",
+    "description": "Insert a new slide in PowerPoint presentation",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "m"
+        ],
+        "description": "Insert new slide"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "powerpoint:add_slide": {
+    "app": "powerpoint",
+    "intent": "add slide in powerpoint",
+    "description": "Add new slide in PowerPoint",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "m"
+        ],
+        "description": "Add slide"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "powerpoint:duplicate_slide": {
+    "app": "powerpoint",
+    "intent": "duplicate slide in powerpoint",
+    "description": "Duplicate selected slide in PowerPoint",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "d"
+        ],
+        "description": "Duplicate slide"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "powerpoint:start_slideshow": {
+    "app": "powerpoint",
+    "intent": "start slideshow in powerpoint",
+    "description": "Start PowerPoint presentation from the beginning",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "f5",
+        "description": "Start slideshow from first slide"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "powerpoint:present": {
+    "app": "powerpoint",
+    "intent": "present powerpoint",
+    "description": "Start presentation in PowerPoint",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "f5",
+        "description": "Start slideshow"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "powerpoint:start_slideshow_current": {
+    "app": "powerpoint",
+    "intent": "present from current slide in powerpoint",
+    "description": "Start PowerPoint slideshow from current slide",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "shift",
+          "f5"
+        ],
+        "description": "Start slideshow from current slide"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "powerpoint:end_slideshow": {
+    "app": "powerpoint",
+    "intent": "end slideshow in powerpoint",
+    "description": "End active PowerPoint presentation",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "esc",
+        "description": "Exit slideshow mode"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "audacity:start_recording": {
+    "app": "audacity",
+    "intent": "record in audacity",
+    "description": "Start recording audio track in Audacity",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "r",
+        "description": "Press R to start recording"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "audacity:record": {
+    "app": "audacity",
+    "intent": "record audio in audacity",
+    "description": "Start audio recording in Audacity",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "r",
+        "description": "Record audio"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "audacity:stop_recording": {
+    "app": "audacity",
+    "intent": "stop recording in audacity",
+    "description": "Stop playback or recording in Audacity",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "space",
+        "description": "Stop recording or playback"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "audacity:stop": {
+    "app": "audacity",
+    "intent": "stop playback in audacity",
+    "description": "Stop in Audacity",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "space",
+        "description": "Stop"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "audacity:pause_recording": {
+    "app": "audacity",
+    "intent": "pause recording in audacity",
+    "description": "Pause audio recording in Audacity",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "p",
+        "description": "Press P to pause"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "audacity:play_audio": {
+    "app": "audacity",
+    "intent": "play audio in audacity",
+    "description": "Play or pause audio track in Audacity",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "space",
+        "description": "Play/pause track"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "audacity:export_mp3": {
+    "app": "audacity",
+    "intent": "export audio as mp3 in audacity",
+    "description": "Export audio project as MP3 file in Audacity",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "e"
+        ],
+        "description": "Export audio dialog"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "audacity:export_audio": {
+    "app": "audacity",
+    "intent": "export audio in audacity",
+    "description": "Export audio dialog in Audacity",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "e"
+        ],
+        "description": "Export audio"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "audacity:select_all": {
+    "app": "audacity",
+    "intent": "select all audio in audacity",
+    "description": "Select entire waveform audio track in Audacity",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "a"
+        ],
+        "description": "Select all audio"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "audacity:zoom_in": {
+    "app": "audacity",
+    "intent": "zoom in audio in audacity",
+    "description": "Zoom in on audio waveform in Audacity",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "1"
+        ],
+        "description": "Zoom in waveform"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "audacity:zoom_out": {
+    "app": "audacity",
+    "intent": "zoom out audio in audacity",
+    "description": "Zoom out on audio waveform in Audacity",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "3"
+        ],
+        "description": "Zoom out waveform"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "whatsapp:new_chat": {
+    "app": "whatsapp",
+    "intent": "new chat in whatsapp",
+    "description": "Start new chat or search contacts in WhatsApp",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "n"
+        ],
+        "description": "Open new chat dialog"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "whatsapp:search_chat": {
+    "app": "whatsapp",
+    "intent": "search chat in whatsapp",
+    "description": "Focus chat search bar in WhatsApp",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "f"
+        ],
+        "description": "Focus search input"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "whatsapp:search": {
+    "app": "whatsapp",
+    "intent": "search in whatsapp",
+    "description": "Search chats in WhatsApp",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "f"
+        ],
+        "description": "Focus search input"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "whatsapp:next_chat": {
+    "app": "whatsapp",
+    "intent": "next chat in whatsapp",
+    "description": "Navigate to next conversation in WhatsApp",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "tab"
+        ],
+        "description": "Next chat"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "whatsapp:previous_chat": {
+    "app": "whatsapp",
+    "intent": "previous chat in whatsapp",
+    "description": "Navigate to previous conversation in WhatsApp",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "tab"
+        ],
+        "description": "Previous chat"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "whatsapp:mute_chat": {
+    "app": "whatsapp",
+    "intent": "mute chat in whatsapp",
+    "description": "Mute notifications for active conversation in WhatsApp",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "m"
+        ],
+        "description": "Mute conversation"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "whatsapp:archive_chat": {
+    "app": "whatsapp",
+    "intent": "archive chat in whatsapp",
+    "description": "Archive active conversation in WhatsApp",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "e"
+        ],
+        "description": "Archive conversation"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "whatsapp:voice_call": {
+    "app": "whatsapp",
+    "intent": "voice call in whatsapp",
+    "description": "Start voice call with active contact in WhatsApp",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "c"
+        ],
+        "description": "Initiate voice call"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "notepad:new_note": {
+    "app": "notepad",
+    "intent": "new note in notepad",
+    "description": "Open new blank note tab in Notepad",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "n"
+        ],
+        "description": "Create new document"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "notepad:save_note": {
+    "app": "notepad",
+    "intent": "save note in notepad",
+    "description": "Save current text file in Notepad",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Save file"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "notepad:save": {
+    "app": "notepad",
+    "intent": "save in notepad",
+    "description": "Save in Notepad",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Save"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "notepad:insert_timestamp": {
+    "app": "notepad",
+    "intent": "insert time and date in notepad",
+    "description": "Insert current time and date in Notepad",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "f5",
+        "description": "Press F5 for timestamp"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "notepad:time_date": {
+    "app": "notepad",
+    "intent": "date and time in notepad",
+    "description": "Insert timestamp in Notepad",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "f5",
+        "description": "Press F5"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "notepad:find_text": {
+    "app": "notepad",
+    "intent": "find text in notepad",
+    "description": "Open find dialog in Notepad",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "f"
+        ],
+        "description": "Find text"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "paint:new_canvas": {
+    "app": "paint",
+    "intent": "new canvas in paint",
+    "description": "Create new canvas in Paint",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "n"
+        ],
+        "description": "New canvas"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "paint:save_picture": {
+    "app": "paint",
+    "intent": "save image in paint",
+    "description": "Save current image in Paint",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Save image"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "paint:save": {
+    "app": "paint",
+    "intent": "save in paint",
+    "description": "Save in Paint",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Save"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "paint:zoom_in": {
+    "app": "paint",
+    "intent": "zoom in on paint canvas",
+    "description": "Zoom in on Paint canvas",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "pageup"
+        ],
+        "description": "Zoom in"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "paint:zoom_out": {
+    "app": "paint",
+    "intent": "zoom out on paint canvas",
+    "description": "Zoom out on Paint canvas",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "pagedown"
+        ],
+        "description": "Zoom out"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "paint:select_all": {
+    "app": "paint",
+    "intent": "select all in paint",
+    "description": "Select entire canvas in Paint",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "a"
+        ],
+        "description": "Select all"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "calculator:clear_entry": {
+    "app": "calculator",
+    "intent": "clear entry in calculator",
+    "description": "Clear current calculation entry",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "delete",
+        "description": "Clear entry (CE)"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "calculator:all_clear": {
+    "app": "calculator",
+    "intent": "all clear in calculator",
+    "description": "Reset calculator memory and calculation buffer",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "esc",
+        "description": "All clear (ESC)"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "calculator:clear": {
+    "app": "calculator",
+    "intent": "clear calculator",
+    "description": "Clear calculator",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "esc",
+        "description": "All clear"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "calculator:square_root": {
+    "app": "calculator",
+    "intent": "square root in calculator",
+    "description": "Calculate square root of current number",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "shift",
+          "2"
+        ],
+        "description": "Square root"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "calculator:scientific_mode": {
+    "app": "calculator",
+    "intent": "switch to scientific mode in calculator",
+    "description": "Switch calculator to scientific layout",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "alt",
+          "2"
+        ],
+        "description": "Scientific mode"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "calculator:standard_mode": {
+    "app": "calculator",
+    "intent": "switch to standard mode in calculator",
+    "description": "Switch calculator to standard layout",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "alt",
+          "1"
+        ],
+        "description": "Standard mode"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "explorer:new_folder": {
+    "app": "explorer",
+    "intent": "new folder in file explorer",
+    "description": "Create a new folder in current directory",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "n"
+        ],
+        "description": "Create new folder"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "explorer:new": {
+    "app": "explorer",
+    "intent": "new folder in file explorer",
+    "description": "Create a new folder in current directory",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "n"
+        ],
+        "description": "Create new folder"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "explorer:rename_file": {
+    "app": "explorer",
+    "intent": "rename file in file explorer",
+    "description": "Rename selected file or folder in File Explorer",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "f2",
+        "description": "Press F2 to rename"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "explorer:rename": {
+    "app": "explorer",
+    "intent": "rename in file explorer",
+    "description": "Rename selected item in Explorer",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "f2",
+        "description": "Rename"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "explorer:search_files": {
+    "app": "explorer",
+    "intent": "search files in file explorer",
+    "description": "Focus search box in File Explorer",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "f"
+        ],
+        "description": "Focus search box"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "explorer:search": {
+    "app": "explorer",
+    "intent": "search in file explorer",
+    "description": "Focus search in Explorer",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "f"
+        ],
+        "description": "Search"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "explorer:address_bar": {
+    "app": "explorer",
+    "intent": "go to address bar in file explorer",
+    "description": "Focus address path bar in File Explorer",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "l"
+        ],
+        "description": "Focus address bar"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "explorer:refresh_folder": {
+    "app": "explorer",
+    "intent": "refresh folder in file explorer",
+    "description": "Refresh active directory view in File Explorer",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "f5",
+        "description": "Refresh directory"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "terminal:new_tab": {
+    "app": "terminal",
+    "intent": "new tab in terminal",
+    "description": "Open new terminal tab",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "t"
+        ],
+        "description": "New tab"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "terminal:close_tab": {
+    "app": "terminal",
+    "intent": "close tab in terminal",
+    "description": "Close active terminal tab",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "w"
+        ],
+        "description": "Close tab"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "terminal:split_pane_vertical": {
+    "app": "terminal",
+    "intent": "split terminal vertically",
+    "description": "Split terminal pane vertically",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "alt",
+          "shift",
+          "plus"
+        ],
+        "description": "Split vertical"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "terminal:split_vertical": {
+    "app": "terminal",
+    "intent": "split vertical in terminal",
+    "description": "Split vertical",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "alt",
+          "shift",
+          "plus"
+        ],
+        "description": "Split vertical"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "terminal:split_pane_horizontal": {
+    "app": "terminal",
+    "intent": "split terminal horizontally",
+    "description": "Split terminal pane horizontally",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "alt",
+          "shift",
+          "-"
+        ],
+        "description": "Split horizontal"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "terminal:clear_screen": {
+    "app": "terminal",
+    "intent": "clear terminal screen",
+    "description": "Clear screen buffer in terminal",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "k"
+        ],
+        "description": "Clear terminal"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "terminal:clear": {
+    "app": "terminal",
+    "intent": "clear terminal",
+    "description": "Clear screen",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "k"
+        ],
+        "description": "Clear terminal"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "packet_tracer:new_topology": {
+    "app": "packet_tracer",
+    "intent": "new topology in packet tracer",
+    "description": "Create new network topology in Cisco Packet Tracer",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "n"
+        ],
+        "description": "New topology"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "packet_tracer:new": {
+    "app": "packet_tracer",
+    "intent": "new project in packet tracer",
+    "description": "New network topology",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "n"
+        ],
+        "description": "New topology"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "packet_tracer:save_topology": {
+    "app": "packet_tracer",
+    "intent": "save topology in packet tracer",
+    "description": "Save current network topology in Packet Tracer",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Save topology"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "packet_tracer:save": {
+    "app": "packet_tracer",
+    "intent": "save in packet tracer",
+    "description": "Save topology in Packet Tracer",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Save topology"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "packet_tracer:simulation_mode": {
+    "app": "packet_tracer",
+    "intent": "simulation mode in packet tracer",
+    "description": "Toggle Simulation / Realtime mode in Packet Tracer",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "shift",
+          "s"
+        ],
+        "description": "Toggle simulation mode"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "packet_tracer:simulation": {
+    "app": "packet_tracer",
+    "intent": "simulation in packet tracer",
+    "description": "Toggle simulation mode",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "shift",
+          "s"
+        ],
+        "description": "Toggle simulation mode"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "packet_tracer:add_simple_pdu": {
+    "app": "packet_tracer",
+    "intent": "add ping packet in packet tracer",
+    "description": "Add simple PDU packet tool in Packet Tracer",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "p",
+        "description": "Add Simple PDU"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "packet_tracer:ping_packet": {
+    "app": "packet_tracer",
+    "intent": "ping packet in packet tracer",
+    "description": "Add Simple PDU ping",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "p",
+        "description": "Add Simple PDU"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "brave:new_tab": {
+    "app": "brave",
+    "intent": "new tab in brave",
+    "description": "Open new browser tab in Brave",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "t"
+        ],
+        "description": "Open new tab"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "brave:close_tab": {
+    "app": "brave",
+    "intent": "close tab in brave",
+    "description": "Close active tab in Brave",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "w"
+        ],
+        "description": "Close active tab"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "brave:reopen_tab": {
+    "app": "brave",
+    "intent": "reopen closed tab in brave",
+    "description": "Reopen previously closed tab in Brave",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "t"
+        ],
+        "description": "Reopen closed tab"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "brave:incognito": {
+    "app": "brave",
+    "intent": "open incognito window in brave",
+    "description": "Open private browsing window in Brave",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "n"
+        ],
+        "description": "Open Private window"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "brave:private_window": {
+    "app": "brave",
+    "intent": "open private window in brave",
+    "description": "Open Private window in Brave",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "n"
+        ],
+        "description": "Open Private window"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "brave:bookmark_page": {
+    "app": "brave",
+    "intent": "bookmark this page in brave",
+    "description": "Add current page to bookmarks in Brave",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "d"
+        ],
+        "description": "Bookmark page"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "brave:history": {
+    "app": "brave",
+    "intent": "open browsing history in brave",
+    "description": "Open browsing history in Brave",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "h"
+        ],
+        "description": "Open History"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "brave:downloads": {
+    "app": "brave",
+    "intent": "open downloads in brave",
+    "description": "Open downloads page in Brave",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "j"
+        ],
+        "description": "Open Downloads"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "brave:inspect": {
+    "app": "brave",
+    "intent": "inspect element in brave",
+    "description": "Open developer tools inspect in Brave",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "i"
+        ],
+        "description": "Inspect element"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "brave:zoom_in": {
+    "app": "brave",
+    "intent": "zoom in on brave",
+    "description": "Zoom in page content in Brave",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "equal"
+        ],
+        "description": "Zoom in"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "brave:zoom_out": {
+    "app": "brave",
+    "intent": "zoom out on brave",
+    "description": "Zoom out page content in Brave",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "minus"
+        ],
+        "description": "Zoom out"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "chrome:new_tab": {
+    "app": "chrome",
+    "intent": "new tab in chrome",
+    "description": "Open new browser tab in Chrome",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "t"
+        ],
+        "description": "Open new tab"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "chrome:close_tab": {
+    "app": "chrome",
+    "intent": "close tab in chrome",
+    "description": "Close active tab in Chrome",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "w"
+        ],
+        "description": "Close active tab"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "chrome:reopen_tab": {
+    "app": "chrome",
+    "intent": "reopen closed tab in chrome",
+    "description": "Reopen previously closed tab in Chrome",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "t"
+        ],
+        "description": "Reopen closed tab"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "chrome:incognito": {
+    "app": "chrome",
+    "intent": "open incognito window in chrome",
+    "description": "Open incognito window in Chrome",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "n"
+        ],
+        "description": "Open Incognito window"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "chrome:bookmark_page": {
+    "app": "chrome",
+    "intent": "bookmark this page in chrome",
+    "description": "Bookmark current page in Chrome",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "d"
+        ],
+        "description": "Bookmark page"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "chrome:history": {
+    "app": "chrome",
+    "intent": "open browsing history in chrome",
+    "description": "Open browsing history in Chrome",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "h"
+        ],
+        "description": "Open History"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "chrome:downloads": {
+    "app": "chrome",
+    "intent": "open downloads in chrome",
+    "description": "Open downloads page in Chrome",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "j"
+        ],
+        "description": "Open Downloads"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "chrome:inspect": {
+    "app": "chrome",
+    "intent": "inspect element in chrome",
+    "description": "Inspect element developer tools in Chrome",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "i"
+        ],
+        "description": "Inspect element"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "edge:new_tab": {
+    "app": "edge",
+    "intent": "new tab in edge",
+    "description": "Open new tab in Microsoft Edge",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "t"
+        ],
+        "description": "New tab"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "edge:close_tab": {
+    "app": "edge",
+    "intent": "close tab in edge",
+    "description": "Close active tab in Edge",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "w"
+        ],
+        "description": "Close tab"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "edge:incognito": {
+    "app": "edge",
+    "intent": "open inprivate window in edge",
+    "description": "Open InPrivate browsing window in Edge",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "n"
+        ],
+        "description": "Open InPrivate window"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "edge:inprivate": {
+    "app": "edge",
+    "intent": "open inprivate window in edge",
+    "description": "Open InPrivate browsing window in Edge",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "n"
+        ],
+        "description": "Open InPrivate window"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "edge:history": {
+    "app": "edge",
+    "intent": "open history in edge",
+    "description": "Open history in Microsoft Edge",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "h"
+        ],
+        "description": "Open History"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "edge:downloads": {
+    "app": "edge",
+    "intent": "open downloads in edge",
+    "description": "Open downloads in Microsoft Edge",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "j"
+        ],
+        "description": "Open Downloads"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "onenote:new_page": {
+    "app": "onenote",
+    "intent": "new page in onenote",
+    "description": "Create new note page in OneNote",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "n"
+        ],
+        "description": "Add new page"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "onenote:new_section": {
+    "app": "onenote",
+    "intent": "new section in onenote",
+    "description": "Create new notebook section in OneNote",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "t"
+        ],
+        "description": "Add new section"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "onenote:search_notes": {
+    "app": "onenote",
+    "intent": "search notes in onenote",
+    "description": "Search notes across all notebooks in OneNote",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "e"
+        ],
+        "description": "Search all notebooks"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "onenote:search": {
+    "app": "onenote",
+    "intent": "search in onenote",
+    "description": "Search in OneNote",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "e"
+        ],
+        "description": "Search"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "onenote:bullet_list": {
+    "app": "onenote",
+    "intent": "bullet list in onenote",
+    "description": "Start bulleted list in OneNote",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "."
+        ],
+        "description": "Bullet list"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "onenote:todo_checkbox": {
+    "app": "onenote",
+    "intent": "to do checkbox in onenote",
+    "description": "Insert to-do check box in OneNote",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "1"
+        ],
+        "description": "Insert to-do tag"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "outlook:new_email": {
+    "app": "outlook",
+    "intent": "new email in outlook",
+    "description": "Compose new email message in Outlook",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "n"
+        ],
+        "description": "New email message"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "outlook:compose": {
+    "app": "outlook",
+    "intent": "compose email in outlook",
+    "description": "Compose email in Outlook",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "n"
+        ],
+        "description": "New email"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "outlook:reply_email": {
+    "app": "outlook",
+    "intent": "reply to email in outlook",
+    "description": "Reply to selected email in Outlook",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "r"
+        ],
+        "description": "Reply to email"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "outlook:reply": {
+    "app": "outlook",
+    "intent": "reply in outlook",
+    "description": "Reply to email",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "r"
+        ],
+        "description": "Reply"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "outlook:reply_all": {
+    "app": "outlook",
+    "intent": "reply all in outlook",
+    "description": "Reply all to selected email in Outlook",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "shift",
+          "r"
+        ],
+        "description": "Reply all"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "outlook:forward_email": {
+    "app": "outlook",
+    "intent": "forward email in outlook",
+    "description": "Forward selected email in Outlook",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "f"
+        ],
+        "description": "Forward email"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "outlook:send_email": {
+    "app": "outlook",
+    "intent": "send email in outlook",
+    "description": "Send composed email in Outlook",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "alt",
+          "s"
+        ],
+        "description": "Send email"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "outlook:check_mail": {
+    "app": "outlook",
+    "intent": "check mail in outlook",
+    "description": "Send and receive all folders in Outlook",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "f9",
+        "description": "Send/Receive all folders"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "outlook:calendar": {
+    "app": "outlook",
+    "intent": "switch to calendar in outlook",
+    "description": "Switch to Calendar view in Outlook",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "2"
+        ],
+        "description": "Switch to Calendar"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "outlook:inbox": {
+    "app": "outlook",
+    "intent": "switch to mail in outlook",
+    "description": "Switch to Mail view in Outlook",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "1"
+        ],
+        "description": "Switch to Mail"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "taskmgr:end_task": {
+    "app": "taskmgr",
+    "intent": "end task in task manager",
+    "description": "End selected process in Task Manager",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "delete"
+        ],
+        "description": "End process"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "taskmgr:kill_process": {
+    "app": "taskmgr",
+    "intent": "kill process in task manager",
+    "description": "Kill process in Task Manager",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "delete"
+        ],
+        "description": "End task"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "taskmgr:performance_tab": {
+    "app": "taskmgr",
+    "intent": "performance tab in task manager",
+    "description": "View Performance monitor tab in Task Manager",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "2"
+        ],
+        "description": "Switch to Performance"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "taskmgr:processes_tab": {
+    "app": "taskmgr",
+    "intent": "processes tab in task manager",
+    "description": "View Processes tab in Task Manager",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "1"
+        ],
+        "description": "Switch to Processes"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "snippingtool:new_snip": {
+    "app": "snippingtool",
+    "intent": "take screenshot in snipping tool",
+    "description": "Start new screenshot capture",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "n"
+        ],
+        "description": "New screenshot capture"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "snippingtool:take_screenshot": {
+    "app": "snippingtool",
+    "intent": "take screenshot in snipping tool",
+    "description": "Start screenshot capture",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "n"
+        ],
+        "description": "Capture snip"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "snippingtool:save": {
+    "app": "snippingtool",
+    "intent": "save screenshot in snipping tool",
+    "description": "Save captured screenshot",
+    "steps": [
+      {
+        "type": "hotkey",
+        "keys": [
+          "ctrl",
+          "s"
+        ],
+        "description": "Save screenshot"
+      }
+    ],
+    "compiled_at": 1792441967,
+    "success_count": 5
+  },
+  "spotify:toggle_playback_spotify": {
+    "app": "spotify",
+    "intent": "toggle playback spotify",
+    "description": "Toggle Spotify playback",
+    "steps": [
+      {
+        "type": "press_key",
+        "key": "space",
+        "description": "Toggle playback"
+      }
+    ],
+    "compiled_at": 1792525699,
+    "success_count": 1
+  }
+}

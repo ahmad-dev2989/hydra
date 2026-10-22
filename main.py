@@ -1471,6 +1471,34 @@ class HydraPage(QWebEnginePage):
             if is_correction or is_state_handled:
                 pass
             else:
+                # Autonomous Desktop Goal & Keyboard-First Planning (Phase 2)
+                is_action_goal = any(kw in clean_cmd for kw in [
+                    'find ', 'play ', 'like ', 'add to liked', 'change theme', 'set theme',
+                    'open app', 'mute spotify', 'unmute spotify', 'search for '
+                ]) or (
+                    any(app in clean_cmd for app in ['spotify', 'antigrav', 'chrome', 'brave', 'notepad', 'vscode', 'whatsapp', 'calc'])
+                    and any(act in clean_cmd for act in ['play', 'find', 'search', 'open', 'theme', 'mute', 'like', 'type', 'add', 'send'])
+                )
+                if is_action_goal:
+                    try:
+                        from goal_decomposer import decompose_goal_plan, format_plan_for_display
+                        plan = decompose_goal_plan(command)
+                        print(format_plan_for_display(plan))
+                        steps = plan.get('steps', [])
+                        app_name = plan.get('app', 'the application')
+                        shortcuts = plan.get('shortcuts_used', [])
+                        shortcut_str = f' using {shortcuts[0]}' if shortcuts else ''
+                        if plan.get('found_in_database'):
+                            reply = f'Found verified prior plan in database with {len(steps)} steps for {app_name}, sir.'
+                        else:
+                            reply = f'Decomposed detailed plan with {len(steps)} steps for {app_name}{shortcut_str}, sir.'
+                        self.speak_voice(reply)
+                        save_chat_message('user', command)
+                        save_chat_message('assistant', reply)
+                        return
+                    except Exception as e:
+                        print(f'[GOAL ERROR] {e}')
+
                 context_track = get_context_snapshot()
                 matched_rule = find_contextual_rule(clean_cmd, context_track)
                 if matched_rule:

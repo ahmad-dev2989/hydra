@@ -342,7 +342,41 @@ class HydraPage(QWebEnginePage):
             speak_voice("Interface is operating in high-clarity Light HUD mode, sir.")
             return
 
-        # Execute through PersonalJarvis BrainManager on persistent background loop
+        # Autonomous Desktop Goal & Keyboard-First Planning (Phase 2)
+        # Bypasses cloud plugin barriers for native desktop app control
+        is_action_goal = any(kw in cmd_lower for kw in [
+            "find ", "play ", "like ", "add to liked", "change theme", "set theme",
+            "open app", "mute spotify", "unmute spotify", "search for "
+        ]) or (
+            any(app in cmd_lower for app in ["spotify", "antigrav", "chrome", "brave", "notepad", "vscode", "whatsapp", "calc"])
+            and any(act in cmd_lower for act in ["play", "find", "search", "open", "theme", "mute", "like", "type", "add", "send"])
+        )
+
+        if is_action_goal:
+            def goal_worker():
+                try:
+                    from goal_decomposer import decompose_goal_plan, format_plan_for_display
+                    plan = decompose_goal_plan(cmd_clean)
+                    print("\n" + format_plan_for_display(plan))
+
+                    steps = plan.get("steps", [])
+                    app_name = plan.get("app", "the application")
+                    shortcuts = plan.get("shortcuts_used", [])
+                    shortcut_str = f" using {shortcuts[0]}" if shortcuts else ""
+
+                    if plan.get("found_in_database"):
+                        reply = f"Found verified prior plan in database with {len(steps)} steps for {app_name}, sir."
+                    else:
+                        reply = f"Decomposed detailed plan with {len(steps)} steps for {app_name}{shortcut_str}, sir."
+                    speak_voice(reply)
+                except Exception as e:
+                    print(f"[GOAL ERROR] {e}")
+                    speak_voice("I encountered an issue planning that action, sir.")
+
+            threading.Thread(target=goal_worker, daemon=True).start()
+            return
+
+        # Execute general conversational queries through PersonalJarvis BrainManager
         def command_worker():
             t_start = time.perf_counter()
             try:
