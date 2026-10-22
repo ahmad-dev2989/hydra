@@ -1,6 +1,8 @@
+import os
+os.environ["QT_LOGGING_RULES"] = "qt.qpa.*=false"
+os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "1"
 import io
 import sys
-import os
 import threading
 import asyncio
 import edge_tts
@@ -17,8 +19,10 @@ import difflib
 import sqlite3
 import re
 from datetime import datetime
+import webbrowser
 from system_ops import SystemDriver
-from PyQt6.QtCore import QUrl, pyqtSignal, QObject
+from web_ops import WEB_SEARCH
+from PyQt6.QtCore import QUrl, pyqtSignal, QObject, QEvent
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtWebEngineCore import QWebEnginePage
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -32,6 +36,26 @@ class UISignaler(QObject):
     js_signal = pyqtSignal(str)
 
 GUI_SIGNALS = UISignaler()
+
+def safe_emit_js(code: str):
+    """Safely emits JavaScript to Qt WebEngine, catching any deleted C++ wrapper errors."""
+    try:
+        if GUI_SIGNALS is not None:
+            GUI_SIGNALS.js_signal.emit(code)
+            return
+    except Exception:
+        pass
+    try:
+        if ACTIVE_PAGE:
+            ACTIVE_PAGE.runJavaScript(code)
+    except Exception:
+        pass
+
+try:
+    from camera_vision import CAMERA_ENGINE
+    CAMERA_ENGINE.set_ui_signaler(safe_emit_js)
+except Exception as e:
+    print(f"[MAIN] Camera vision signaler setup warning: {e}")
 
 APPS_CACHE = {}
 DIALOGUE_STATE = {"mode": "NORMAL", "pending_action": None, "payload": None}
@@ -54,6 +78,14 @@ def parse_fs_intent(raw_command):
     # SAFETY VALVE: Ignore file actions if the user is giving a core system rule
     rule_triggers = ["new rule", "from now on", "behavioral rule", "talk like", "act like"]
     if any(rt in text for rt in rule_triggers):
+        return None
+
+    # SAFETY VALVE: Ignore hardware input automation (mouse, cursor, clicks, keys, typing)
+    if any(w in text for w in ["mouse", "cursor", "pointer", "click", "scroll", "press key", "press enter", "hotkey", "drag mouse", "type "]):
+        return None
+
+    # SAFETY VALVE: Ignore app-specific complex tasks / design creation (Canva, Spotify, Figma, etc.)
+    if any(w in text for w in ["canva", "spotify", "figma", "photoshop", "illustrator", "design", "canvas", "dimension", "1080", "template"]):
         return None
 
     action = None
@@ -98,14 +130,17 @@ def parse_fs_intent(raw_command):
 
 def ensure_pygame_mixer():
     global PYGAME_MIXER_READY
-    if not PYGAME_MIXER_READY:
-        pygame.mixer.init(frequency=24000, size=-16, channels=1, buffer=512)
-        PYGAME_MIXER_READY = True
+    if not pygame.mixer.get_init():
+        try:
+            pygame.mixer.init(frequency=24000, size=-16, channels=1, buffer=512)
+            PYGAME_MIXER_READY = True
+        except Exception as e:
+            print(f"[MIXER INIT ERROR] {e}")
 
 def warm_up_ai_models():
     warm_up_nebius()
 
-def ai_chat(model, messages, num_predict=60, num_ctx=256, timeout=30):
+def ai_chat(model, messages, num_predict=450, num_ctx=1024, timeout=30):
     """
     Bridge function routing calls to Nebius Token Factory with NVIDIA models.
     Supports both fast and reasoning models with graceful fallback.
@@ -118,7 +153,7 @@ def ai_chat(model, messages, num_predict=60, num_ctx=256, timeout=30):
     return nebius_chat(
         messages=messages,
         model=target_model,
-        max_tokens=num_predict or 250,
+        max_tokens=max(num_predict or 450, 450),
         timeout=timeout or 30.0
     )
 
@@ -130,8 +165,16 @@ def get_db_connection():
 def get_tts_engine():
     global TTS_ENGINE
     if TTS_ENGINE is None:
+        try:
+            import pythoncom
+            pythoncom.CoInitialize()
+        except Exception:
+            pass
         import pyttsx3
-        TTS_ENGINE = pyttsx3.init("sapi5")
+        try:
+            TTS_ENGINE = pyttsx3.init("sapi5")
+        except Exception:
+            TTS_ENGINE = pyttsx3.init()
         voices = TTS_ENGINE.getProperty("voices")
         for voice in voices:
             if "david" in voice.name.lower() or "desktop" in voice.name.lower():
@@ -360,97 +403,37 @@ def populate_apps_cache():
 
 # --- GLOBAL TRACKER: Remembers what the user just asked about ---
 LAST_INFO_QUERY = None
+LAST_INFO_SUMMARY = None
+LAST_EXECUTIVE_SUMMARY = None
+LAST_INFO_LINKS = []
+LAST_STRUCTURED_HTML = None
+LAST_IMAGES = []
 
 def execute_information_retrieval(query):
-    import urllib.request
-    import urllib.parse
+    global LAST_INFO_QUERY, LAST_INFO_SUMMARY, LAST_EXECUTIVE_SUMMARY, LAST_INFO_LINKS, LAST_STRUCTURED_HTML, LAST_IMAGES
     import json
-    from concurrent.futures import ThreadPoolExecutor
-    global LAST_INFO_QUERY
+    from web_ops import WEB_SEARCH
 
-    clean_query = query.lower()
-    fillers = [
-        "tell me something about", "tell me about", "do you know about", 
-        "give me the information on", "give me information on", "information on", 
-        "information about", "search for", "what is", "who is", "define", "explain"
-    ]
-    for filler in fillers:
-        clean_query = clean_query.replace(filler, "")
-    
-    clean_query = clean_query.strip(" ?.,!")
-    encoded_query = urllib.parse.quote(clean_query)
-    LAST_INFO_QUERY = clean_query  # Lock the target into memory
+    clean_target = WEB_SEARCH.clean_query(query)
+    if not clean_target:
+        clean_target = query.strip()
 
-    def get_best_wiki_data():
-        search_url = f"https://en.wikipedia.org/w/api.php?action=opensearch&search={encoded_query}&limit=1&namespace=0&format=json"
-        req = urllib.request.Request(search_url, headers={'User-Agent': 'HydraAssistant/1.0'})
-        best_title = clean_query.title()
-        try:
-            with urllib.request.urlopen(req, timeout=3) as response:
-                data = json.loads(response.read().decode())
-                if len(data) > 1 and len(data[1]) > 0:
-                    best_title = data[1][0]
-        except Exception:
-            pass
+    res = WEB_SEARCH.search_dossier(clean_target)
+    LAST_INFO_QUERY = res.get("title", clean_target.upper())
+    LAST_INFO_SUMMARY = res.get("summary", "")
+    LAST_EXECUTIVE_SUMMARY = res.get("executive_summary", "")
+    LAST_INFO_LINKS = res.get("links", [])
+    LAST_STRUCTURED_HTML = res.get("structured_html", "")
+    LAST_IMAGES = res.get("images", [])
 
-        encoded_title = urllib.parse.quote(best_title)
-        summary_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{encoded_title}"
-        req2 = urllib.request.Request(summary_url, headers={'User-Agent': 'HydraAssistant/1.0'})
-        try:
-            with urllib.request.urlopen(req2, timeout=3) as response:
-                data = json.loads(response.read().decode())
-                if "extract" in data:
-                    img_url = data.get("originalimage", {}).get("source", "") or data.get("thumbnail", {}).get("source", "")
-                    return {
-                        "text": data['extract'], 
-                        "title": data.get('title', best_title),
-                        "image": img_url,
-                        "source": "WIKIPEDIA DATABASE"
-                    }
-        except Exception:
-            pass
-        return None
+    photos_json = json.dumps(res.get("dossier_photos", []))
+    primary_url = res.get("primary_url", "")
+    summary_text = res.get("summary", "")
+    spoken_text = res.get("spoken", f"I have retrieved the intel on {LAST_INFO_QUERY}, sir. Displaying on your screen now.")
 
-    def get_related_images():
-        url = f"https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch={encoded_query}&prop=pageimages&pithumbsize=600&format=json"
-        req = urllib.request.Request(url, headers={'User-Agent': 'HydraAssistant/1.0'})
-        images = []
-        try:
-            with urllib.request.urlopen(req, timeout=3) as response:
-                data = json.loads(response.read().decode())
-                pages = data.get("query", {}).get("pages", {})
-                for page_data in pages.values():
-                    if "thumbnail" in page_data:
-                        images.append(page_data["thumbnail"]["source"])
-        except Exception:
-            pass
-        return images
-
-    result_payload = get_best_wiki_data()
-    related_images = get_related_images()
-    
-    if result_payload:
-        main_img = result_payload.get("image", "")
-        
-        final_images = []
-        if main_img: final_images.append(main_img)
-        for img in related_images:
-            if img not in final_images:
-                final_images.append(img)
-                
-        img1 = final_images[0] if len(final_images) > 0 else "circle.png"
-        img2 = final_images[1] if len(final_images) > 1 else img1
-        
-        photos_json = json.dumps([
-            {"source": result_payload["source"], "desc": result_payload["text"][:110] + "...", "img": img1},
-            {"source": "VERIFIED INTEL", "desc": f"Extended digital footprint entry regarding {result_payload['title']}.", "img": img2}
-        ])
-        
-        js_emit = f"populateInfoHUD({json.dumps(result_payload['title'])}, {json.dumps(result_payload['text'])}, {photos_json});"
-        GUI_SIGNALS.js_signal.emit(js_emit)
-        return f"Summary: {result_payload['text']}"
-        
-    return "No supplementary database matches found for this query."
+    js_emit = f"populateInfoHUD({json.dumps(LAST_INFO_QUERY)}, {json.dumps(summary_text)}, {photos_json}, {json.dumps(primary_url)});"
+    GUI_SIGNALS.js_signal.emit(js_emit)
+    return spoken_text, summary_text
     
 def network_monitor_worker():
     import time
@@ -615,8 +598,7 @@ def historical_learning_worker():
 def is_simple_conversation(text):
     """Fallback function to determine if a prompt is just casual chat."""
     words = text.lower().split()
-    # If the user is just saying a few words with no action verbs, bypass deep reasoning
-    action_words = ["open", "launch", "play", "search", "find", "delete", "create", "what", "how", "why", "who", "tell", "about", "know", "information"]
+    action_words = ["open", "launch", "play", "search", "find", "delete", "create", "convert", "check", "organize", "what", "how", "why", "who", "tell", "about", "know", "information"]
     if len(words) <= 6 and not any(w in text for w in action_words):
         return True
     return False
@@ -626,11 +608,43 @@ class HydraPage(QWebEnginePage):
         if message.startswith("HYDRA_CMD:"):
             command = message[10:].lower().strip()
             self.process_hydra_command(command)
+        elif message.startswith("HYDRA_OPEN_URL:"):
+            url = message[15:].strip()
+            if url:
+                print(f"[HYDRA BROWSER] Launching live URL: {url}")
+                import webbrowser
+                webbrowser.open(url)
+        elif message.startswith("HYDRA_MEDIA_CMD:"):
+            action = message[16:].strip()
+            self.handle_media_command(action)
+
+    def handle_media_command(self, action):
+        try:
+            import json
+            from media_controller import MEDIA_CONTROLLER
+            if action == "toggle":
+                MEDIA_CONTROLLER.toggle_play_pause()
+            elif action == "next":
+                MEDIA_CONTROLLER.next_track()
+            elif action == "prev":
+                MEDIA_CONTROLLER.prev_track()
+            elif action.startswith("seek:"):
+                try:
+                    sec = float(action[5:])
+                    MEDIA_CONTROLLER.seek(sec)
+                except Exception:
+                    pass
+            # Trigger immediate UI update
+            state = MEDIA_CONTROLLER.get_state()
+            if state:
+                GUI_SIGNALS.js_signal.emit(f"updateMediaState({json.dumps(state)});")
+        except Exception as e:
+            print(f"[HYDRA MEDIA ERROR]: {e}")
 
     def process_hydra_command(self, command):
         import time
         import re
-        global LAST_ACTIVE_TIME, LEARNING_SESSION_ACTIVE, ACTIVE_PAGE
+        global LAST_ACTIVE_TIME, LEARNING_SESSION_ACTIVE, ACTIVE_PAGE, LAST_INFO_QUERY, LAST_INFO_SUMMARY, LAST_EXECUTIVE_SUMMARY, LAST_INFO_LINKS
         LAST_ACTIVE_TIME = time.time()
         ACTIVE_PAGE = self 
 
@@ -647,76 +661,65 @@ class HydraPage(QWebEnginePage):
             save_chat_message("assistant", reply)
             return
 
-        # ---> THEME SCAN SWITCH COMMANDS <---
+        # ---> THEME COMMANDS (HYDRA OPERATES IN LIGHT HUD MODE) <---
         if any(w in cmd_lower for w in ["dark mode", "night mode", "dark theme", "switch to dark", "enable dark", "turn on dark mode", "set theme to dark", "change to dark"]):
-            GUI_SIGNALS.js_signal.emit("setTheme('dark');")
-            reply = "Initiating scan to dark mode, sir."
+            reply = "Dark mode has been retired; Hydra operates exclusively in high-clarity Light HUD mode, sir."
             self.speak_voice(reply)
             save_chat_message("user", command)
             save_chat_message("assistant", reply)
             return
 
-        if any(w in cmd_lower for w in ["light mode", "day mode", "light theme", "switch to light", "enable light", "turn on light mode", "set theme to light", "change to light"]):
-            GUI_SIGNALS.js_signal.emit("setTheme('light');")
-            reply = "Initiating scan to light mode, sir."
+        if any(w in cmd_lower for w in ["light mode", "day mode", "light theme", "switch to light", "enable light", "turn on light mode", "set theme to light", "change to light", "switch theme", "toggle theme", "change theme"]):
+            reply = "Interface is operating in high-clarity Light HUD mode, sir."
             self.speak_voice(reply)
             save_chat_message("user", command)
             save_chat_message("assistant", reply)
             return
 
-        if any(w in cmd_lower for w in ["switch theme", "toggle theme", "change theme", "switch the theme", "toggle the theme", "switch mode", "toggle mode"]):
-            GUI_SIGNALS.js_signal.emit("toggleTheme();")
-            reply = "Scanning and toggling interface theme, sir."
-            self.speak_voice(reply)
-            save_chat_message("user", command)
-            save_chat_message("assistant", reply)
-            return
+        # ---> CAMERA ACCESS, OPTICAL PERCEPTION & GESTURE RECOGNITION (PHASE 15) <---
+        try:
+            from camera_vision import CAMERA_ENGINE
+            cam_handled, cam_reply = CAMERA_ENGINE.handle_command(command)
+            if cam_handled:
+                self.speak_voice(cam_reply)
+                save_chat_message("user", command)
+                save_chat_message("assistant", cam_reply)
+                return
+        except Exception as e:
+            print(f"[MAIN CAMERA ERROR]: {e}")
 
         # ---> NEW: DIVE DEEP & DETAILED ANALYSIS COMMAND <---
         if any(w in cmd_lower for w in ["dive deep", "more detail", "more details", "expand on", "tell me more about that"]):
-            global LAST_INFO_QUERY
-            if LAST_INFO_QUERY:
-                reply = f"I have collected the info on {LAST_INFO_QUERY}, sir. Pulling it up now."
+            target_subject = LAST_INFO_QUERY
+            for p in ["dive deep into ", "dive deep on ", "more details on ", "expand on "]:
+                if p in cmd_lower:
+                    extracted = cmd_lower.split(p, 1)[1].strip()
+                    if extracted:
+                        target_subject = extracted
+                        break
+
+            if target_subject:
+                reply = f"Compiling deep dive intel on {target_subject}, sir. Pulling it up now."
                 self.speak_voice(reply)
                 save_chat_message("user", command)
                 save_chat_message("assistant", reply)
                 
                 def deep_dive_worker():
-                    import urllib.request, urllib.parse, json
-                    # 1. Fetch many images from Wikipedia silently
-                    encoded = urllib.parse.quote(LAST_INFO_QUERY)
-                    img_url = f"https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch={encoded}&prop=pageimages&pithumbsize=800&gsrlimit=8&format=json"
-                    req = urllib.request.Request(img_url, headers={'User-Agent': 'HydraAssistant/1.0'})
-                    images = []
-                    try:
-                        with urllib.request.urlopen(req, timeout=4) as response:
-                            data = json.loads(response.read().decode())
-                            pages = data.get("query", {}).get("pages", {})
-                            for page_data in pages.values():
-                                if "thumbnail" in page_data: images.append(page_data["thumbnail"]["source"])
-                    except Exception as e:
-                        print(f"[DEEP DIVE] Image fetch error: {e}")
-
-                    # 2. Instruct Nebius AI to structure data into clean HTML sections
-                    prompt = (
-                        f"Provide a highly detailed overview of {LAST_INFO_QUERY}. "
-                        "Format it STRICTLY using HTML tags. "
-                        "You MUST include exactly 3 sections using <h3> tags: "
-                        "<h3>About</h3>, <h3>History & Dates</h3>, and <h3>Key Facts</h3>. "
-                        "Put all body text inside <p> tags. "
-                        "Do NOT use markdown. Do NOT write ```html. Just raw HTML text."
-                    )
-                    
-                    structured_html = ai_chat(DEFAULT_REASONING_MODEL, [{"role": "user", "content": prompt}], num_predict=600, timeout=45)
-                    
-                    if not structured_html: 
-                        structured_html = "<p>Failed to compile deep dive analysis.</p>"
+                    import json
+                    from web_ops import WEB_SEARCH
+                    global LAST_INFO_QUERY, LAST_INFO_SUMMARY, LAST_EXECUTIVE_SUMMARY, LAST_INFO_LINKS, LAST_STRUCTURED_HTML, LAST_IMAGES
+                    if LAST_STRUCTURED_HTML and LAST_INFO_QUERY and (target_subject.lower() in LAST_INFO_QUERY.lower() or LAST_INFO_QUERY.lower() in target_subject.lower()):
+                        primary_url = LAST_INFO_LINKS[0]['url'] if LAST_INFO_LINKS else ""
+                        js_emit = f"openDeepDiveHUD({json.dumps(LAST_INFO_QUERY)}, {json.dumps(LAST_STRUCTURED_HTML)}, {json.dumps(LAST_IMAGES)}, {json.dumps(primary_url)});"
                     else:
-                        # Clean up formatting if Nebius AI disobeys and wraps it in code blocks
-                        structured_html = structured_html.replace("```html", "").replace("```", "").strip()
-
-                    # 3. Fire the Javascript function to trigger the mega-swipe and load data
-                    js_emit = f"openDeepDiveHUD({json.dumps(LAST_INFO_QUERY.upper())}, {json.dumps(structured_html)}, {json.dumps(images)});"
+                        res = WEB_SEARCH.search_dossier(target_subject)
+                        LAST_INFO_QUERY = res.get("title", target_subject.upper())
+                        LAST_INFO_SUMMARY = res.get("summary", "")
+                        LAST_EXECUTIVE_SUMMARY = res.get("executive_summary", "")
+                        LAST_INFO_LINKS = res.get("links", [])
+                        LAST_STRUCTURED_HTML = res.get("structured_html", "")
+                        LAST_IMAGES = res.get("images", [])
+                        js_emit = f"openDeepDiveHUD({json.dumps(res['title'])}, {json.dumps(res['structured_html'])}, {json.dumps(res['images'])}, {json.dumps(res['primary_url'])});"
                     GUI_SIGNALS.js_signal.emit(js_emit)
 
                 threading.Thread(target=deep_dive_worker, daemon=True).start()
@@ -725,6 +728,63 @@ class HydraPage(QWebEnginePage):
                 reply = "I don't have a recent subject in memory to dive into, sir."
                 self.speak_voice(reply)
                 return
+
+        # ---> READ IT FOR ME COMMAND (Concise Executive Summary Only) <---
+        if any(w in cmd_lower for w in ["read it for me", "please read it", "read it", "read the summary", "read this", "read that", "what does it say", "tell me the summary", "give me the summary", "summarize it"]):
+            if LAST_EXECUTIVE_SUMMARY:
+                reply = LAST_EXECUTIVE_SUMMARY
+            elif LAST_INFO_QUERY:
+                reply = f"The subject currently on screen is {LAST_INFO_QUERY}, sir. Would you like me to dive into deeper details?"
+            else:
+                reply = "I don't have any retrieved intel in memory to read yet, sir."
+            self.speak_voice(reply)
+            save_chat_message("user", command)
+            save_chat_message("assistant", reply)
+            return
+
+        # ---> EXPLORE LINKS & DEEP RETRIEVAL COMMAND <---
+        link_triggers = [
+            "go to links and find ", "find in the links ", "in the links find ",
+            "search the links for ", "check the links for ", "from the links find ",
+            "find information about ", "find this information about "
+        ]
+        matched_link_query = None
+        for lt in link_triggers:
+            if lt in cmd_lower:
+                matched_link_query = cmd_lower.split(lt, 1)[1].strip()
+                break
+
+        if matched_link_query:
+            compound_target = f"{LAST_INFO_QUERY} {matched_link_query}" if LAST_INFO_QUERY else matched_link_query
+            reply = f"Searching the verified sources for {matched_link_query}, sir. Updating your screen."
+            self.speak_voice(reply)
+            save_chat_message("user", command)
+            save_chat_message("assistant", reply)
+
+            def link_dive_worker():
+                import json
+                from web_ops import WEB_SEARCH
+                res = WEB_SEARCH.search_dossier(compound_target)
+                js_emit = f"openDeepDiveHUD({json.dumps(res['title'])}, {json.dumps(res['structured_html'])}, {json.dumps(res['images'])}, {json.dumps(res['primary_url'])});"
+                GUI_SIGNALS.js_signal.emit(js_emit)
+
+            threading.Thread(target=link_dive_worker, daemon=True).start()
+            return
+
+        # ---> BROWSER LAUNCH COMMANDS <---
+        if any(w in cmd_lower for w in ["open in browser", "open browser", "browse live", "open search in browser", "open web link"]):
+            import webbrowser, urllib.parse
+            if LAST_INFO_QUERY:
+                search_url = f"https://www.google.com/search?q={urllib.parse.quote(LAST_INFO_QUERY)}"
+                webbrowser.open(search_url)
+                reply = f"Opening live browser intel for {LAST_INFO_QUERY}, sir."
+            else:
+                webbrowser.open("https://www.google.com")
+                reply = "Opening browser, sir."
+            self.speak_voice(reply)
+            save_chat_message("user", command)
+            save_chat_message("assistant", reply)
+            return
 
         # 1. SPECIFIC DATE LEARNING MUST BE CHECKED FIRST
         targeted_match = re.search(r'(?:read|learn from|start learning from)\s+(.*?)\s+(?:conversation|logs|archive|chat)', cmd_lower)
@@ -780,6 +840,145 @@ class HydraPage(QWebEnginePage):
             print(f"========================================")
             
             clean_cmd = command.strip().lower().replace(".", "").replace("!", "").replace("?", "").strip()
+
+            # ---> MULTI-TURN MESSAGING DIALOGUE LISTENER (WHATSAPP) <---
+            if DIALOGUE_STATE.get("mode") == "AWAITING_MESSAGE_TEXT":
+                if any(clean_cmd == c for c in ["cancel", "nevermind", "never mind", "stop", "dont send", "don't send"]):
+                    DIALOGUE_STATE = {"mode": "NORMAL", "pending_action": None, "payload": None}
+                    cancel_reply = "Understood, sir. Message cancelled."
+                    self.speak_voice(cancel_reply)
+                    save_chat_message("assistant", cancel_reply)
+                    return
+
+                payload = DIALOGUE_STATE.get("payload", {})
+                recipient = payload.get("recipient", "contact")
+                from dodaios_operator import DODAIOS_OPERATOR
+                report = DODAIOS_OPERATOR.execute_goal(f"send message to {recipient} saying {command}", sys_driver=SYS_DRIVER)
+                reply = report.spoken_reply if (report and report.spoken_reply) else f"Sir, I have sent your message to {recipient}."
+                DIALOGUE_STATE = {"mode": "NORMAL", "pending_action": None, "payload": None}
+                self.speak_voice(reply)
+                save_chat_message("assistant", reply)
+                return
+
+            # ---> PROACTIVE WHATSAPP READ CONFIRMATION ("Sir, message from Ahmad has arrived, do you want me to read it?" -> "Yes") <---
+            if DIALOGUE_STATE.get("mode") == "AWAITING_READ_WHATSAPP":
+                from proactive_daemon import handle_whatsapp_read_confirmation
+                handled, reply, new_state = handle_whatsapp_read_confirmation(command, DIALOGUE_STATE, SYS_DRIVER)
+                DIALOGUE_STATE = new_state
+                if handled and reply:
+                    self.speak_voice(reply)
+                    save_chat_message("assistant", reply)
+                    return
+
+            # ---> INTENT CONFIRMATION DIALOGUE LISTENER (PROACTIVE CLARIFICATION) <---
+            if DIALOGUE_STATE.get("mode") == "AWAITING_INTENT_CONFIRMATION":
+                from intelligent_agent import handle_intent_confirmation
+                handled, reply, new_state = handle_intent_confirmation(command, DIALOGUE_STATE, SYS_DRIVER)
+                DIALOGUE_STATE = new_state
+                if handled and reply:
+                    self.speak_voice(reply)
+                    save_chat_message("assistant", reply)
+                    return
+
+            # ---> CONTACT DISAMBIGUATION LISTENER (WHATSAPP MULTIPLE MATCHES) <---
+            if DIALOGUE_STATE.get("mode") == "AWAITING_CONTACT_DISAMBIGUATION":
+                from intelligent_agent import handle_contact_disambiguation
+                handled, reply, new_state = handle_contact_disambiguation(command, DIALOGUE_STATE, SYS_DRIVER)
+                DIALOGUE_STATE = new_state
+                if handled and reply:
+                    self.speak_voice(reply)
+                    save_chat_message("assistant", reply)
+                    return
+
+            # ---> PHASE 9: CONTINUOUS SCREEN CONTEXT (WHAT AM I DOING? / WHAT IS ON MY SCREEN?) <---
+            from intelligent_agent import check_screen_context_intent, check_indirect_intent
+            screen_res = check_screen_context_intent(command)
+            if screen_res:
+                handled, screen_reply = screen_res
+                if handled and screen_reply:
+                    self.speak_voice(screen_reply)
+                    save_chat_message("assistant", screen_reply)
+                    return
+
+            # ---> PROACTIVE INTENT CLARIFICATION ("I want to design something" -> "Would you like me to open Canva?") <---
+            indirect = check_indirect_intent(command)
+            if indirect:
+                question, state = indirect
+                DIALOGUE_STATE = state
+                self.speak_voice(question)
+                save_chat_message("assistant", question)
+                return
+
+            # ---> PHASE 7: UNIFIED NLP COMMAND DISPATCHER & MULTI-ACTION CHAINING ENGINE <---
+            try:
+                from nlp_dispatcher import execute_chained_pipeline, pop_pending_dialogue_state
+                nlp_handled, nlp_reply = execute_chained_pipeline(command, SYS_DRIVER, execute_information_retrieval)
+                if nlp_handled:
+                    dialogue_update = pop_pending_dialogue_state()
+                    if dialogue_update:
+                        DIALOGUE_STATE = dialogue_update
+                        print(f"[MAIN] Dialogue state updated: {DIALOGUE_STATE}")
+                    self.speak_voice(nlp_reply)
+                    save_chat_message("assistant", nlp_reply)
+                    return
+            except Exception as e:
+                print(f"[PHASE 7 DISPATCHER ERROR]: {e}")
+
+            # ---> VISUAL SCREEN UNDERSTANDING & COMPUTER VISION (PHASE 6: SCREEN INTERROGATION, OCR, VISUAL CLICK) <---
+            vision_handled, vision_reply = SYS_DRIVER.execute_vision(command)
+            if vision_handled:
+                self.speak_voice(vision_reply)
+                save_chat_message("assistant", vision_reply)
+                return
+
+            # ---> WINDOW MANAGEMENT & MULTITASKING (PHASE 5: FOCUS, SNAP, MIN/MAX, SHOW DESKTOP) <---
+            wm_handled, wm_reply = SYS_DRIVER.execute_window_management(command)
+            if wm_handled:
+                self.speak_voice(wm_reply)
+                save_chat_message("assistant", wm_reply)
+                return
+
+            # ---> HARDWARE INPUT AUTOMATION (MOUSE & KEYBOARD) <---
+            hw_handled, hw_reply = SYS_DRIVER.execute_hardware(command)
+            if hw_handled:
+                self.speak_voice(hw_reply)
+                save_chat_message("assistant", hw_reply)
+                return
+
+            # ---> WIRELESS NETWORKING (PHASE 3: WI-FI, BLUETOOTH, HOTSPOT, AIRPLANE MODE) <---
+            wl_handled, wl_reply = SYS_DRIVER.execute_wireless(command)
+            if wl_handled:
+                self.speak_voice(wl_reply)
+                save_chat_message("assistant", wl_reply)
+                return
+
+            # ---> BROWSER / LIVE WEB SEARCH & INTEL (PHASE 4: PURE CODE & INTERNET RETRIEVAL) <---
+            search_triggers = [
+                "how many songs are in the ", "how many songs are in ", "how many songs in the ",
+                "how many songs in ", "how many tracks are in the ", "how many tracks in ",
+                "how many tracks does ", "how many songs does ",
+                "what are the songs in ", "what are the tracks in ", "tracklist of ", "songs of ",
+                "i want to know about ", "i wanna know about ", "i need to know about ",
+                "i want to learn about ", "i want info on ", "i want information about ",
+                "can you tell me about ", "tell me about ", "tell me something about ",
+                "what do you know about ", "do you know about ",
+                "find out about ", "find info on ", "find information on ",
+                "search for ", "search the web for ", "search web for ", "search ",
+                "look up ", "browse for ", "who is ", "what is ", "explain ", "meaning of "
+            ]
+            matched_search = None
+            for st in search_triggers:
+                if clean_cmd.startswith(st):
+                    candidate = clean_cmd[len(st):].strip()
+                    if candidate and not any(w in candidate for w in ["your name", "the time", "my name", "you ok", "you doing"]):
+                        matched_search = candidate
+                        break
+
+            if matched_search:
+                spoken_reply, _ = execute_information_retrieval(matched_search)
+                self.speak_voice(spoken_reply)
+                save_chat_message("assistant", spoken_reply)
+                return
 
             # ---> MASS DELETE ALL CREATED FILES <---
             if "delete all" in clean_cmd and any(w in clean_cmd for w in ["created", "made", "generated", "wrote"]):
@@ -976,17 +1175,10 @@ class HydraPage(QWebEnginePage):
                 save_chat_message("assistant", reply)
                 return
 
-            # ---> HARDWARE INPUT AUTOMATION (MOUSE & KEYBOARD) <---
-            hw_handled, hw_reply = SYS_DRIVER.execute_hardware(command)
-            if hw_handled:
-                self.speak_voice(hw_reply)
-                save_chat_message("assistant", hw_reply)
-                return
-
             commands = {
                 "WIFI_ON": ["turn on wifi", "enable wifi"],
                 "WIFI_OFF": ["turn off wifi", "disable wifi"],
-                "WIFI_CONNECT": ["connect to"],
+                "WIFI_CONNECT": ["connect to wifi ", "connect wifi "],
                 "OPEN_APP": ["open ", "launch ", "start ", "run ", "pull up ", "bring up ", "fire up "],
                 "CLOSE_APP": ["close ", "kill ", "terminate ", "stop app ", "shut down app ", "quit app ", "exit app "],
                 "LIST_APPS": ["list apps", "running apps", "open apps"],
@@ -1009,12 +1201,8 @@ class HydraPage(QWebEnginePage):
 
                     success, state = SYS_DRIVER.execute_command(action, payload)
 
-                    if action == "WIFI_ON":
-                        reply = state if success else "Failed to enable Wi-Fi."
-                    elif action == "WIFI_OFF":
-                        reply = state if success else "Failed to disable Wi-Fi."
-                    elif action == "WIFI_CONNECT":
-                        reply = f"Connected to {state}, sir." if success else f"Connection to {payload} failed."
+                    if action in ["WIFI_ON", "WIFI_OFF", "WIFI_CONNECT"]:
+                        reply = state
                     elif action == "OPEN_APP":
                         reply = state
                     elif action == "CLOSE_APP":
@@ -1298,17 +1486,18 @@ class HydraPage(QWebEnginePage):
                             {
                                 "role": "system",
                                 "content": (
-                                    f"You are {ASSISTANT_NAME}, {MASTER_NAME}'s loyal desktop assistant. "
-                                    "Address him as sir. Reply in one short spoken sentence, max 12 words."
+                                    f"You are {ASSISTANT_NAME}, {MASTER_NAME}'s brilliant, loyal, and charismatic desktop AI companion. "
+                                    f"Address him naturally as Ahmad or sir. Keep replies warm, engaging, and spoken (max 20 words). "
+                                    "CRITICAL MANDATE: Never output internal reasoning, scratchpads, or 'Here's a thinking process:'. Start immediately with your spoken answer."
                                 ),
                             },
                             {"role": "user", "content": command},
                         ],
-                        num_predict=25,
-                        num_ctx=256,
-                        timeout=5,
+                        num_predict=450,
+                        num_ctx=1024,
+                        timeout=12,
                     )
-                    reply = quick_reply or "I'm here and ready, sir."
+                    reply = quick_reply or "I'm right here with you, Ahmad. How can I help?"
                 else:
                     try:
                         history_context = load_chat_context()
@@ -1365,22 +1554,22 @@ class HydraPage(QWebEnginePage):
                             )
                             model_options = {"num_predict": 30, "num_ctx": 256}
                         elif intent_type == "INFO":
-                            selected_model = DEFAULT_FAST_MODEL
-                            retrieved_context = execute_information_retrieval(clean_cmd)
-                            print(f"[IR AGENT] Fetched Live Data Payload: {retrieved_context}")
-                            system_prompt = (
-                                f"You are {ASSISTANT_NAME}. Summarize this data for sir in 15 words max:\n[{retrieved_context}]"
-                            )
-                            model_options = {"num_predict": 45, "num_ctx": 256}
+                            spoken_reply, _ = execute_information_retrieval(clean_cmd)
+                            print(f"[IR AGENT] Fetched Live Data Payload: {spoken_reply}")
+                            self.speak_voice(spoken_reply)
+                            save_chat_message("assistant", spoken_reply)
+                            return
                         else:
                             selected_model = DEFAULT_FAST_MODEL
                             raw_rules = load_long_term_memories()[:5]
                             formatted_rules = "\n".join([f"- {r}" for r in raw_rules]) if raw_rules else "None."
                             system_prompt = (
-                                f"You are {ASSISTANT_NAME}, {MASTER_NAME}'s desktop AI. Address him as sir. Keep replies conversational and under 25 words.\n"
-                                f"Rules:\n{formatted_rules}\nFacts:\n{facts_context}"
+                                f"You are {ASSISTANT_NAME}, {MASTER_NAME}'s personal AI companion and desktop assistant. "
+                                f"Address him naturally as Ahmad or sir. Keep your replies warm, witty, articulate, and conversational (under 35 words). "
+                                f"Rules:\n{formatted_rules}\nFacts:\n{facts_context}\n"
+                                "CRITICAL MANDATE: Never output internal reasoning, scratchpads, or 'Here's a thinking process:'. Start immediately with your spoken reply."
                             )
-                            model_options = {"num_predict": 50, "num_ctx": 256}
+                            model_options = {"num_predict": 500, "num_ctx": 2048}
                         
                         print(f"[ROUTER] Active Intelligence Core: {selected_model}")
                         system_instruction = {"role": "system", "content": system_prompt}
@@ -1389,9 +1578,9 @@ class HydraPage(QWebEnginePage):
                         llm_reply = ai_chat(
                             selected_model,
                             conversation_payload,
-                            num_predict=model_options.get("num_predict", 50),
-                            num_ctx=model_options.get("num_ctx", 256),
-                            timeout=22,
+                            num_predict=model_options.get("num_predict", 500),
+                            num_ctx=model_options.get("num_ctx", 2048),
+                            timeout=25,
                         )
                         if llm_reply:
                             reply = llm_reply
@@ -1490,8 +1679,11 @@ class HydraPage(QWebEnginePage):
                 nonlocal spoken
                 with TTS_LOCK:  # Forces threads to stand in line to use the Windows Voice
                     engine = get_tts_engine()
+                    approx_dur = max(1.5, len(cleaned_text) * 0.065)
+                    safe_emit_js(f"notifySpeechStart({approx_dur});")
                     engine.say(cleaned_text)
                     engine.runAndWait()
+                    safe_emit_js("notifySpeechEnd();")
                     spoken = True
                     print(f"[VOICE] Offline speech successful ({time.perf_counter() - t0:.1f}s).")
 
@@ -1511,13 +1703,17 @@ class HydraPage(QWebEnginePage):
                     return bytes(audio_data)
 
                 async def generate_with_timeout():
-                    # Dropped to 1.2s so offline fallback happens almost instantly
-                    return await asyncio.wait_for(generate_audio(), timeout=7)
+                    return await asyncio.wait_for(generate_audio(), timeout=4.0)
 
                 global TTS_LOOP
                 if TTS_LOOP is None or TTS_LOOP.is_closed():
                     TTS_LOOP = asyncio.new_event_loop()
                 raw_audio = TTS_LOOP.run_until_complete(generate_with_timeout())
+                
+                # Notify living organism core and play audio smoothly
+                approx_dur = max(1.5, len(cleaned_text) * 0.068)
+                safe_emit_js(f"notifySpeechStart({approx_dur});")
+
                 audio_stream = io.BytesIO(raw_audio)
                 ensure_pygame_mixer()
                 pygame.mixer.music.load(audio_stream, "mp3")
@@ -1525,6 +1721,8 @@ class HydraPage(QWebEnginePage):
                 while pygame.mixer.music.get_busy():
                     pygame.time.Clock().tick(10)
                 pygame.mixer.music.unload()
+
+                safe_emit_js("notifySpeechEnd();")
                 spoken = True
                 print(f"[VOICE] Cloud speech successful ({time.perf_counter() - t0:.1f}s).")
             except Exception as online_err:
@@ -1556,6 +1754,13 @@ if __name__ == "__main__":
     threading.Thread(target=get_tts_engine, daemon=True).start()
     threading.Thread(target=historical_learning_worker, daemon=True).start() # <--- Starts the Deep Sleep learner
     threading.Thread(target=network_monitor_worker, daemon=True).start() # <--- Starts the Real Network HUD Tracker
+
+    # ---> DODAIOS ADVANCED BACKEND SERVICES (Persistent Cron Tasks, Safety, Remote Channels) <---
+    try:
+        from dodaios_bridge import DODAIOS_BRIDGE
+        DODAIOS_BRIDGE.start(SYS_DRIVER)
+    except Exception as e:
+        print(f"[MAIN] Dodaios Bridge startup notice: {e}")
     
     app = QApplication(sys.argv)
     
@@ -1567,16 +1772,22 @@ if __name__ == "__main__":
     # Connect our bridge signal to the safe executor
     GUI_SIGNALS.js_signal.connect(_run_js_safe)
     
-    window = QMainWindow()
+    window = HydraMainWindow()
     window.setWindowTitle("HYDRA System Interface")
     window.resize(1200, 750)
     window.setMinimumSize(1000, 650)
     view = QWebEngineView()
     
     # --- FIX: ENSURE REMOTE IMAGES LOAD PROPERLY ---
-    from PyQt6.QtWebEngineCore import QWebEngineSettings
+    from PyQt6.QtWebEngineCore import QWebEngineSettings, QWebEngineProfile
+    profile = QWebEngineProfile.defaultProfile()
+    profile.setHttpUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
     settings = view.settings()
+    settings.setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, True)
+    settings.setAttribute(QWebEngineSettings.WebAttribute.Accelerated2dCanvasEnabled, True)
     settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+    settings.setAttribute(QWebEngineSettings.WebAttribute.AllowRunningInsecureContent, True)
+    settings.setAttribute(QWebEngineSettings.WebAttribute.PlaybackRequiresUserGesture, False)
     # -----------------------------------------------
     
     page = HydraPage(view)
@@ -1585,4 +1796,39 @@ if __name__ == "__main__":
     view.setUrl(QUrl.fromLocalFile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")))
     window.setCentralWidget(view)
     window.show()
+
+    from PyQt6.QtCore import QPoint
+    def _get_hud_rect():
+        try:
+            pt = view.mapToGlobal(QPoint(0, 0))
+            return (pt.x(), pt.y(), view.width(), view.height())
+        except Exception:
+            return (window.x(), window.y(), window.width(), window.height())
+
+    SYS_DRIVER.set_hud_window_provider(_get_hud_rect)
+    
+    # --- REAL-TIME SPOTIFY / SYSTEM MEDIA TELEMETRY POLLER ---
+    from PyQt6.QtCore import QTimer
+    from media_controller import MEDIA_CONTROLLER
+    import json
+
+    def _poll_media_telemetry():
+        try:
+            state = MEDIA_CONTROLLER.get_state()
+            if state and ACTIVE_PAGE:
+                GUI_SIGNALS.js_signal.emit(f"updateMediaState({json.dumps(state)});")
+
+            is_audio_active = bool(state and state.get("active") and state.get("status") == "PLAYING")
+            target_interval = 850 if is_audio_active else 2500
+            if media_timer.interval() != target_interval:
+                media_timer.setInterval(target_interval)
+        except Exception:
+            pass
+
+    media_timer = QTimer(window)
+    media_timer.setInterval(2500)
+    media_timer.timeout.connect(_poll_media_telemetry)
+    media_timer.start()
+    # --------------------------------------------------------
+
     sys.exit(app.exec())

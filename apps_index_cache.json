@@ -1981,13 +1981,13 @@
   },
   "ms-teams": {
     "name": "Ms-teams",
-    "target": "C:\\Program Files\\WindowsApps\\MSTeams_26246.1604.5133.838_x64__8wekyb3d8bbwe\\ms-teams.exe",
+    "target": "C:\\Program Files\\WindowsApps\\MSTeams_26260.1717.5229.7049_x64__8wekyb3d8bbwe\\ms-teams.exe",
     "type": "EXE",
     "exe_name": "ms-teams.exe"
   },
   "ms-teamsupdate": {
     "name": "Ms-teamsupdate",
-    "target": "C:\\Program Files\\WindowsApps\\MSTeams_26246.1604.5133.838_x64__8wekyb3d8bbwe\\ms-teamsupdate.exe",
+    "target": "C:\\Program Files\\WindowsApps\\MSTeams_26260.1717.5229.7049_x64__8wekyb3d8bbwe\\ms-teamsupdate.exe",
     "type": "EXE",
     "exe_name": "ms-teamsupdate.exe"
   },
@@ -2011,7 +2011,7 @@
   },
   "store": {
     "name": "Store",
-    "target": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsStore_22608.1401.6.0_x64__8wekyb3d8bbwe\\store.exe",
+    "target": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsStore_22609.1401.5.0_x64__8wekyb3d8bbwe\\store.exe",
     "type": "EXE",
     "exe_name": "store.exe"
   },
@@ -2023,14 +2023,80 @@
   },
   "xboxpcappadminserver": {
     "name": "Xboxpcappadminserver",
-    "target": "C:\\Program Files\\WindowsApps\\Microsoft.GamingApp_2609.1001.16.0_x64__8wekyb3d8bbwe\\XboxPcAppAdminServer.exe",
+    "target": "C:\\Program Files\\WindowsApps\\Microsoft.GamingApp_2610.1001.20.0_x64__8wekyb3d8bbwe\\XboxPcAppAdminServer.exe",
     "type": "EXE",
     "exe_name": "XboxPcAppAdminServer.exe"
   },
   "xboxpcappce": {
     "name": "Xboxpcappce",
-    "target": "C:\\Program Files\\WindowsApps\\Microsoft.GamingApp_2609.1001.16.0_x64__8wekyb3d8bbwe\\XboxPcAppCE.exe",
+    "target": "C:\\Program Files\\WindowsApps\\Microsoft.GamingApp_2610.1001.20.0_x64__8wekyb3d8bbwe\\XboxPcAppCE.exe",
     "type": "EXE",
     "exe_name": "XboxPcAppCE.exe"
+  },
+  "f2py": {
+    "name": "f2py",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\f2py.exe",
+    "type": "EXE",
+    "exe_name": "f2py.exe"
+  },
+  "numpy-config": {
+    "name": "numpy-config",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\numpy-config.exe",
+    "type": "EXE",
+    "exe_name": "numpy-config.exe"
+  },
+  "intel® graphics command center": {
+    "name": "Intel® Graphics Command Center",
+    "target": "shell:AppsFolder\\AppUp.IntelGraphicsExperience_8j3eq9eme6ctt!App",
+    "type": "UWP",
+    "exe_name": "Intel® Graphics Command Center.exe"
+  },
+  "intel graphics command center": {
+    "name": "Intel® Graphics Command Center",
+    "target": "shell:AppsFolder\\AppUp.IntelGraphicsExperience_8j3eq9eme6ctt!App",
+    "type": "UWP",
+    "exe_name": "Intel® Graphics Command Center.exe"
+  },
+  "winocr_serve": {
+    "name": "winocr_serve",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\winocr_serve.exe",
+    "type": "EXE",
+    "exe_name": "winocr_serve.exe"
+  },
+  "node": {
+    "name": "node",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\playwright\\driver\\node.exe",
+    "type": "EXE",
+    "exe_name": "node.exe"
+  },
+  "playwright": {
+    "name": "playwright",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\playwright.exe",
+    "type": "EXE",
+    "exe_name": "playwright.exe"
+  },
+  "onnxruntime_test": {
+    "name": "onnxruntime_test",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\onnxruntime_test.exe",
+    "type": "EXE",
+    "exe_name": "onnxruntime_test.exe"
+  },
+  "pymupdf-config": {
+    "name": "pymupdf-config",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\pymupdf-config.exe",
+    "type": "EXE",
+    "exe_name": "pymupdf-config.exe"
+  },
+  "pymupdf": {
+    "name": "pymupdf",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\pymupdf.exe",
+    "type": "EXE",
+    "exe_name": "pymupdf.exe"
+  },
+  "httpx": {
+    "name": "httpx",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\httpx.exe",
+    "type": "EXE",
+    "exe_name": "httpx.exe"
   }
 }

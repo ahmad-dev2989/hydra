@@ -1,0 +1,164 @@
+/**
+ * "Runs on" — where new agents run: this computer, or one of the connected
+ * computers (a VPS, a local VM; see the Computers section). On a computer the
+ * agents live in tmux there and keep working while this PC is off; the folder
+ * is copied there first (new files that look like secrets stay here).
+ */
+import { useEffect, useState } from "react";
+import { Laptop, Server, Shuffle } from "lucide-react";
+import { useComputerChoiceList } from "@/hooks/useComputers";
+import { computersApi } from "@/lib/computersApi";
+import { useEventStore } from "@/store/events";
+import { cn } from "@/lib/utils";
+import { fill, useT } from "@/i18n";
+
+const RUN_ON_KEY = "jarvis.agenticIde.runOn.";
+/** The picker's value for "let automatic placement choose" (Settings, Computers). */
+export const RUN_ON_AUTO = "auto";
+
+/** Whether automatic placement is switched on; one quiet fetch, off on any failure. */
+function useAutoPlacement(wanted: boolean): { on: boolean; settled: boolean } {
+  const [state, setState] = useState({ on: false, settled: !wanted });
+  useEffect(() => {
+    if (!wanted) return;
+    let alive = true;
+    const settle = (on: boolean) => {
+      if (alive) setState({ on, settled: true });
+    };
+    try {
+      void computersApi
+        .placement()
+        .then((settings) => settle(Boolean(settings?.enabled)))
+        .catch(() => settle(false));
+    } catch {
+      settle(false); /* fetch unavailable: no automatic placement */
+    }
+    return () => {
+      alive = false;
+    };
+  }, [wanted]);
+  return state;
+}
+
+/** The computer last chosen for a project's new workspaces; storage may be blocked. */
+export function storedRunOn(projectId: string | undefined): string | null {
+  if (!projectId) return null;
+  try { return localStorage.getItem(RUN_ON_KEY + projectId) || null; } catch { return null; }
+}
+export function storeRunOn(projectId: string | undefined, computerId: string | null): void {
+  if (!projectId) return;
+  try {
+    if (computerId) localStorage.setItem(RUN_ON_KEY + projectId, computerId);
+    else localStorage.removeItem(RUN_ON_KEY + projectId);
+  } catch { /* a convenience only */ }
+}
+
+function detailKeyFor(status: string): string {
+  if (status === "online") return "workspace_launcher.run_on.online";
+  if (status === "unknown") return "workspace_launcher.run_on.unknown";
+  return "workspace_launcher.run_on.offline";
+}
+
+export function RunOnPicker({
+  value,
+  onChange,
+  disabled,
+  hideWhenNone = false,
+  allowAuto = false,
+}: {
+  value: string | null;
+  onChange: (computerId: string | null) => void;
+  disabled?: boolean;
+  /** Show nothing (instead of a "Connect a server" hint) when no computer is connected. */
+  hideWhenNone?: boolean;
+  /** Offer "Automatic" (value {@link RUN_ON_AUTO}) when automatic placement is on. */
+  allowAuto?: boolean;
+}) {
+  const t = useT();
+  const { computers, loaded } = useComputerChoiceList();
+  const setActiveSection = useEventStore((state) => state.setActiveSection);
+  const usable = computers.filter(
+    (computer) => computer.health.status !== "provisioning" && computer.enabled !== false,
+  );
+  const placement = useAutoPlacement(allowAuto);
+  const auto = placement.on && usable.length > 0;
+  const options = [
+    ...(auto
+      ? [{ id: RUN_ON_AUTO as string | null, name: t("workspace_launcher.run_on.auto"), detail: t("workspace_launcher.run_on.auto_detail"), online: true, icon: Shuffle }]
+      : []),
+    { id: null as string | null, name: t("workspace_launcher.run_on.local"), detail: t("workspace_launcher.run_on.local_detail"), online: true, icon: Laptop },
+    ...usable.map((computer) => ({
+      id: computer.id as string | null,
+      name: computer.name,
+      detail: t(detailKeyFor(computer.health.status)),
+      online: computer.health.status === "online",
+      icon: Server,
+    })),
+  ];
+  // A remembered computer that has been removed since falls back to this PC,
+  // rather than leaving no choice selected and failing on create.
+  const missing =
+    loaded &&
+    value !== null &&
+    (value === RUN_ON_AUTO
+      ? !allowAuto || (placement.settled && !auto)
+      : !usable.some((computer) => computer.id === value));
+  useEffect(() => { if (missing) onChange(null); }, [missing, onChange]);
+
+  if (hideWhenNone && usable.length === 0) return null;
+  const chosen = usable.find((computer) => computer.id === value);
+  return (
+    <fieldset data-testid="ide-run-on" disabled={disabled}>
+      <legend className="text-xs font-medium text-muted-foreground">{t("workspace_launcher.run_on.label")}</legend>
+      <div role="radiogroup" aria-label={t("workspace_launcher.run_on.label")} className="mt-2 grid gap-2 sm:grid-cols-2">
+        {options.map((option) => {
+          const active = option.id === value;
+          const Icon = option.icon;
+          return (
+            <button
+              key={option.id ?? "local"}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              data-testid={`ide-run-on-${option.id ?? "local"}`}
+              onClick={() => onChange(option.id)}
+              className={cn(
+                "flex items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+                active ? "border-accent bg-accent-soft" : "border-border hover:border-border-strong",
+              )}
+            >
+              <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span className="min-w-0">
+                <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <span className="truncate">{option.name}</span>
+                  {option.id && option.id !== RUN_ON_AUTO && (
+                    <span
+                      aria-hidden="true"
+                      className={cn("h-1.5 w-1.5 shrink-0 rounded-full", option.online ? "bg-accent" : "bg-foreground-faint")}
+                    />
+                  )}
+                </span>
+                <span className="block text-xs text-muted-foreground">{option.detail}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {chosen && (
+        <p data-testid="ide-run-on-note" className="mt-2 text-xs text-muted-foreground">
+          {fill(t("workspace_launcher.run_on.copy_note"), { computer: chosen.name })}
+        </p>
+      )}
+      {usable.length === 0 && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t("workspace_launcher.run_on.none_hint")}{" "}
+          <button type="button" onClick={() => setActiveSection("computers")}
+            className="font-medium text-accent underline-offset-4 hover:underline">
+            {t("workspace_launcher.run_on.connect_server")}
+          </button>
+        </p>
+      )}
+    </fieldset>
+  );
+}

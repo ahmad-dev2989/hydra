@@ -1,0 +1,2940 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>HYDRA System Interface</title>
+    <!-- Google Fonts for authentic Sci-Fi HUD aesthetics -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f0f7fe;
+            --cyan-glow: #00b4d8;
+            --cyan-bright: #00e5ff;
+            --cyan-line: #0096c7;
+            --cyan-dim: rgba(0, 180, 240, 0.25);
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --text-primary: #18346b;
+            --text-secondary: #2c4d87;
+            --text-cyan: #0077b6;
+            --hud-scale: 1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        html,
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #f0f7fe;
+            font-family: 'Share Tech Mono', 'Rajdhani', monospace, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Fullscreen Light HUD Layout Layer */
+        .theme-layer {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .theme-layer.theme-light {
+            --bg-color: #f0f7fe;
+            --cyan-glow: #00b4d8;
+            --cyan-bright: #00e5ff;
+            --cyan-line: #0096c7;
+            --cyan-dim: rgba(0, 180, 240, 0.25);
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --text-primary: #18346b;
+            --text-secondary: #2c4d87;
+            --text-cyan: #0077b6;
+            background-color: #f0f7fe;
+            background-image:
+                radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.95) 0%, rgba(240, 248, 255, 0.6) 45%, rgba(225, 238, 252, 0.85) 100%),
+                radial-gradient(circle at 10% 90%, rgba(0, 180, 240, 0.08) 0%, transparent 45%);
+            color: #18346b;
+            z-index: 5;
+            pointer-events: auto;
+            clip-path: none;
+        }
+
+        /* 1024x575 Native Canva Composition Viewport */
+        .hud-viewport {
+            position: absolute;
+            width: 1024px;
+            height: 575px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(var(--hud-scale, 1));
+            transform-origin: center center;
+            overflow: visible;
+        }
+
+        /* Visible Futuristic Background Grid in Light Form */
+        .bg-grid {
+            position: absolute;
+            inset: 0;
+            width: 1024px;
+            height: 575px;
+            background-image:
+                linear-gradient(rgba(0, 150, 240, 0.12) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 150, 240, 0.12) 1px, transparent 1px);
+            background-size: 50px 50px;
+            background-position: 511px 274px;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .theme-dark .bg-grid {
+            background-image: 
+                linear-gradient(rgba(0, 216, 246, 0.12) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 216, 246, 0.12) 1px, transparent 1px);
+        }
+
+        /* Master Full-Canvas 1024x575 Vector Overlays (Exact Canva Paths) */
+        .hud-master-svg {
+            position: absolute;
+            inset: 0;
+            width: 1024px;
+            height: 575px;
+            z-index: 2;
+            pointer-events: none;
+            overflow: visible;
+        }
+
+        /* Coordinate Crosshairs at Exact Canva Nodes */
+        .crosshair {
+            position: absolute;
+            color: rgba(0, 140, 230, 0.65);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: translate(-50%, -50%);
+            z-index: 3;
+            pointer-events: none;
+            text-shadow: 0 0 6px rgba(0, 180, 240, 0.4);
+        }
+
+        .theme-dark .crosshair {
+            color: rgba(0, 216, 246, 0.55);
+            text-shadow: 0 0 6px rgba(0, 216, 246, 0.5);
+        }
+
+        .ch-tl {
+            left: 138px;
+            top: 146px;
+        }
+
+        .ch-tr {
+            left: 837px;
+            top: 146px;
+        }
+
+        .ch-bl {
+            left: 138px;
+            top: 412px;
+        }
+
+        .ch-br {
+            left: 837px;
+            top: 412px;
+        }
+
+        /* Outer crosshair nodes touching outer reactor circle */
+        .ch-center-left {
+            left: 383px;
+            top: 274px;
+        }
+
+        .ch-center-right {
+            left: 638px;
+            top: 274px;
+        }
+
+        /* ======================================================== */
+        /* TOP-LEFT: CLOCK CONTENT                                  */
+        /* ======================================================== */
+        .clock-content {
+            display: flex !important;
+            align-items: center;
+            gap: 10px;
+            position: absolute;
+            left: 28px;
+            top: 45px;
+            z-index: 15;
+            pointer-events: none;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        .clock-pill {
+            width: 3px;
+            height: 38px;
+            background: var(--cyan-glow);
+            border-radius: 2px;
+            box-shadow: 0 0 8px rgba(0, 180, 240, 0.7);
+        }
+
+        .theme-dark .clock-pill {
+            background: #00e5ff;
+            box-shadow: 0 0 8px #00e5ff, 0 0 14px rgba(0, 229, 255, 0.6);
+        }
+
+        .clock-data {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .clock-time {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 17.5px;
+            font-weight: 700;
+            letter-spacing: 2.8px;
+            color: #18346b;
+            text-shadow: 0 0 8px rgba(0, 180, 240, 0.25);
+            line-height: 1.1;
+        }
+
+        .theme-dark .clock-time {
+            color: #ffffff;
+            text-shadow: 0 0 8px #00e5ff, 0 0 16px rgba(0, 229, 255, 0.5);
+        }
+
+        .clock-date {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9.5px;
+            letter-spacing: 2px;
+            color: var(--text-cyan);
+            text-transform: uppercase;
+            font-weight: 600;
+            opacity: 0.95;
+        }
+
+        .theme-dark .clock-date {
+            color: #00d8f6;
+        }
+
+        /* ======================================================== */
+        /* TOP-CENTER: PURE GLASS SPOTIFY / MEDIA CONTROLLER CAPSULE*/
+        /* ======================================================== */
+        .glassy-media-capsule {
+            position: absolute;
+            left: 512px;
+            top: 28px;
+            transform: translateX(-50%);
+            width: 255px;
+            background: rgba(255, 255, 255, 0.14);
+            backdrop-filter: blur(24px) saturate(200%);
+            -webkit-backdrop-filter: blur(24px) saturate(200%);
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            border-top: 1.5px solid rgba(255, 255, 255, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            box-shadow: 0 6px 24px rgba(0, 110, 200, 0.08),
+                        inset 0 1px 1px rgba(255, 255, 255, 0.95),
+                        inset 0 -1px 2px rgba(0, 180, 240, 0.1);
+            padding: 4px 10px;
+            display: flex;
+            flex-direction: column;
+            z-index: 60;
+            transition: all 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: default;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        .glassy-media-capsule:hover {
+            width: 275px;
+            background: rgba(255, 255, 255, 0.22);
+            border-color: rgba(255, 255, 255, 0.85);
+            border-top: 1.5px solid #ffffff;
+            box-shadow: 0 12px 36px rgba(0, 150, 240, 0.18),
+                        0 4px 16px rgba(24, 52, 107, 0.1),
+                        inset 0 1.5px 2px rgba(255, 255, 255, 1);
+            border-radius: 16px;
+            padding-bottom: 8px;
+        }
+
+        .capsule-main-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            height: 28px;
+        }
+
+        .capsule-art-wrap {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .capsule-art-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .capsule-art-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .capsule-text-col {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: left;
+            overflow: hidden;
+        }
+
+        .capsule-track-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            color: #0b1f47;
+            line-height: 1.15;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            letter-spacing: 0.2px;
+        }
+
+        .capsule-artist-name {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 10.5px;
+            font-weight: 600;
+            color: #1e3a8a;
+            opacity: 0.8;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: none;
+        }
+
+        .glassy-media-capsule:hover .capsule-artist-name {
+            display: block;
+        }
+
+        .capsule-controls {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            flex-shrink: 0;
+        }
+
+        .capsule-btn {
+            background: transparent;
+            border: none;
+            color: #000000;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .capsule-btn:hover {
+            color: #0096c7;
+            background: rgba(255, 255, 255, 0.45);
+            transform: scale(1.12);
+        }
+
+        .capsule-btn-play {
+            width: 26px;
+            height: 26px;
+        }
+
+        /* Pure Glass Expand Tray on Hover */
+        .capsule-expand-tray {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s ease, margin 0.24s ease;
+            margin-top: 0;
+        }
+
+        .glassy-media-capsule:hover .capsule-expand-tray {
+            max-height: 40px;
+            opacity: 1;
+            margin-top: 6px;
+        }
+
+        .capsule-progress-track {
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 100, 180, 0.14);
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+            overflow: visible;
+        }
+
+        .capsule-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0096c7, #00e5ff);
+            border-radius: 2px;
+            transition: width 0.12s linear;
+        }
+
+        .capsule-progress-knob {
+            position: absolute;
+            top: 50%;
+            left: 0%;
+            transform: translate(-50%, -50%);
+            width: 8px;
+            height: 8px;
+            background: #ffffff;
+            border: 1.5px solid #0096c7;
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(0, 180, 240, 0.6);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        }
+
+        .glassy-media-capsule:hover .capsule-progress-knob {
+            opacity: 1;
+        }
+
+        .capsule-timestamps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9px;
+            color: #0077b6;
+            margin-top: 3px;
+            font-weight: 600;
+        }
+
+        .capsule-spotify-tag {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #18346b;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+        }
+
+        /* ======================================================== */
+        /* TOP-RIGHT: SYSTEM ONLINE STATUS CONTENT                  */
+        /* ======================================================== */
+        .status-content {
+            position: absolute;
+            left: 888px;
+            top: 44px;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            z-index: 20;
+            pointer-events: auto;
+            white-space: nowrap;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--cyan-bright);
+            border-radius: 50%;
+            box-shadow: 0 0 6px var(--cyan-bright), 0 0 12px rgba(0, 229, 255, 0.6);
+            animation: pulse-dot 2.5s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+
+        .theme-dark .status-dot {
+            background-color: #00e5ff;
+            box-shadow: 0 0 8px #00e5ff, 0 0 16px rgba(0, 229, 255, 0.8);
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.25);
+                opacity: 0.65;
+            }
+        }
+
+        .status-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 8.5px;
+            letter-spacing: 1.2px;
+            color: #18346b;
+            text-transform: uppercase;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .theme-dark .status-label {
+            color: #00e5ff;
+            text-shadow: 0 0 6px rgba(0, 229, 255, 0.5);
+        }
+
+        /* ======================================================== */
+        /* MAIN STAGE (Center Reactor + Wings)                      */
+        /* ======================================================== */
+        .main-stage {
+            position: absolute;
+            inset: 0;
+            width: 1024px;
+            height: 575px;
+            z-index: 10;
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .main-stage.swiped-left {
+            transform: translateX(-320px);
+        }
+
+        /* Center HUD Cluster at Exact Canva Coordinates (511, 274) */
+        .hud-cluster {
+            position: absolute;
+            left: 511px;
+            top: 274px;
+            transform: translate(-50%, -50%);
+            width: 440px;
+            height: 440px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .hydra-organism-canvas {
+            width: 440px;
+            height: 440px;
+            display: block;
+            pointer-events: none;
+        }
+
+        /* Left Wing at Exact Canva Coordinates */
+        .wing-left-wrap {
+            position: absolute;
+            left: 126px;
+            top: 257px;
+            width: 260px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .wing-text {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10.5px;
+            letter-spacing: 2px;
+            color: #2c4d87;
+            text-transform: uppercase;
+            margin-bottom: 7px;
+            white-space: nowrap;
+            font-weight: 700;
+        }
+
+        .theme-dark .wing-text {
+            color: #00d8f6;
+            text-shadow: 0 0 6px rgba(0, 216, 246, 0.5);
+        }
+
+        /* SVG Wing lines with chamfer jog */
+        .wing-pill-node {
+            position: absolute;
+            left: 133px;
+            top: 277px;
+            width: 15px;
+            height: 6px;
+            background: var(--cyan-bright);
+            border-radius: 2px;
+            box-shadow: 0 0 8px rgba(0, 229, 255, 0.8);
+            z-index: 6;
+            pointer-events: none;
+        }
+
+        .theme-dark .wing-pill-node {
+            background: #00e5ff;
+            box-shadow: 0 0 8px #00e5ff, 0 0 16px rgba(0, 229, 255, 0.8);
+        }
+
+        /* Right Wing at Exact Canva Coordinates */
+        .wing-right-wrap {
+            position: absolute;
+            left: 636px;
+            top: 257px;
+            width: 251px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .wing-right-wrap .wing-text {
+            margin-bottom: 7px;
+        }
+
+        .wing-dot-node {
+            position: absolute;
+            left: 852px;
+            top: 277px;
+            width: 6px;
+            height: 6px;
+            background: #0963fd;
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(9, 99, 253, 0.8);
+            z-index: 6;
+            pointer-events: none;
+        }
+
+        .theme-dark .wing-dot-node {
+            background: #00e5ff;
+            box-shadow: 0 0 8px #00e5ff, 0 0 16px rgba(0, 229, 255, 0.8);
+        }
+
+        /* ======================================================== */
+        /* BOTTOM-LEFT: TELEMETRY CONTENT                           */
+        /* ======================================================== */
+        .telemetry-card-content {
+            position: absolute;
+            left: 20px;
+            top: 462px;
+            width: 180px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            z-index: 20;
+        }
+
+        .telemetry-accent-pill {
+            width: 3.5px;
+            height: 56px;
+            background: var(--cyan-glow);
+            border-radius: 2px;
+            box-shadow: 0 0 8px rgba(0, 180, 240, 0.7);
+            margin-top: 2px;
+        }
+
+        .theme-dark .telemetry-accent-pill {
+            background: #00e5ff;
+            box-shadow: 0 0 8px #00e5ff;
+        }
+
+        .telemetry-inner-body {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            width: 100%;
+        }
+
+        .telemetry-header {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .telemetry-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--cyan-bright);
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(0, 229, 255, 0.8);
+        }
+
+        .theme-dark .telemetry-dot {
+            background: #00e5ff;
+            box-shadow: 0 0 8px #00e5ff;
+        }
+
+        .telemetry-title {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--text-cyan);
+            text-transform: uppercase;
+        }
+
+        .theme-dark .telemetry-title {
+            color: #00e5ff;
+            text-shadow: 0 0 8px rgba(0, 229, 255, 0.6);
+        }
+
+        .telemetry-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .telemetry-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10.5px;
+            letter-spacing: 1.2px;
+        }
+
+        .row-label {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text-secondary);
+            opacity: 0.95;
+            font-weight: 600;
+        }
+
+        .theme-dark .row-label {
+            color: #00d8f6;
+        }
+
+        .hud-icon {
+            width: 12px;
+            height: 12px;
+            fill: none;
+            stroke: var(--cyan-line);
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .theme-dark .hud-icon {
+            stroke: #00d8f6;
+        }
+
+        .row-val {
+            color: #18346b;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-align: right;
+            padding-left: 6px;
+        }
+
+        .theme-dark .row-val {
+            color: #ffffff;
+            text-shadow: 0 0 6px rgba(0, 216, 246, 0.4);
+        }
+
+        /* ======================================================== */
+        /* BOTTOM-RIGHT: INTERACTIVE ACTION BUTTON                  */
+        /* ======================================================== */
+        .action-btn-container {
+            position: absolute;
+            right: 35px;
+            top: 463px;
+            width: 56px;
+            height: 56px;
+            background: #ffffff;
+            border-radius: 28px;
+            border: 1.5px solid rgba(0, 180, 240, 0.45);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0, 180, 240, 0.2), 0 2px 6px rgba(27, 49, 100, 0.08);
+            transition: width 0.42s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+            overflow: hidden;
+            pointer-events: auto;
+            z-index: 100;
+        }
+
+        .action-btn-container:hover {
+            box-shadow: 0 6px 20px rgba(0, 180, 240, 0.35), 0 2px 8px rgba(27, 49, 100, 0.12);
+            border-color: var(--cyan-glow);
+        }
+
+        .theme-dark .action-btn-container {
+            background: rgba(1, 14, 23, 0.92);
+            border: 1.5px solid rgba(0, 216, 246, 0.45);
+            box-shadow: 0 4px 16px rgba(0, 216, 246, 0.25), 0 2px 6px rgba(0, 0, 0, 0.5);
+        }
+
+        .theme-dark .action-btn-container:hover {
+            box-shadow: 0 6px 20px rgba(0, 229, 255, 0.4), 0 2px 8px rgba(0, 0, 0, 0.6);
+            border-color: #00e5ff;
+        }
+
+        .chat-icon {
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            fill: #18346b;
+            opacity: 1;
+            transform: scale(1);
+            transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+            z-index: 2;
+        }
+
+        .theme-dark .chat-icon {
+            fill: #00e5ff;
+        }
+
+        .send-icon {
+            position: absolute;
+            right: 18px;
+            width: 18px;
+            height: 18px;
+            fill: #18346b;
+            opacity: 0;
+            transform: scale(0.6) rotate(-15deg);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease, fill 0.2s ease;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .theme-dark .send-icon {
+            fill: #00e5ff;
+        }
+
+        /* Expanded State for Command Entry - Smooth, Classy, Minimalist */
+        .action-btn-container.expanded {
+            width: 380px;
+            border-radius: 28px;
+            background: rgba(255, 255, 255, 0.98);
+            border-color: #00b4d8;
+            box-shadow: 0 6px 24px rgba(0, 180, 240, 0.35), 0 2px 8px rgba(27, 49, 100, 0.1);
+            justify-content: flex-start;
+            padding: 0 16px 0 20px;
+            cursor: default;
+        }
+
+        .theme-dark .action-btn-container.expanded {
+            background: rgba(1, 14, 23, 0.98);
+            border-color: #00e5ff;
+            box-shadow: 0 6px 24px rgba(0, 229, 255, 0.35), 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .action-btn-container.expanded .chat-icon {
+            opacity: 0;
+            transform: scale(0.6) rotate(12deg);
+            pointer-events: none;
+        }
+
+        .action-btn-container.expanded .send-icon {
+            opacity: 0.85;
+            transform: scale(1) rotate(0deg);
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.08s, opacity 0.25s ease 0.08s, fill 0.2s ease;
+        }
+
+        .action-btn-container.expanded .send-icon:hover {
+            opacity: 1;
+            fill: #0077b6;
+            transform: scale(1.12);
+        }
+
+        .theme-dark .action-btn-container.expanded .send-icon:hover {
+            fill: #ffffff;
+        }
+
+        .cmd-text-input {
+            width: 0;
+            opacity: 0;
+            border: none;
+            background: transparent;
+            color: #18346b;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 13.5px;
+            outline: none;
+            letter-spacing: 0.8px;
+            pointer-events: none;
+            padding-left: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            transition: width 0.38s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease;
+        }
+
+        .theme-dark .cmd-text-input {
+            color: #ffffff;
+        }
+
+        .cmd-text-input::placeholder {
+            color: rgba(24, 52, 107, 0.45);
+            font-size: 13px;
+            letter-spacing: 0.8px;
+        }
+
+        .theme-dark .cmd-text-input::placeholder {
+            color: rgba(0, 216, 246, 0.45);
+        }
+
+        .action-btn-container.expanded .cmd-text-input {
+            width: calc(100% - 44px);
+            opacity: 1;
+            pointer-events: auto;
+            padding-left: 4px;
+            transition: width 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.04s, opacity 0.28s ease 0.1s;
+        }
+
+        /* ======================================================== */
+        /* SLIDE-OUT DOSSIER & DEEP DIVE PANELS                     */
+        /* ======================================================== */
+        .info-panel {
+            position: absolute;
+            right: 40px;
+            top: 60px;
+            width: 500px;
+            height: 450px;
+            opacity: 0;
+            pointer-events: none;
+            display: flex;
+            gap: 20px;
+            transition: opacity 0.4s ease-in-out 0.2s;
+            z-index: 25;
+        }
+
+        .main-stage.swiped-left~.info-panel {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .info-left-col {
+            flex: 1.1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            max-height: 100%;
+            padding-right: 6px;
+            scroll-behavior: smooth;
+        }
+
+        .info-left-col::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .info-left-col::-webkit-scrollbar-thumb {
+            background: rgba(0, 180, 240, 0.4);
+            border-radius: 3px;
+        }
+
+        .theme-dark .info-left-col::-webkit-scrollbar-thumb {
+            background: rgba(0, 229, 255, 0.5);
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0, 180, 240, 0.35);
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            backdrop-filter: blur(10px);
+            color: #18346b;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-2px);
+            border-color: #0284c7;
+        }
+
+        .theme-dark .info-card {
+            background: rgba(2, 14, 26, 0.92);
+            border: 1px solid rgba(0, 229, 255, 0.35);
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(0, 229, 255, 0.1);
+        }
+
+        .theme-dark .info-card:hover {
+            border-color: #00e5ff;
+            box-shadow: 0 4px 16px rgba(0, 229, 255, 0.25);
+        }
+
+        .info-card img {
+            width: 100%;
+            height: 110px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 180, 240, 0.25);
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            display: block;
+        }
+
+        .info-card img:hover {
+            transform: scale(1.02);
+        }
+
+        .theme-dark .info-card img {
+            border: 1px solid rgba(0, 229, 255, 0.3);
+        }
+
+        .info-card .source-txt {
+            font-size: 10.5px;
+            color: #0284c7;
+            font-family: 'Share Tech Mono', monospace;
+            letter-spacing: 1.2px;
+            font-weight: 700;
+        }
+
+        .theme-dark .info-card .source-txt {
+            color: #00e5ff;
+        }
+
+        .info-right-col {
+            flex: 1.3;
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(0, 180, 240, 0.4);
+            border-radius: 12px;
+            padding: 22px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            backdrop-filter: blur(10px);
+            color: #18346b;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+        }
+
+        .theme-dark .info-right-col {
+            background: rgba(2, 14, 26, 0.93);
+            border: 1px solid rgba(0, 229, 255, 0.4);
+            color: #ffffff;
+            box-shadow: 0 4px 16px rgba(0, 229, 255, 0.12);
+        }
+
+        .info-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid rgba(0, 180, 240, 0.4);
+            padding-bottom: 8px;
+        }
+
+        .theme-dark .info-header-row {
+            border-bottom: 2px solid rgba(0, 229, 255, 0.45);
+        }
+
+        .info-title {
+            font-family: 'Share Tech Mono', sans-serif;
+            font-size: 21px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: 2px;
+            margin: 0;
+        }
+
+        .theme-dark .info-title {
+            color: #00e5ff;
+        }
+
+        .info-badge {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(0, 180, 240, 0.12);
+            color: #0284c7;
+            border: 1px solid rgba(0, 180, 240, 0.35);
+        }
+
+        .theme-dark .info-badge {
+            background: rgba(0, 229, 255, 0.12);
+            color: #00e5ff;
+            border: 1px solid rgba(0, 229, 255, 0.4);
+        }
+
+        .info-right-col p {
+            font-size: 14.5px;
+            line-height: 1.7;
+            color: #1e3a8a;
+            overflow-y: auto;
+            flex: 1;
+            margin: 0;
+            padding-right: 4px;
+        }
+
+        .theme-dark .info-right-col p {
+            color: #e0f7fa;
+        }
+
+        /* Deep Dive HUD (Full Screen) */
+        .deep-dive-panel {
+            position: absolute;
+            inset: 0;
+            background: rgba(243, 248, 255, 0.98);
+            z-index: 60;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(100%);
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s;
+            padding: 30px 42px;
+            overflow: hidden;
+            backdrop-filter: blur(14px);
+        }
+
+        .theme-dark .deep-dive-panel {
+            background: rgba(1, 12, 23, 0.98);
+        }
+
+        .deep-dive-active .deep-dive-panel {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0);
+        }
+
+        .deep-dive-active .main-stage,
+        .deep-dive-active .clock-content,
+        .deep-dive-active .status-content,
+        .deep-dive-active .telemetry-card-content,
+        .deep-dive-active .action-btn-container,
+        .deep-dive-active .hud-master-svg,
+        .deep-dive-active .theme-toggle-btn,
+        .deep-dive-active .info-panel {
+            transform: translateX(-150%) !important;
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s;
+        }
+
+        .dd-header {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 24px;
+            color: #0f172a;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            border-bottom: 2px solid #00b4d8;
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .theme-dark .dd-header {
+            color: #00e5ff;
+            border-bottom: 2px solid #00e5ff;
+        }
+
+        .dd-close-glyph {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: #64748b;
+            cursor: pointer;
+            transition: color 0.2s ease, transform 0.2s ease;
+            padding: 2px 8px;
+            border-radius: 4px;
+            line-height: 1;
+        }
+
+        .dd-close-glyph:hover {
+            color: #ef4444;
+            transform: scale(1.15);
+        }
+
+        .theme-dark .dd-close-glyph {
+            color: #94a3b8;
+        }
+
+        .theme-dark .dd-close-glyph:hover {
+            color: #f87171;
+        }
+
+        /* ======================================================== */
+        /* DEEP DIVE HUD - TWO-COLUMN SPLIT: IMAGES (L) / INFO (R)   */
+        /* ======================================================== */
+        .dd-content {
+            display: flex;
+            flex-direction: row;
+            gap: 22px;
+            height: calc(100% - 55px);
+            overflow: hidden;
+            padding-bottom: 4px;
+        }
+
+        /* Left Column: Visual Asset Gallery (Grid with Up-Down Scroll) */
+        .dd-images {
+            width: 320px;
+            min-width: 290px;
+            max-width: 330px;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-auto-rows: 130px;
+            gap: 12px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 6px;
+            align-content: start;
+            flex-shrink: 0;
+        }
+
+        .dd-images:empty {
+            display: none;
+        }
+
+        .dd-images::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .dd-images::-webkit-scrollbar-track {
+            background: rgba(0, 180, 240, 0.05);
+            border-radius: 4px;
+        }
+
+        .dd-images::-webkit-scrollbar-thumb {
+            background: rgba(0, 180, 240, 0.45);
+            border-radius: 4px;
+        }
+
+        .theme-dark .dd-images::-webkit-scrollbar-thumb {
+            background: rgba(0, 229, 255, 0.55);
+        }
+
+        .dd-img-wrap {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 180, 240, 0.4);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            height: 100%;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .theme-dark .dd-img-wrap {
+            border: 1px solid rgba(0, 229, 255, 0.45);
+            box-shadow: 0 2px 10px rgba(0, 229, 255, 0.12);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .dd-img-wrap:hover {
+            transform: scale(1.03);
+            border-color: #00e5ff;
+            box-shadow: 0 6px 18px rgba(0, 229, 255, 0.35);
+            z-index: 2;
+        }
+
+        .dd-img-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .dd-img-badge {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: rgba(0, 0, 0, 0.72);
+            color: #00e5ff;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9.5px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        /* Right Column: Information & Tracklist Area (Up-Down Scroll Only) */
+        .dd-text {
+            flex: 1;
+            min-width: 0;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 10px;
+            scroll-behavior: smooth;
+        }
+
+        .dd-text::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .dd-text::-webkit-scrollbar-track {
+            background: rgba(0, 180, 240, 0.05);
+            border-radius: 4px;
+        }
+
+        .dd-text::-webkit-scrollbar-thumb {
+            background: rgba(0, 180, 240, 0.45);
+            border-radius: 4px;
+        }
+
+        .theme-dark .dd-text::-webkit-scrollbar-thumb {
+            background: rgba(0, 229, 255, 0.55);
+        }
+
+        /* Vertical Intel Column Container */
+        .dd-scroll-column {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Hero Direct Answer Card (Minimal, Sleek Glassmorphism) */
+        .dd-hero-card {
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(0, 180, 240, 0.22);
+            border-radius: 10px;
+            padding: 16px 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .theme-dark .dd-hero-card {
+            background: rgba(4, 18, 32, 0.68);
+            border: 1px solid rgba(0, 229, 255, 0.22);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .dd-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dd-live-badge {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9.5px;
+            letter-spacing: 1.5px;
+            padding: 2px 7px;
+            border-radius: 3px;
+            background: rgba(0, 180, 240, 0.08);
+            color: #0284c7;
+            border: 1px solid rgba(0, 180, 240, 0.22);
+            font-weight: 700;
+        }
+
+        .theme-dark .dd-live-badge {
+            background: rgba(0, 229, 255, 0.08);
+            color: #00e5ff;
+            border-color: rgba(0, 229, 255, 0.25);
+        }
+
+        .dd-answer-text {
+            font-size: 14px;
+            line-height: 1.65;
+            color: #1e293b;
+            margin: 0;
+            font-weight: 500;
+        }
+
+        .theme-dark .dd-answer-text {
+            color: #e2e8f0;
+        }
+
+        /* Section Container */
+        .dd-section-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .dd-section-header {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #0284c7;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin: 4px 0 2px 0;
+            border-bottom: 1px solid rgba(0, 180, 240, 0.2);
+            padding-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .theme-dark .dd-section-header {
+            color: #00e5ff;
+            border-bottom: 1px solid rgba(0, 229, 255, 0.25);
+        }
+
+        /* Streaming Hub Minimal Buttons with Real Icons */
+        .dd-stream-links {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dd-stream-btn {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            padding: 4px 11px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid rgba(0, 180, 240, 0.25);
+            background: rgba(255, 255, 255, 0.7);
+            color: #1e293b;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        }
+
+        .theme-dark .dd-stream-btn {
+            border-color: rgba(0, 229, 255, 0.25);
+            background: rgba(4, 20, 36, 0.6);
+            color: #cbd5e1;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-spotify .dd-icon-spotify {
+            color: #1db954;
+        }
+
+        .btn-spotify:hover {
+            border-color: #1db954;
+            background: rgba(29, 185, 84, 0.08);
+            color: #0f172a;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(29, 185, 84, 0.18);
+        }
+
+        .theme-dark .btn-spotify:hover {
+            background: rgba(29, 185, 84, 0.15);
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(29, 185, 84, 0.25);
+        }
+
+        .btn-youtube .dd-icon-youtube {
+            color: #ff0000;
+        }
+
+        .btn-youtube:hover {
+            border-color: #ff0000;
+            background: rgba(255, 0, 0, 0.06);
+            color: #0f172a;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(255, 0, 0, 0.18);
+        }
+
+        .theme-dark .btn-youtube:hover {
+            background: rgba(255, 0, 0, 0.14);
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(255, 0, 0, 0.25);
+        }
+
+        /* Tracklist Grid */
+        .dd-tracklist-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            width: 100%;
+        }
+
+        .dd-track-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 11px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.65);
+            border: 1px solid rgba(0, 180, 240, 0.18);
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+            min-height: 36px;
+        }
+
+        .theme-dark .dd-track-item {
+            background: rgba(4, 20, 36, 0.55);
+            border: 1px solid rgba(0, 229, 255, 0.18);
+            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+        }
+
+        .dd-track-item:hover {
+            border-color: rgba(0, 180, 240, 0.45);
+            background: rgba(255, 255, 255, 0.95);
+            transform: translateX(1px);
+        }
+
+        .theme-dark .dd-track-item:hover {
+            border-color: rgba(0, 229, 255, 0.45);
+            background: rgba(6, 26, 46, 0.85);
+            box-shadow: 0 2px 8px rgba(0, 229, 255, 0.15);
+        }
+
+        .dd-track-left {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .dd-track-num {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            color: #0284c7;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+            opacity: 0.85;
+        }
+
+        .theme-dark .dd-track-num {
+            color: #00e5ff;
+        }
+
+        .dd-track-name {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 600;
+            font-size: 13.5px;
+            letter-spacing: 0.4px;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .theme-dark .dd-track-name {
+            color: #f1f5f9;
+        }
+
+        .dd-track-play-btn {
+            width: 26px;
+            height: 26px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 180, 240, 0.18);
+            background: rgba(0, 180, 240, 0.04);
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            padding: 0;
+            margin-left: 6px;
+        }
+
+        .theme-dark .dd-track-play-btn {
+            border-color: rgba(0, 229, 255, 0.18);
+            background: rgba(0, 229, 255, 0.04);
+            color: #94a3b8;
+        }
+
+        .dd-track-play-btn:hover {
+            border-color: #ff0000;
+            background: rgba(255, 0, 0, 0.08);
+            color: #ff0000;
+            transform: scale(1.08);
+            box-shadow: 0 2px 6px rgba(255, 0, 0, 0.2);
+        }
+
+        .theme-dark .dd-track-play-btn:hover {
+            border-color: #ff4d4d;
+            background: rgba(255, 77, 77, 0.15);
+            color: #ff4d4d;
+            box-shadow: 0 2px 8px rgba(255, 77, 77, 0.3);
+        }
+
+        /* Key Facts Bullet List */
+        .dd-facts-list {
+            margin: 4px 0 10px 20px;
+            padding: 0;
+            color: #1e3a8a;
+        }
+
+        .theme-dark .dd-facts-list {
+            color: #e0f7fa;
+        }
+
+        .dd-facts-list li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14px;
+        }
+
+        /* Verified Links Grid */
+        .dd-links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+            width: 100%;
+        }
+
+        .dd-link-card {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(0, 180, 240, 0.35);
+            border-radius: 8px;
+            padding: 12px 14px;
+            cursor: pointer;
+            transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .theme-dark .dd-link-card {
+            background: rgba(4, 21, 37, 0.88);
+            border: 1px solid rgba(0, 229, 255, 0.35);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .dd-link-card:hover {
+            transform: translateY(-2px);
+            border-color: #00e5ff;
+            background: #ffffff;
+            box-shadow: 0 6px 16px rgba(0, 229, 255, 0.25);
+        }
+
+        .theme-dark .dd-link-card:hover {
+            background: rgba(8, 30, 52, 0.95);
+            border-color: #00e5ff;
+            box-shadow: 0 6px 18px rgba(0, 229, 255, 0.35);
+        }
+
+        .dd-link-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dd-link-badge {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9.5px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            letter-spacing: 1px;
+        }
+
+        .badge-spotify {
+            background: rgba(29, 185, 84, 0.15);
+            color: #16a34a;
+            border: 1px solid rgba(22, 163, 74, 0.4);
+        }
+
+        .theme-dark .badge-spotify {
+            color: #22c55e;
+            border-color: rgba(34, 197, 94, 0.5);
+        }
+
+        .badge-youtube {
+            background: rgba(225, 29, 72, 0.15);
+            color: #e11d48;
+            border: 1px solid rgba(225, 29, 72, 0.4);
+        }
+
+        .theme-dark .badge-youtube {
+            color: #fb7185;
+            border-color: rgba(251, 113, 133, 0.5);
+        }
+
+        .badge-genius {
+            background: rgba(234, 179, 8, 0.15);
+            color: #ca8a04;
+            border: 1px solid rgba(202, 138, 4, 0.4);
+        }
+
+        .theme-dark .badge-genius {
+            color: #facc15;
+            border-color: rgba(250, 204, 21, 0.5);
+        }
+
+        .badge-apple {
+            background: rgba(252, 60, 68, 0.15);
+            color: #e11d48;
+            border: 1px solid rgba(252, 60, 68, 0.4);
+        }
+
+        .badge-google, .badge-web {
+            background: rgba(0, 180, 240, 0.15);
+            color: #0284c7;
+            border: 1px solid rgba(0, 180, 240, 0.4);
+        }
+
+        .theme-dark .badge-google, .theme-dark .badge-web {
+            color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.4);
+        }
+
+        .dd-link-ext {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .theme-dark .dd-link-ext {
+            color: #94a3b8;
+        }
+
+        .dd-link-title {
+            font-weight: 700;
+            font-size: 13px;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .theme-dark .dd-link-title {
+            color: #f8fafc;
+        }
+
+        .dd-link-snippet {
+            font-size: 11.5px;
+            color: #475569;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .theme-dark .dd-link-snippet {
+            color: #94a3b8;
+        }
+
+        .dd-link-url {
+            font-size: 10.5px;
+            font-family: 'Share Tech Mono', monospace;
+            color: #0284c7;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .theme-dark .dd-link-url {
+            color: #00e5ff;
+        }
+
+        /* Lightbox Modal */
+        .img-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+
+        .img-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .img-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            border: 2px solid var(--cyan-glow);
+            border-radius: 8px;
+            box-shadow: 0 0 25px rgba(0, 180, 240, 0.6);
+        }
+
+        /* Sporadic Glitch Effect on HUD Data */
+        .glitch-active {
+            position: relative;
+        }
+
+        .glitch-active::before,
+        .glitch-active::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-color);
+        }
+
+        .glitch-active::before {
+            left: 2px;
+            text-shadow: -2px 0 rgba(255, 0, 80, 0.7);
+            animation: sporadic-glitch-1 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
+        }
+
+        .glitch-active::after {
+            left: -2px;
+            text-shadow: -2px 0 rgba(0, 180, 240, 0.7);
+            animation: sporadic-glitch-2 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite reverse;
+        }
+
+        @keyframes sporadic-glitch-1 {
+            0% {
+                clip-path: inset(20% 0 80% 0);
+                transform: translate(-2px, 1px);
+            }
+
+            50% {
+                clip-path: inset(60% 0 10% 0);
+                transform: translate(2px, -1px);
+            }
+
+            100% {
+                clip-path: inset(30% 0 50% 0);
+                transform: translate(1px, -1px);
+            }
+        }
+
+        @keyframes sporadic-glitch-2 {
+            0% {
+                clip-path: inset(10% 0 60% 0);
+                transform: translate(2px, -1px);
+            }
+
+            50% {
+                clip-path: inset(70% 0 10% 0);
+                transform: translate(2px, -2px);
+            }
+
+            100% {
+                clip-path: inset(5% 0 80% 0);
+                transform: translate(-1px, 1px);
+            }
+        }
+        /* ======================================================== */
+        /* PHASE 15: CAMERA MODE & REAL-TIME OPTICAL PERCEPTION     */
+        /* ======================================================== */
+
+        /* When Camera Mode is active on body: */
+        /* Hide all corner HUD elements, brackets, cards, and central organism so camera feed is clear */
+        body.camera-mode-active .clock-content,
+        body.camera-mode-active .status-content,
+        body.camera-mode-active .telemetry-card-content,
+        body.camera-mode-active .hud-master-svg,
+        body.camera-mode-active .crosshair,
+        body.camera-mode-active .main-stage,
+        body.camera-mode-active .glassy-media-capsule,
+        body.camera-mode-active .theme-toggle-btn,
+        body.camera-mode-active .wing-left-wrap,
+        body.camera-mode-active .wing-right-wrap,
+        body.camera-mode-active .wing-pill-node,
+        body.camera-mode-active .wing-dot-node,
+        body.camera-mode-active .info-panel,
+        body.camera-mode-active .deep-dive-panel,
+        body.camera-mode-active .camera-scene-telemetry {
+            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        body.camera-mode-active .main-stage::after {
+            display: none !important;
+        }
+
+        /* Background grid MUST REMAIN SAME and clearly visible on top of camera stream */
+        body.camera-mode-active .bg-grid {
+            display: block !important;
+            opacity: 0.28 !important;
+            z-index: 6 !important;
+            pointer-events: none !important;
+        }
+
+        /* Message icon at bottom-right MUST REMAIN VISIBLE and interactive */
+        body.camera-mode-active .action-btn-container {
+            display: flex !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            z-index: 50 !important;
+        }
+
+        /* Camera Vision Viewport Layer */
+        .camera-vision-layer {
+            position: absolute;
+            inset: 0;
+            width: 1024px;
+            height: 575px;
+            z-index: 2;
+            border-radius: 8px;
+            overflow: hidden;
+            display: none !important;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            background-color: #000810;
+        }
+
+        body.camera-mode-active .camera-vision-layer {
+            display: block !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+
+        .camera-stream-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            filter: brightness(1.0) contrast(1.05);
+        }
+
+        body.camera-mode-active .camera-stream-img {
+            display: block !important;
+            opacity: 1 !important;
+        }
+
+        body:not(.camera-mode-active) .camera-stream-img {
+            display: none !important;
+        }
+
+        /* Vignette border around camera frame */
+        .camera-vignette {
+            position: absolute;
+            inset: 0;
+            box-shadow: inset 0 0 70px rgba(0, 13, 23, 0.65), inset 0 0 16px rgba(0, 229, 255, 0.2);
+            pointer-events: none;
+            z-index: 4;
+        }
+
+        /* Pure Glass Optical Eye Floating Badge (Centered at top) */
+        .camera-lens-badge {
+            position: absolute;
+            top: 22px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 6px 18px;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .cam-lens-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #00e5ff;
+            box-shadow: 0 0 8px #00e5ff;
+            animation: pulse-cam-badge 1.8s infinite ease-in-out;
+        }
+
+        .cam-lens-text {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: #ffffff;
+            font-weight: 700;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+        }
+
+        .cam-lens-status {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            color: #38bdf8;
+            padding-left: 8px;
+            border-left: 1px solid rgba(255, 255, 255, 0.25);
+            text-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+        }
+
+        @keyframes pulse-cam-badge {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.35); opacity: 0.55; }
+        }
+
+        /* Center Cybernetic Crosshair Reticle - Minimal and Clean */
+        .camera-center-reticle {
+            position: absolute;
+            left: 511px;
+            top: 274px;
+            transform: translate(-50%, -50%);
+            width: 140px;
+            height: 140px;
+            pointer-events: none;
+            z-index: 5;
+            opacity: 0.32;
+        }
+
+        .reticle-circle {
+            position: absolute;
+            inset: 15px;
+            border: 1px dashed rgba(0, 229, 255, 0.4);
+            border-radius: 50%;
+            animation: rotate-reticle 20s linear infinite;
+        }
+
+        @keyframes rotate-reticle {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .reticle-cross-h {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.4) 30%, rgba(0, 229, 255, 0.4) 70%, transparent);
+        }
+
+        .reticle-cross-v {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 1px;
+            background: linear-gradient(180deg, transparent, rgba(0, 229, 255, 0.4) 30%, rgba(0, 229, 255, 0.4) 70%, transparent);
+        }
+
+        /* Corner Reticle Brackets */
+        .reticle-bracket {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-color: #00e5ff;
+            border-style: solid;
+            pointer-events: none;
+        }
+        .reticle-bracket.tl { top: 0; left: 0; border-width: 1.5px 0 0 1.5px; }
+        .reticle-bracket.tr { top: 0; right: 0; border-width: 1.5px 1.5px 0 0; }
+        .reticle-bracket.bl { bottom: 0; left: 0; border-width: 0 0 1.5px 1.5px; }
+        .reticle-bracket.br { bottom: 0; right: 0; border-width: 0 1.5px 1.5px 0; }
+
+        /* Real-Time Scene Telemetry (Bottom Right) */
+        .camera-scene-telemetry {
+            position: absolute;
+            right: 28px;
+            bottom: 26px;
+            width: 250px;
+            background: rgba(0, 13, 23, 0.72);
+            backdrop-filter: blur(10px);
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 229, 255, 0.35);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 10;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+        }
+
+        .cam-telem-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 1.2px;
+        }
+
+        .cam-telem-lbl {
+            color: rgba(160, 216, 240, 0.85);
+            font-weight: 600;
+        }
+
+        .cam-telem-val {
+            color: #00e5ff;
+            font-weight: 700;
+            text-shadow: 0 0 6px rgba(0, 229, 255, 0.5);
+        }
+
+        /* Glowing Cybernetic Gesture Notification Banner */
+        .camera-gesture-banner {
+            position: absolute;
+            left: 511px;
+            top: 75px;
+            transform: translate(-50%, -20px) scale(0.9);
+            opacity: 0;
+            pointer-events: none;
+            background: rgba(0, 15, 30, 0.9);
+            border: 1.5px solid #00e5ff;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.5), inset 0 0 10px rgba(0, 229, 255, 0.25);
+            border-radius: 20px;
+            padding: 8px 22px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 30;
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+        }
+
+        .camera-gesture-banner.active {
+            transform: translate(-50%, 0) scale(1);
+            opacity: 1;
+        }
+
+        .gesture-icon {
+            font-size: 14px;
+            color: #00e5ff;
+            animation: flash-pulse 0.8s infinite alternate;
+        }
+
+        @keyframes flash-pulse {
+            from { opacity: 0.6; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1.15); }
+        }
+
+        .gesture-text {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11.5px;
+            font-weight: 700;
+            letter-spacing: 1.8px;
+            color: #ffffff;
+            text-shadow: 0 0 8px #00e5ff;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================================================================= -->
+    <!-- THEME LAYER 1: LIGHT MODE (DEFAULT ACTIVE)                       -->
+    <!-- ================================================================= -->
+    <div class="theme-layer theme-light" id="layerLight">
+        <div class="hud-viewport">
+
+            <!-- PHASE 15: Optical Perception & Camera Stream Layer -->
+            <div class="camera-vision-layer" id="cameraVisionLayerLight">
+                <canvas class="camera-stream-canvas" id="cameraStreamCanvas" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; z-index: 2; border-radius: 8px;"></canvas>
+                <img class="camera-stream-img" id="cameraStreamImgLight" alt="" style="z-index: 1;" />
+                <div class="camera-vignette"></div>
+
+                <!-- Pure Glass Optical Eye Floating Badge -->
+                <div class="camera-lens-badge" id="cameraLensBadge">
+                    <div class="cam-lens-dot"></div>
+                    <span class="cam-lens-text">HYDRA OPTICAL EYE</span>
+                    <span class="cam-lens-status" id="camLensStatus">ACTIVE</span>
+                </div>
+
+                <!-- Center Cybernetic Reticle -->
+                <div class="camera-center-reticle">
+                    <div class="reticle-circle"></div>
+                    <div class="reticle-cross-h"></div>
+                    <div class="reticle-cross-v"></div>
+                    <div class="reticle-bracket tl"></div>
+                    <div class="reticle-bracket tr"></div>
+                    <div class="reticle-bracket bl"></div>
+                    <div class="reticle-bracket br"></div>
+                </div>
+            </div>
+
+            <!-- Background Grid in Light Form -->
+            <div class="bg-grid"></div>
+
+            <!-- Master 1024x575 SVG Layer: All Exact Corner Lines, Chamfers, and Slashes -->
+            <svg class="hud-master-svg" id="hudMasterSvg" viewBox="0 0 1024 575">
+                <defs>
+                    <filter id="hudGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="1.5" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                    <linearGradient id="cyanLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#38bdf8" />
+                        <stop offset="100%" stop-color="#0096c7" />
+                    </linearGradient>
+                    <linearGradient id="blOuterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#9d9eff" />
+                        <stop offset="45%" stop-color="#38bdf8" />
+                        <stop offset="100%" stop-color="#0096c7" />
+                    </linearGradient>
+                    <linearGradient id="brCornerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#00b4d8" />
+                        <stop offset="78%" stop-color="#38bdf8" />
+                        <stop offset="100%" stop-color="#8d76fa" />
+                    </linearGradient>
+                    <linearGradient id="trGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#38bdf8" />
+                        <stop offset="75%" stop-color="#0096c7" />
+                        <stop offset="100%" stop-color="#8d76fa" />
+                    </linearGradient>
+                    <linearGradient id="tlGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#0096c7" />
+                        <stop offset="70%" stop-color="#38bdf8" />
+                        <stop offset="100%" stop-color="#8d76fa" />
+                    </linearGradient>
+                    <linearGradient id="rwLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="rgba(0, 160, 240, 0.7)" />
+                        <stop offset="100%" stop-color="rgba(141, 118, 250, 0.7)" />
+                    </linearGradient>
+                </defs>
+
+                <!-- ================= TOP-LEFT CLOCK FRAME (Exact Hexagonal HUD Capsule) ================= -->
+                <!-- Top line at y=28, chamfers at x=168 down-right, bottom line at y=106, chamfer drop to (0, 142) -->
+                <path d="M 12 65 L 12 40 L 24 28 L 168 28 L 180 40 L 180 72 L 146 106 L 36 106 L 0 142" fill="none"
+                    stroke="url(#tlGrad)" stroke-width="1.5" />
+                <!-- Three slanted slashes /// at the bottom-left chamfer -->
+                <g fill="#00b4d8" transform="translate(13, 91) skewX(-32)">
+                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                    <rect x="6" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                    <rect x="12" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                </g>
+
+                <!-- ================= TOP-RIGHT SYSTEM ONLINE (Exact Hexagonal HUD Capsule) ================= -->
+                <path d="M 850 44 L 868 44" fill="none" stroke="url(#trGrad)" stroke-width="1.5" />
+                <path d="M 868 44 L 886 26 L 1004 26 L 1014 36 L 1014 58" fill="none" stroke="url(#trGrad)"
+                    stroke-width="1.5" />
+                <path d="M 868 44 L 886 62 L 1004 62 L 1014 72 L 1014 86 L 1024 96" fill="none" stroke="url(#trGrad)"
+                    stroke-width="1.5" />
+
+                <!-- ================= BOTTOM-LEFT TELEMETRY FRAME (Exact Canva Paths) ================= -->
+                <!-- Outer corner baseline: starts at (0, 400), down to (12, 532), chamfer to (24, 544), baseline to (245, 544), step up to (305, 536) -->
+                <path d="M 0 400 L 12 412 L 12 532 L 24 544 L 245 544 L 253 536 L 305 536" fill="none"
+                    stroke="url(#blOuterGrad)" stroke-width="1.5" />
+                <!-- Telemetry card frame: top line at y=442, chamfer down to y=462, diagonal down to baseline -->
+                <path d="M 24 452 L 34 442 L 160 442 L 178 460 L 246 460 L 320 534 L 330 544" fill="none" stroke="#00b4d8"
+                    stroke-width="1.5" />
+                <path d="M 24 452 L 24 516 L 34 526 L 110 526" fill="none" stroke="#00b4d8" stroke-width="1.5" />
+
+                <!-- Three slashes /// at the bottom right of telemetry card -->
+                <g fill="#00b4d8" transform="translate(225, 537) skewX(-32)">
+                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                    <rect x="6.5" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                    <rect x="13" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                </g>
+
+                <!-- ================= BOTTOM-RIGHT BRACKET ================= -->
+                <!-- Outer baseline and chamfer corner -->
+                <path
+                    d="M 775 547 L 785 539 L 880 539 L 880 542 L 1004 542 L 1014 532 L 1014 480 L 1010 476 L 1010 460 L 1024 446"
+                    fill="none" stroke="url(#brCornerGrad)" stroke-width="1.5" />
+                <!-- Three slanted slashes /// on the horizontal baseline -->
+                <g fill="#00b4d8" transform="translate(865, 533) skewX(-32)">
+                    <rect x="0" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                    <rect x="6.5" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                    <rect x="13" y="0" width="3.5" height="7.5" rx="1" filter="url(#hudGlow)" />
+                </g>
+            </svg>
+
+            <!-- Four Coordinate Crosshairs '+' -->
+            <div class="crosshair ch-tl">+</div>
+            <div class="crosshair ch-tr">+</div>
+            <div class="crosshair ch-bl">+</div>
+            <div class="crosshair ch-br">+</div>
+
+            <!-- Top-Left Clock Content -->
+            <div class="clock-content">
+                <div class="clock-pill"></div>
+                <div class="clock-data target-glitch">
+                    <div id="hudTime" class="clock-time" data-text=""></div>
+                    <div id="hudDate" class="clock-date" data-text=""></div>
+                </div>
+            </div>
+
+            <!-- Top-Center Pure Glass Spotify / Media Controller Capsule -->
+            <div class="glassy-media-capsule" id="glassyMediaWidget">
+                <!-- Main Compact Capsule Row -->
+                <div class="capsule-main-row">
+                    <div class="capsule-art-wrap">
+                        <img class="capsule-art-img" id="mediaArtImg" src="" alt="Cover" onerror="this.style.display='none'; document.getElementById('mediaArtPlaceholder').style.display='flex';" />
+                        <div class="capsule-art-placeholder" id="mediaArtPlaceholder">
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0096c7" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polygon points="10 8 16 12 10 16 10 8" fill="#0096c7"></polygon>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="capsule-text-col">
+                        <div class="capsule-track-title" id="mediaTrackTitle">Spotify Ready</div>
+                        <div class="capsule-artist-name" id="mediaArtistName">No track playing</div>
+                    </div>
+
+                    <div class="capsule-controls">
+                        <button class="capsule-btn" id="btnMediaPrev" onclick="sendMediaAction('prev')" title="Previous Track">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                            </svg>
+                        </button>
+                        <button class="capsule-btn capsule-btn-play" id="btnMediaPlay" onclick="sendMediaAction('toggle')" title="Play / Pause">
+                            <svg id="iconMediaPlay" viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                            <svg id="iconMediaPause" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="display:none;">
+                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                            </svg>
+                        </button>
+                        <button class="capsule-btn" id="btnMediaNext" onclick="sendMediaAction('next')" title="Next Track">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Pure Glass Expand Tray on Hover -->
+                <div class="capsule-expand-tray" id="mediaProgressBlock">
+                    <div class="capsule-progress-track" id="mediaProgressTrack" onclick="handleSeekClick(event)" title="Click to seek">
+                        <div class="capsule-progress-fill" id="mediaProgressFill" style="width: 0%;"></div>
+                        <div class="capsule-progress-knob" id="mediaProgressKnob"></div>
+                    </div>
+                    <div class="capsule-timestamps">
+                        <span id="mediaTimeCurrent">0:00</span>
+                        <span class="capsule-spotify-tag">
+                            <svg viewBox="0 0 24 24" width="9" height="9" style="vertical-align: middle; margin-right: 2px;">
+                                <path fill="#1db954" d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.494 17.306c-.218.358-.684.472-1.042.254-2.857-1.745-6.453-2.14-10.688-1.173-.41.094-.814-.162-.907-.571-.094-.41.162-.814.571-.908 4.636-1.059 8.604-.613 11.812 1.356.358.218.472.684.254 1.042zm1.467-3.262c-.275.447-.86.589-1.307.314-3.27-2.01-8.256-2.592-12.124-1.417-.502.153-1.03-.135-1.183-.637-.152-.502.135-1.03.637-1.183 4.417-1.34 9.914-.686 13.663 1.616.447.275.589.86.314 1.307zm.126-3.41c-3.921-2.328-10.384-2.542-14.123-1.406-.601.183-1.238-.162-1.421-.763-.183-.601.162-1.238.763-1.421 4.293-1.303 11.423-1.051 15.932 1.625.54.321.718 1.023.398 1.563-.32.541-1.022.719-1.549.402z"/>
+                            </svg>
+                            <span id="mediaAppName">Spotify</span>
+                        </span>
+                        <span id="mediaTimeTotal">0:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top-Right System Online Status Content -->
+            <div class="status-content">
+                <div class="status-dot"></div>
+                <span class="status-label">SYSTEM ONLINE</span>
+            </div>
+
+            <!-- Main Stage (Center Organism) -->
+            <div class="main-stage">
+                <!-- Center Living Tangled Organism (Real-time Procedural GPU Core at 511, 274) -->
+                <div class="hud-cluster">
+                    <canvas id="hydraCoreCanvasLight" class="hydra-organism-canvas" width="880" height="880"></canvas>
+                </div>
+            </div>
+
+            <!-- Bottom-Left Telemetry Card Content -->
+            <div class="telemetry-card-content target-glitch">
+                <div class="telemetry-accent-pill"></div>
+                <div class="telemetry-inner-body">
+                    <div class="telemetry-header">
+                        <div class="telemetry-dot"></div>
+                        <span id="hudNetStatus" class="telemetry-title" data-text="ONLINE">ONLINE</span>
+                    </div>
+                    <div class="telemetry-rows">
+                        <div class="telemetry-row">
+                            <div class="row-label">
+                                <svg class="hud-icon" viewBox="0 0 24 24">
+                                    <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                                    <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                                    <circle cx="12" cy="20" r="1" />
+                                </svg>
+                                <span>NETWORK</span>
+                            </div>
+                            <span id="hudSSID" class="row-val val-ssid" data-text="Connected">Connected</span>
+                        </div>
+                        <div class="telemetry-row">
+                            <div class="row-label">
+                                <svg class="hud-icon" viewBox="0 0 24 24">
+                                    <line x1="6" y1="20" x2="6" y2="16" />
+                                    <line x1="12" y1="20" x2="12" y2="10" />
+                                    <line x1="18" y1="20" x2="18" y2="4" />
+                                </svg>
+                                <span>SIGNAL</span>
+                            </div>
+                            <span id="hudSignal" class="row-val val-signal" data-text="Good">Good</span>
+                        </div>
+                        <div class="telemetry-row">
+                            <div class="row-label">
+                                <svg class="hud-icon" viewBox="0 0 24 24">
+                                    <line x1="7" y1="18" x2="7" y2="6" />
+                                    <polyline points="3 10 7 6 11 10" />
+                                    <line x1="17" y1="6" x2="17" y2="18" />
+                                    <polyline points="13 14 17 18 21 14" />
+                                </svg>
+                                <span>RATE</span>
+                            </div>
+                            <span id="hudSpeed" class="row-val val-speed" data-text="43.2 KB/s">43.2 KB/s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom-Right Action Button -->
+            <div class="action-btn-container" id="containerBtn">
+                <input type="text" class="cmd-text-input" id="cmdInput" placeholder="Enter system command..."
+                    autocomplete="off">
+
+                <!-- Chat Bubble Icon with cutout lines matching Canva -->
+                <svg class="chat-icon" id="iconAction" viewBox="0 0 24 24">
+                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+                    <line x1="7" y1="8" x2="15" y2="8" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
+                    <line x1="7" y1="12" x2="17" y2="12" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
+                </svg>
+
+                <!-- Send Icon -->
+                <svg class="send-icon" id="btnSend" viewBox="0 0 24 24">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="#00b4d8" />
+                </svg>
+            </div>
+
+            <!-- Quick Info Slide-out Panel (Compatible with main.py) -->
+            <div class="info-panel" id="infoPanel">
+                <div class="info-left-col" id="infoLeftCol"></div>
+                <div class="info-right-col" onclick="triggerDeepDive()" title="Click to view deep dive intel" style="cursor: pointer;">
+                    <div class="info-header-row">
+                        <h2 id="infoTitle" class="info-title">INTELLIGENCE INTEL</h2>
+                        <span class="info-badge">LIVE INTEL</span>
+                    </div>
+                    <p id="infoDescription" class="info-description">Awaiting query parameters...</p>
+                    <div style="margin-top: auto; display: flex; justify-content: flex-end; align-items: center; padding-top: 6px;">
+                        <span style="font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #0284c7; letter-spacing: 1.5px; font-weight: 700;">DEEP INTEL ↗</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Full-Screen Deep Dive Panel (Compatible with main.py) -->
+            <div class="deep-dive-panel" id="deepDivePanel">
+                <div class="dd-header">
+                    <span class="dd-title" id="ddTitle">TARGET DEEP DIVE</span>
+                    <span class="dd-close-glyph" onclick="closeDeepDiveHUD()" title="Close Deep Dive">✕</span>
+                </div>
+                <div class="dd-content">
+                    <div class="dd-images" id="ddImages"></div>
+                    <div class="dd-text" id="ddText">Processing deeper context...</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    
+
+    <!-- Full-Screen Lightbox Modal -->
+    <div class="img-modal" id="imgModal" onclick="closeImageModal()">
+        <img id="modalImg" src="" alt="Expanded View" onclick="event.stopPropagation();">
+    </div>
+
+    <script>
+        // Automatic Dynamic Scaling to Maintain Exact Proportions on ANY Screen
+        function resizeHUD() {
+            const scale = Math.min(window.innerWidth / 1024, window.innerHeight / 575);
+            document.documentElement.style.setProperty('--hud-scale', scale);
+        }
+        window.addEventListener('resize', resizeHUD);
+        resizeHUD();
+
+        // Static Theme State: Hydra operates exclusively in high-clarity Light HUD mode
+        let currentTheme = 'light';
+        function toggleTheme() {}
+        function setTheme() {}
+
+        // Window Visibility listener to coordinate rendering sleep when behind other apps or minimized
+        document.addEventListener('visibilitychange', function () {
+            if (typeof window.setWindowVisibility === 'function') {
+                window.setWindowVisibility(!document.hidden);
+            }
+        });
+
+        // ========================================================
+        // TOP-CENTER GLASSY MEDIA CONTROLLER (SPOTIFY & MEDIA)
+        // ========================================================
+        let currentMediaState = {
+            active: false,
+            app: 'Spotify',
+            title: 'Spotify Ready',
+            artist: 'Click play to listen',
+            album: '',
+            status: 'STOPPED',
+            position: 0,
+            duration: 0,
+            thumb: ''
+        };
+
+        function formatMediaTime(sec) {
+            if (!sec || isNaN(sec) || sec < 0) return '0:00';
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
+        function updateMediaState(data) {
+            if (!data) return;
+            currentMediaState = Object.assign({}, currentMediaState, data);
+
+            const titleEl = document.getElementById('mediaTrackTitle');
+            const artistEl = document.getElementById('mediaArtistName');
+            const appEl = document.getElementById('mediaAppName');
+            const iconPlay = document.getElementById('iconMediaPlay');
+            const iconPause = document.getElementById('iconMediaPause');
+            const artImg = document.getElementById('mediaArtImg');
+            const placeholder = document.getElementById('mediaArtPlaceholder');
+            const progressFill = document.getElementById('mediaProgressFill');
+            const progressKnob = document.getElementById('mediaProgressKnob');
+            const timeCur = document.getElementById('mediaTimeCurrent');
+            const timeTot = document.getElementById('mediaTimeTotal');
+
+            if (titleEl) titleEl.innerText = currentMediaState.title || 'Spotify';
+            if (artistEl) artistEl.innerText = currentMediaState.artist || 'No track playing';
+            if (appEl) appEl.innerText = currentMediaState.app || 'Spotify';
+
+            const isPlaying = (currentMediaState.status || '').toUpperCase() === 'PLAYING';
+            if (iconPlay && iconPause) {
+                iconPlay.style.display = isPlaying ? 'none' : 'block';
+                iconPause.style.display = isPlaying ? 'block' : 'none';
+            }
+
+            // Thumbnail artwork
+            if (data.thumb) {
+                if (artImg) {
+                    artImg.src = data.thumb;
+                    artImg.style.display = 'block';
+                }
+                if (placeholder) placeholder.style.display = 'none';
+            } else if (!currentMediaState.thumb) {
+                if (artImg) artImg.style.display = 'none';
+                if (placeholder) placeholder.style.display = 'flex';
+            }
+
+            // Timeline position and duration
+            const cur = currentMediaState.position || 0;
+            const dur = currentMediaState.duration || 0;
+            const pct = dur > 0 ? Math.min(Math.max((cur / dur) * 100, 0), 100) : 0;
+
+            if (progressFill) progressFill.style.width = pct + '%';
+            if (progressKnob) progressKnob.style.left = pct + '%';
+            if (timeCur) timeCur.innerText = formatMediaTime(cur);
+            if (timeTot) timeTot.innerText = formatMediaTime(dur);
+        }
+
+        function sendMediaAction(action) {
+            console.log('HYDRA_MEDIA_CMD:' + action);
+            if (action === 'toggle') {
+                const isPlaying = (currentMediaState.status || '').toUpperCase() === 'PLAYING';
+                currentMediaState.status = isPlaying ? 'PAUSED' : 'PLAYING';
+                const iconPlay = document.getElementById('iconMediaPlay');
+                const iconPause = document.getElementById('iconMediaPause');
+                if (iconPlay && iconPause) {
+                    iconPlay.style.display = isPlaying ? 'block' : 'none';
+                    iconPause.style.display = isPlaying ? 'none' : 'block';
+                }
+            }
+        }
+
+        function handleSeekClick(e) {
+            const track = document.getElementById('mediaProgressTrack');
+            if (!track || !currentMediaState.duration) return;
+            const rect = track.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const pct = Math.min(Math.max(clickX / rect.width, 0), 1);
+            const targetSec = pct * currentMediaState.duration;
+
+            // Immediate optimistic scrub
+            currentMediaState.position = targetSec;
+            const fill = document.getElementById('mediaProgressFill');
+            const knob = document.getElementById('mediaProgressKnob');
+            const timeCur = document.getElementById('mediaTimeCurrent');
+            if (fill) fill.style.width = (pct * 100) + '%';
+            if (knob) knob.style.left = (pct * 100) + '%';
+            if (timeCur) timeCur.innerText = formatMediaTime(targetSec);
+
+            console.log('HYDRA_MEDIA_CMD:seek:' + targetSec.toFixed(1));
+        }
+
+        // Action Button and Command Input Logic
+        function handleCommandSubmit(input, container) {
+            const command = input.value.trim();
+            if (command) {
+                console.log("HYDRA_CMD:" + command);
+                document.querySelectorAll('.cmd-text-input').forEach(inp => inp.value = '');
+                document.querySelectorAll('.action-btn-container').forEach(c => c.classList.remove('expanded'));
+                input.blur();
+            }
+        }
+
+        document.querySelectorAll('.action-btn-container').forEach(containerBtn => {
+            const cmdInput = containerBtn.querySelector('.cmd-text-input');
+            const btnSend = containerBtn.querySelector('.send-icon');
+
+            containerBtn.addEventListener('click', function (e) {
+                if (!containerBtn.classList.contains('expanded')) {
+                    containerBtn.classList.add('expanded');
+                    if (cmdInput) cmdInput.focus();
+                }
+            });
+
+            if (btnSend) {
+                btnSend.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    if (cmdInput) handleCommandSubmit(cmdInput, containerBtn);
+                });
+            }
+
+            if (cmdInput) {
+                cmdInput.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        handleCommandSubmit(cmdInput, containerBtn);
+                    } else if (e.key === 'Escape') {
+                        cmdInput.value = '';
+                        containerBtn.classList.remove('expanded');
+                        cmdInput.blur();
+                    }
+                });
+            }
+        });
+
+        // Close expanded command bar on outside click
+        document.addEventListener('click', function (e) {
+            document.querySelectorAll('.action-btn-container.expanded').forEach(containerBtn => {
+                if (!containerBtn.contains(e.target)) {
+                    containerBtn.classList.remove('expanded');
+                    const cmdInput = containerBtn.querySelector('.cmd-text-input');
+                    if (cmdInput) cmdInput.blur();
+                }
+            });
+        });
+
+        function setCoreText(text) {
+            document.querySelectorAll('.core-brand-text').forEach(coreEl => {
+                coreEl.innerText = text;
+            });
+        }
+
+        function updateHUD() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+            const timeStr = now.toLocaleTimeString('en-GB', { hour12: false });
+
+            document.querySelectorAll('.clock-time').forEach(hudTime => {
+                hudTime.innerText = timeStr;
+                hudTime.setAttribute('data-text', timeStr);
+            });
+            document.querySelectorAll('.clock-date').forEach(hudDate => {
+                hudDate.innerText = dateStr;
+                hudDate.setAttribute('data-text', dateStr);
+            });
+        }
+        setInterval(updateHUD, 1000);
+        updateHUD();
+
+        function updateRealNetwork(ssid, signal, speed) {
+            const isOnline = ssid !== 'DISCONNECTED';
+            document.querySelectorAll('.telemetry-title').forEach(hudNetStatus => {
+                hudNetStatus.innerText = isOnline ? 'ONLINE' : 'OFFLINE';
+                hudNetStatus.setAttribute('data-text', hudNetStatus.innerText);
+            });
+            document.querySelectorAll('.val-ssid').forEach(hudSSID => {
+                hudSSID.innerText = ssid;
+                hudSSID.setAttribute('data-text', ssid);
+            });
+            document.querySelectorAll('.val-signal').forEach(hudSignal => {
+                hudSignal.innerText = signal;
+                hudSignal.setAttribute('data-text', signal);
+            });
+            document.querySelectorAll('.val-speed').forEach(hudSpeed => {
+                hudSpeed.innerText = speed;
+                hudSpeed.setAttribute('data-text', speed);
+            });
+        }
+
+        // Sporadic Glitch Effect Every 12 Seconds
+        setInterval(() => {
+            const elements = document.querySelectorAll('.target-glitch > div, .target-glitch span');
+            elements.forEach(el => el.classList.add('glitch-active'));
+            setTimeout(() => {
+                elements.forEach(el => el.classList.remove('glitch-active'));
+            }, 350);
+        }, 12000);
+
+        function triggerScreenSwipe(active) {
+            document.querySelectorAll('.main-stage').forEach(stage => {
+                stage.classList.toggle('swiped-left', active);
+            });
+        }
+
+        let currentInfoUrl = "";
+        let currentSearchQuery = "";
+
+        function populateInfoHUD(title, text, items, primaryUrl) {
+            currentSearchQuery = title || "";
+            currentInfoUrl = primaryUrl || "";
+            document.body.classList.remove('deep-dive-active');
+            setTimeout(() => {
+                document.querySelectorAll('.info-title').forEach(el => el.innerText = title);
+                document.querySelectorAll('.info-description').forEach(el => el.innerText = text);
+                document.querySelectorAll('.info-left-col').forEach(leftCol => {
+                    leftCol.innerHTML = '';
+                    if (Array.isArray(items)) {
+                        items.forEach((item, idx) => {
+                            let defaultImg = currentTheme === 'dark' ? 'circle_dark.png' : 'circle.png';
+                            let imgSrc = item.img ? item.img : defaultImg;
+                            leftCol.innerHTML += `
+                                <div class="info-card">
+                                    <img src="${imgSrc}" alt="Preview #${idx+1}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='${defaultImg}';" onclick="openImageModal(this.src)">
+                                    <div class="source-txt">${item.source || 'PHOTO #' + String(idx+1).padStart(2, '0')}</div>
+                                </div>`;
+                        });
+                    }
+                });
+                triggerScreenSwipe(true);
+            }, 300);
+        }
+
+        function resetScreenSwipe() {
+            document.body.classList.remove('deep-dive-active');
+            triggerScreenSwipe(false);
+        }
+
+        function openImageModal(src) {
+            if (!src || src.includes('circle.png')) return;
+            document.getElementById('modalImg').src = src;
+            document.getElementById('imgModal').classList.add('active');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imgModal').classList.remove('active');
+        }
+
+        function openDeepDiveHUD(title, htmlContent, imagesList, primaryUrl) {
+            if (title) currentSearchQuery = title;
+            if (primaryUrl) currentInfoUrl = primaryUrl;
+
+            document.querySelectorAll('.dd-title').forEach(el => el.innerText = title || 'TARGET DEEP DIVE');
+            document.querySelectorAll('.dd-text').forEach(el => el.innerHTML = htmlContent);
+
+            document.querySelectorAll('.dd-images').forEach(imgContainer => {
+                imgContainer.innerHTML = '';
+                if (Array.isArray(imagesList) && imagesList.length > 0) {
+                    imagesList.forEach((src, idx) => {
+                        if (src && !src.includes('circle.png')) {
+                            const badge = String(idx + 1).padStart(2, '0');
+                            let defaultImg = currentTheme === 'dark' ? 'circle_dark.png' : 'circle.png';
+                            imgContainer.innerHTML += `
+                                <div class="dd-img-wrap" onclick="openImageModal('${src}')">
+                                    <img src="${src}" alt="Intel #${badge}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='${defaultImg}';">
+                                    <span class="dd-img-badge">#${badge}</span>
+                                </div>`;
+                        }
+                    });
+                }
+            });
+
+            document.body.classList.add('deep-dive-active');
+        }
+
+        function closeDeepDiveHUD() {
+            document.body.classList.remove('deep-dive-active');
+        }
+
+        function triggerDeepDive() {
+            console.log("HYDRA_CMD:dive deep");
+        }
+
+        function openSearchInBrowser() {
+            if (currentInfoUrl && currentInfoUrl.startsWith('http')) {
+                console.log("HYDRA_OPEN_URL:" + currentInfoUrl);
+            } else if (currentSearchQuery) {
+                console.log("HYDRA_OPEN_URL:https://www.google.com/search?q=" + encodeURIComponent(currentSearchQuery));
+            } else {
+                console.log("HYDRA_OPEN_URL:https://www.google.com");
+            }
+        }
+
+        function openExternalLink(url) {
+            if (url) {
+                console.log("HYDRA_OPEN_URL:" + url);
+            }
+        }
+
+        /* ======================================================== */
+        /* PHASE 15: CAMERA MODE & OPTICAL HUD CONTROLLER           */
+        /* ======================================================== */
+        let isCameraMode = false;
+        let gestureBannerTimeout = null;
+        let canvasFallbackActive = false;
+        let canvasLoopTimer = null;
+
+        function enableCameraMode(streamUrl) {
+            isCameraMode = true;
+            document.body.classList.add('camera-mode-active');
+            
+            const baseUrl = streamUrl || 'http://127.0.0.1:8765/video_feed';
+            const streamImgLight = document.getElementById('cameraStreamImgLight');
+            const streamCanvas = document.getElementById('cameraStreamCanvas');
+            
+            if (streamImgLight) {
+                streamImgLight.style.display = 'block';
+                streamImgLight.src = baseUrl + '?t=' + Date.now();
+                streamImgLight.onerror = function () {
+                    // Suppress broken image icon and switch to canvas renderer immediately
+                    streamImgLight.style.display = 'none';
+                    if (isCameraMode && !canvasFallbackActive) {
+                        startCanvasCameraFallback();
+                    }
+                };
+                streamImgLight.onload = function () {
+                    // MJPEG stream is rendering directly
+                    streamImgLight.style.display = 'block';
+                    if (streamCanvas) streamCanvas.style.display = 'none';
+                };
+            }
+
+            // Also launch canvas polling as a backup watchdog
+            setTimeout(() => {
+                if (isCameraMode && (!streamImgLight || streamImgLight.naturalWidth === 0)) {
+                    startCanvasCameraFallback();
+                }
+            }, 750);
+
+            const statusEl = document.getElementById('camLensStatus');
+            if (statusEl) statusEl.innerText = 'ACTIVE';
+            console.log('[HUD] Optical eye engaged:', baseUrl);
+        }
+
+        function startCanvasCameraFallback() {
+            if (canvasFallbackActive) return;
+            canvasFallbackActive = true;
+            const canvas = document.getElementById('cameraStreamCanvas');
+            if (!canvas) return;
+            canvas.style.display = 'block';
+            const ctx = canvas.getContext('2d');
+
+            const frameImg = new Image();
+            frameImg.crossOrigin = "anonymous";
+            
+            frameImg.onload = function () {
+                if (!isCameraMode) return;
+                if (canvas.width !== frameImg.naturalWidth) {
+                    canvas.width = frameImg.naturalWidth;
+                    canvas.height = frameImg.naturalHeight;
+                }
+                ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+                canvasLoopTimer = setTimeout(requestNextFrame, 33);
+            };
+
+            frameImg.onerror = function () {
+                if (!isCameraMode) return;
+                canvasLoopTimer = setTimeout(requestNextFrame, 150);
+            };
+
+            function requestNextFrame() {
+                if (!isCameraMode) return;
+                frameImg.src = 'http://127.0.0.1:8765/frame.jpg?t=' + Date.now();
+            }
+
+            requestNextFrame();
+            console.log('[HUD] Seamless 30 FPS Canvas Camera Renderer online');
+        }
+
+        function disableCameraMode() {
+            isCameraMode = false;
+            canvasFallbackActive = false;
+            if (canvasLoopTimer) {
+                clearTimeout(canvasLoopTimer);
+                canvasLoopTimer = null;
+            }
+            document.body.classList.remove('camera-mode-active');
+            
+            const streamImgLight = document.getElementById('cameraStreamImgLight');
+            if (streamImgLight) {
+                streamImgLight.src = '';
+                streamImgLight.style.display = 'none';
+            }
+            const streamCanvas = document.getElementById('cameraStreamCanvas');
+            if (streamCanvas) {
+                streamCanvas.style.display = 'none';
+            }
+            console.log('[HUD] Optical eye disengaged');
+        }
+
+        function toggleCameraMode() {
+            if (isCameraMode) {
+                console.log("HYDRA_CMD:close eye");
+            } else {
+                console.log("HYDRA_CMD:open eye");
+            }
+        }
+
+        function updateCameraTelemetry(data) {
+            if (!data) return;
+            const statusEl = document.getElementById('camLensStatus');
+            if (statusEl) {
+                if (data.target && data.target.includes('LOCKED')) {
+                    statusEl.innerText = 'HUMAN LOCKED';
+                } else if (data.gesture && data.gesture !== 'NONE') {
+                    statusEl.innerText = data.gesture;
+                } else {
+                    statusEl.innerText = 'MONITORING';
+                }
+            }
+        }
+
+        function showGestureNotification(gesture, actionDesc) {
+            ['Light', 'Dark'].forEach(suffix => {
+                const banner = document.getElementById('cameraGestureBanner' + suffix);
+                const text = document.getElementById('gestureText' + suffix);
+                if (banner && text) {
+                    text.innerText = actionDesc || ('[GESTURE: ' + gesture + ']');
+                    banner.classList.add('active');
+                }
+            });
+
+            if (gestureBannerTimeout) clearTimeout(gestureBannerTimeout);
+            gestureBannerTimeout = setTimeout(() => {
+                ['Light', 'Dark'].forEach(suffix => {
+                    const banner = document.getElementById('cameraGestureBanner' + suffix);
+                    if (banner) banner.classList.remove('active');
+                });
+            }, 2600);
+        }
+    </script>
+    <script src="assets/three.min.js"></script>
+    <script src="assets/hydra_organism.js"></script>
+</body>
+
+</html>

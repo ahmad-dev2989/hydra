@@ -9,6 +9,7 @@ import time
 import re
 import threading
 import ctypes
+import socket
 from typing import Dict, List, Optional, Tuple
 
 try:
@@ -478,56 +479,171 @@ class AppIndexEngine:
 
 class HardwareDriver:
     def __init__(self):
+        try:
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        except Exception:
+            try:
+                ctypes.windll.user32.SetProcessDPIAware()
+            except Exception:
+                pass
+
         if HAS_PYAUTOGUI:
-            self.screen_width, self.screen_height = pyautogui.size()
+            try:
+                pyautogui.FAILSAFE = False
+                pyautogui.PAUSE = 0.02
+                self.screen_width, self.screen_height = pyautogui.size()
+            except Exception:
+                self.screen_width = ctypes.windll.user32.GetSystemMetrics(0)
+                self.screen_height = ctypes.windll.user32.GetSystemMetrics(1)
         else:
             self.screen_width = ctypes.windll.user32.GetSystemMetrics(0)
             self.screen_height = ctypes.windll.user32.GetSystemMetrics(1)
 
+        self.hud_window_provider = None
+
+    def set_hud_window_provider(self, provider_fn):
+        self.hud_window_provider = provider_fn
+
+    def get_hud_window_bounds(self) -> Tuple[int, int, int, int]:
+        if self.hud_window_provider:
+            try:
+                res = self.hud_window_provider()
+                if res and len(res) == 4 and res[2] > 50 and res[3] > 50:
+                    return int(res[0]), int(res[1]), int(res[2]), int(res[3])
+            except Exception:
+                pass
+
+        try:
+            from ctypes import wintypes
+            hwnd = ctypes.windll.user32.FindWindowW(None, "HYDRA System Interface")
+            if hwnd:
+                rect = wintypes.RECT()
+                ctypes.windll.user32.GetClientRect(hwnd, ctypes.byref(rect))
+                pt = wintypes.POINT(0, 0)
+                ctypes.windll.user32.ClientToScreen(hwnd, ctypes.byref(pt))
+                ww = rect.right - rect.left
+                wh = rect.bottom - rect.top
+                if ww > 50 and wh > 50:
+                    return (int(pt.x), int(pt.y), int(ww), int(wh))
+        except Exception:
+            pass
+
+        def_w, def_h = 1200, 750
+        return ((self.screen_width - def_w) // 2, (self.screen_height - def_h) // 2, def_w, def_h)
+
+    def locate_template_on_screen(self, template_paths: List[str], confidence_threshold: float = 0.78, search_region: Optional[Tuple[int, int, int, int]] = None) -> Optional[Tuple[int, int]]:
+        try:
+            import cv2
+            import numpy as np
+            from PIL import ImageGrab
+
+            user32 = ctypes.windll.user32
+            hwinsta = user32.OpenWindowStationW('WinSta0', False, 0x037F)
+            if hwinsta:
+                user32.SetProcessWindowStation(hwinsta)
+                hdesk = user32.OpenDesktopW('Default', 0, False, 0x01FF)
+                if hdesk:
+                    user32.SetThreadDesktop(hdesk)
+
+            bbox = None
+            offset_x, offset_y = 0, 0
+            if search_region:
+                rx, ry, rw, rh = search_region
+                bbox = (rx, ry, rx + rw, ry + rh)
+                offset_x, offset_y = rx, ry
+
+            screen_pil = ImageGrab.grab(bbox=bbox)
+            screen_np = np.array(screen_pil)
+            if screen_np.size == 0:
+                return None
+            screen_bgr = cv2.cvtColor(screen_np, cv2.COLOR_RGB2BGR)
+
+            best_val = -1.0
+            best_pt = None
+
+            for t_file in template_paths:
+                full_path = os.path.abspath(t_file)
+                if not os.path.exists(full_path):
+                    continue
+                tmpl = cv2.imread(full_path)
+                if tmpl is None or tmpl.shape[0] > screen_bgr.shape[0] or tmpl.shape[1] > screen_bgr.shape[1]:
+                    continue
+
+                res = cv2.matchTemplate(screen_bgr, tmpl, cv2.TM_CCOEFF_NORMED)
+                min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+                if max_val > best_val:
+                    best_val = max_val
+                    best_pt = (offset_x + max_loc[0] + tmpl.shape[1] // 2, offset_y + max_loc[1] + tmpl.shape[0] // 2)
+
+            if best_val >= confidence_threshold and best_pt is not None:
+                return best_pt
+        except Exception:
+            pass
+        return None
+
     def get_position(self):
         if HAS_PYAUTOGUI:
-            x, y = pyautogui.position()
-            return x, y
+            try:
+                x, y = pyautogui.position()
+                return int(x), int(y)
+            except Exception:
+                pass
         class POINT(ctypes.Structure):
             _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
         pt = POINT()
         ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
-        return pt.x, pt.y
+        return int(pt.x), int(pt.y)
 
-    def move_to(self, x, y, duration=0.15):
+    def move_to(self, x, y, duration=0.2):
         x = max(0, min(self.screen_width - 1, int(x)))
         y = max(0, min(self.screen_height - 1, int(y)))
+
+        # 1. Smooth glide if PyAutoGUI is available
         if HAS_PYAUTOGUI:
-            pyautogui.moveTo(x, y, duration=duration)
-        else:
+            try:
+                pyautogui.moveTo(x, y, duration=duration)
+            except Exception:
+                pass
+
+        # 2. Hard lock to exact physical screen coordinates (eliminates DPI shifts)
+        try:
             ctypes.windll.user32.SetCursorPos(x, y)
+        except Exception:
+            pass
+
+        # 3. Low-level Windows hardware driver event
+        try:
+            MOUSEEVENTF_MOVE = 0x0001
+            MOUSEEVENTF_ABSOLUTE = 0x8000
+            norm_x = int(x * 65535 / (self.screen_width - 1)) if self.screen_width > 1 else 0
+            norm_y = int(y * 65535 / (self.screen_height - 1)) if self.screen_height > 1 else 0
+            ctypes.windll.user32.mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, norm_x, norm_y, 0, 0)
+        except Exception:
+            pass
+
         return True, f"Moved mouse to {x}, {y}, sir."
 
-    def move_relative(self, dx, dy, duration=0.15):
-        if HAS_PYAUTOGUI:
-            pyautogui.moveRel(int(dx), int(dy), duration=duration)
-            x, y = pyautogui.position()
-        else:
-            cur_x, cur_y = self.get_position()
-            x = max(0, min(self.screen_width - 1, cur_x + int(dx)))
-            y = max(0, min(self.screen_height - 1, cur_y + int(dy)))
-            ctypes.windll.user32.SetCursorPos(x, y)
-        return True, f"Moved mouse to {x}, {y}, sir."
+    def move_relative(self, dx, dy, duration=0.2):
+        cur_x, cur_y = self.get_position()
+        target_x = max(0, min(self.screen_width - 1, cur_x + int(dx)))
+        target_y = max(0, min(self.screen_height - 1, cur_y + int(dy)))
+        return self.move_to(target_x, target_y, duration=duration)
 
     def click(self, button="left", clicks=1):
-        if HAS_PYAUTOGUI:
-            pyautogui.click(button=button, clicks=clicks)
-        else:
-            down_flag = 0x0002
-            up_flag = 0x0004
-            if button.lower() == "right":
-                down_flag, up_flag = 0x0008, 0x0010
-            elif button.lower() == "middle":
-                down_flag, up_flag = 0x0020, 0x0040
-            for _ in range(clicks):
-                ctypes.windll.user32.mouse_event(down_flag, 0, 0, 0, 0)
-                time.sleep(0.02)
-                ctypes.windll.user32.mouse_event(up_flag, 0, 0, 0, 0)
+        down_flag = 0x0002
+        up_flag = 0x0004
+        if button.lower() == "right":
+            down_flag, up_flag = 0x0008, 0x0010
+        elif button.lower() == "middle":
+            down_flag, up_flag = 0x0020, 0x0040
+
+        # Native hardware click at locked position ensures 100% precision with zero shift
+        for _ in range(clicks):
+            ctypes.windll.user32.mouse_event(down_flag, 0, 0, 0, 0)
+            time.sleep(0.04)
+            ctypes.windll.user32.mouse_event(up_flag, 0, 0, 0, 0)
+            if clicks > 1:
+                time.sleep(0.06)
                 if clicks > 1:
                     time.sleep(0.08)
         click_type = "Double clicked" if clicks == 2 else ("Triple clicked" if clicks == 3 else f"{button.capitalize()} clicked")
@@ -582,20 +698,381 @@ class HardwareDriver:
         direction = "up" if amount > 0 else "down"
         return True, f"Scrolled {direction}, sir."
 
+    def get_brightness(self):
+        try:
+            res = subprocess.check_output(
+                ["powershell", "-NoProfile", "-Command", "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness).CurrentBrightness"],
+                timeout=2, creationflags=0x08000000
+            )
+            return int(res.decode().strip())
+        except Exception:
+            return 60
+
+    def set_brightness(self, level: int):
+        level = max(0, min(100, int(level)))
+        try:
+            cmd = f"(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1, {level})"
+            subprocess.Popen(
+                ["powershell", "-NoProfile", "-Command", cmd],
+                creationflags=0x08000000
+            )
+            return True, f"Display brightness set to {level} percent, sir."
+        except Exception as e:
+            return False, f"Failed to adjust brightness: {e}"
+
+    def find_visual_feature_on_screen(self, description: str) -> Optional[Tuple[int, int]]:
+        """
+        Dynamically analyzes the whole screen or specific quadrants using OpenCV computer vision.
+        Detects visual elements by color (orange, green, blue, yellow, red), geometry (circle, square),
+        and spatial regions (bottom-left, bottom, top-right, etc.).
+        """
+        try:
+            import cv2
+            import numpy as np
+
+            # Use DPI-aware GDI screen grabber
+            screen_pil = self.vision.capture_screen()
+            screen_np = np.array(screen_pil)
+            if screen_np.size == 0:
+                return None
+            screen_bgr = cv2.cvtColor(screen_np, cv2.COLOR_RGB2BGR)
+            h, w, _ = screen_bgr.shape
+            desc = description.lower()
+
+            # Determine region bounding box if user specified a quadrant or location
+            rx1, ry1, rx2, ry2 = 0, 0, w, h
+            if any(k in desc for k in ["bottom left", "bottom-left", "lower left"]):
+                rx1, ry1, rx2, ry2 = 0, int(h * 0.5), int(w * 0.45), h
+            elif any(k in desc for k in ["bottom right", "bottom-right", "lower right"]):
+                rx1, ry1, rx2, ry2 = int(w * 0.55), int(h * 0.5), w, h
+            elif any(k in desc for k in ["top left", "top-left", "upper left"]):
+                rx1, ry1, rx2, ry2 = 0, 0, int(w * 0.45), int(h * 0.5)
+            elif any(k in desc for k in ["top right", "top-right", "upper right"]):
+                rx1, ry1, rx2, ry2 = int(w * 0.55), 0, w, int(h * 0.5)
+            elif any(k in desc for k in ["bottom", "taskbar"]):
+                rx1, ry1, rx2, ry2 = 0, int(h * 0.65), w, h
+            elif "top" in desc:
+                rx1, ry1, rx2, ry2 = 0, 0, w, int(h * 0.35)
+            elif "left" in desc:
+                rx1, ry1, rx2, ry2 = 0, 0, int(w * 0.4), h
+            elif "right" in desc:
+                rx1, ry1, rx2, ry2 = int(w * 0.6), 0, w, h
+            elif any(k in desc for k in ["center", "middle"]):
+                rx1, ry1, rx2, ry2 = int(w * 0.2), int(h * 0.2), int(w * 0.8), int(h * 0.8)
+
+            hsv = cv2.cvtColor(screen_bgr, cv2.COLOR_BGR2HSV)
+            roi_hsv = hsv[ry1:ry2, rx1:rx2]
+
+            mask = None
+            if any(k in desc for k in ["orange", "amber"]):
+                mask = cv2.inRange(roi_hsv, np.array([8, 120, 120]), np.array([28, 255, 255]))
+            elif "green" in desc:
+                mask = cv2.inRange(roi_hsv, np.array([40, 90, 90]), np.array([85, 255, 255]))
+            elif any(k in desc for k in ["blue", "cyan"]):
+                mask = cv2.inRange(roi_hsv, np.array([85, 100, 100]), np.array([135, 255, 255]))
+            elif "yellow" in desc:
+                mask = cv2.inRange(roi_hsv, np.array([24, 100, 100]), np.array([36, 255, 255]))
+            elif "red" in desc:
+                m1 = cv2.inRange(roi_hsv, np.array([0, 120, 120]), np.array([8, 255, 255]))
+                m2 = cv2.inRange(roi_hsv, np.array([170, 120, 120]), np.array([180, 255, 255]))
+                mask = cv2.bitwise_or(m1, m2)
+
+            if mask is None:
+                return None
+
+            # Morphological close to seal interior cutouts/icons (e.g. black play triangle inside green button)
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+            closed = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+            contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            want_circle = any(w in desc for w in ["circle", "round", "dot", "sun", "ball", "sphere", "disc", "button", "icon"])
+
+            best_cand = None
+            best_score = -1
+
+            for cnt in contours:
+                hull = cv2.convexHull(cnt)
+                area = cv2.contourArea(hull)
+                if area < 50:
+                    continue
+                peri = cv2.arcLength(hull, True)
+                circularity = (4 * np.pi * area / (peri * peri)) if peri > 0 else 0
+                (cx_rel, cy_rel), radius = cv2.minEnclosingCircle(hull)
+                circle_area = np.pi * (radius ** 2)
+                fill = area / circle_area if circle_area > 0 else 0
+
+                cx = rx1 + int(cx_rel)
+                cy = ry1 + int(cy_rel)
+
+                score = area
+                if want_circle:
+                    if circularity < 0.55 or fill < 0.55:
+                        continue
+                    score = area * circularity * fill
+
+                if score > best_score:
+                    best_score = score
+                    best_cand = (cx, cy)
+
+            return best_cand
+        except Exception:
+            return None
+
+    def find_visual_target(self, target_name: str) -> Optional[Tuple[int, int]]:
+        if not target_name:
+            return None
+        t = target_name.lower().strip()
+
+        # 1. Direct screen directional coordinates
+        if t in ["bottom", "the bottom", "bottom of screen", "screen bottom", "down"]:
+            return self.screen_width // 2, self.screen_height - 60
+        if t in ["top", "the top", "top of screen", "screen top", "up"]:
+            return self.screen_width // 2, 60
+        if t in ["left", "the left", "left side"]:
+            return 60, self.screen_height // 2
+        if t in ["right", "the right", "right side"]:
+            return self.screen_width - 60, self.screen_height // 2
+        if t in ["bottom left", "bottom-left", "lower left"]:
+            return 60, self.screen_height - 60
+        if t in ["bottom right", "bottom-right", "lower right"]:
+            return self.screen_width - 60, self.screen_height - 60
+        if t in ["top left", "top-left", "upper left"]:
+            return 60, 60
+        if t in ["top right", "top-right", "upper right"]:
+            return self.screen_width - 60, 60
+        if t in ["center", "middle", "screen center", "screen middle"]:
+            return self.screen_width // 2, self.screen_height // 2
+
+        # 2. Dynamic Computer Vision Feature Detection (Color + Geometry + Location)
+        if any(c in t for c in ["orange", "amber", "green", "blue", "cyan", "yellow", "red", "circle", "round"]):
+            pt = self.find_visual_feature_on_screen(t)
+            if pt:
+                return pt
+
+        # Clean conversational filler phrases
+        clean_t = re.sub(r'\b(which\s+is|which\s+was|that\s+is|that\s+was|located|placed)\b', '', t)
+        clean_t = re.sub(r'\b(on\s+the\s+task\s*bar|in\s+the\s+task\s*bar|on\s+task\s*bar|in\s+task\s*bar|on\s+the\s+screen|on\s+screen)\b', '', clean_t)
+        clean_t = re.sub(r'[^\w\s-]', ' ', clean_t).strip()
+
+        # 3. Dynamic Template Matching via OpenCV
+        template_files = []
+        taskbar_search = False
+        if any(w in clean_t for w in ["sun", "light mode", "theme", "mode", "toggle", "switch", "dark mode"]):
+            template_files.extend(["assets/sun_icon_light.png", "assets/sun_icon_dark.png"])
+        elif any(w in clean_t for w in ["window", "windows", "start", "os"]):
+            template_files.extend(["assets/real_start_icon.png", "assets/icon_start.png"])
+            taskbar_search = True
+        elif any(w in clean_t for w in ["whatsapp", "whatapp", "wa"]):
+            template_files.extend(["assets/real_whatsapp_icon.png"])
+            taskbar_search = True
+        elif any(w in clean_t for w in ["folder", "file explorer", "explorer", "files", "my pc"]):
+            template_files.extend(["assets/real_explorer_icon.png"])
+            taskbar_search = True
+        elif any(w in clean_t for w in ["spotify", "music"]):
+            template_files.extend(["assets/real_spotify_icon.png"])
+            taskbar_search = True
+        elif any(w in clean_t for w in ["canva"]):
+            template_files.extend(["assets/real_canva_icon.png"])
+            taskbar_search = True
+        elif any(w in clean_t for w in ["antigravity", "ide", "code icon", "editor"]):
+            template_files.extend(["assets/real_antigravity_icon.png"])
+            taskbar_search = True
+        elif any(w in clean_t for w in ["word", "doc", "microsoft word"]):
+            template_files.extend(["assets/real_word_icon.png"])
+            taskbar_search = True
+        elif any(w in clean_t for w in ["brave", "lion"]):
+            template_files.extend(["assets/real_brave_icon.png"])
+            taskbar_search = True
+        elif any(w in clean_t for w in ["terminal", "cmd", "command prompt", "console"]):
+            template_files.extend(["assets/real_terminal_icon.png"])
+            taskbar_search = True
+        elif any(w in clean_t for w in ["python", "py"]):
+            template_files.extend(["assets/real_python_icon.png"])
+            taskbar_search = True
+        elif any(w in clean_t for w in ["weather", "orange circle", "temperature", "sunny"]):
+            template_files.extend(["assets/real_orange_circle.png"])
+            taskbar_search = True
+        elif any(w in clean_t for w in ["wifi", "wi-fi", "internet", "network", "wireless"]):
+            template_files.extend(["assets/real_wifi_icon.png"])
+            taskbar_search = True
+        elif any(w in clean_t for w in ["sound", "volume", "speaker", "audio"]):
+            template_files.extend(["assets/real_volume_icon.png"])
+            taskbar_search = True
+        elif any(w in clean_t for w in ["battery", "power", "charge"]):
+            template_files.extend(["assets/real_battery_icon.png"])
+            taskbar_search = True
+
+        if template_files:
+            search_region = None
+            if taskbar_search:
+                search_region = (0, max(0, self.screen_height - 65), self.screen_width, 65)
+            pt = self.locate_template_on_screen(template_files, confidence_threshold=0.76, search_region=search_region)
+            if pt:
+                return pt
+
+        # 4. Geometric Resolution & Desktop/Taskbar Grounding Engine
+        taskbar_y = self.screen_height - 24
+        cx = self.screen_width // 2
+
+        # A. HYDRA HUD Elements (Sun/Moon/Theme toggle, message bubble)
+        if any(w in clean_t for w in ["sun", "moon", "theme", "mode", "toggle", "switch", "dark mode", "light mode"]):
+            wx, wy, ww, wh = self.get_hud_window_bounds()
+            scale = min(ww / 1024.0, wh / 575.0)
+            cx_win = wx + (ww // 2)
+            cy_win = wy + (wh // 2)
+            x = int(cx_win + (-1 * scale))
+            y = int(cy_win + (-243.5 * scale))
+            return x, y
+
+        if any(w in clean_t for w in ["message", "chat", "command", "bubble", "input", "talk", "mic", "action"]):
+            wx, wy, ww, wh = self.get_hud_window_bounds()
+            scale = min(ww / 1024.0, wh / 575.0)
+            cx_win = wx + (ww // 2)
+            cy_win = wy + (wh // 2)
+            x = int(cx_win + (449 * scale))
+            y = int(cy_win + (203.5 * scale))
+            return x, y
+
+        # In-App Application Search Bar / Search Icon (Spotify, Browsers, Explorer, Active App)
+        if any(w in clean_t for w in ["search bar", "search icon", "search box", "search input", "search field", "search button", "search tab", "search"]) and not any(k in clean_t for k in ["taskbar", "task bar", "windows search", "start search"]):
+            try:
+                from window_ops import WINDOW_MGR
+                from ctypes import wintypes
+                import ctypes
+                user32 = ctypes.windll.user32
+                open_wins = WINDOW_MGR.get_open_windows()
+                fg_hwnd = user32.GetForegroundWindow()
+                active_win = next((w for w in open_wins if w["hwnd"] == fg_hwnd), None)
+                if not active_win and open_wins:
+                    active_win = open_wins[0]
+
+                if active_win:
+                    rect = wintypes.RECT()
+                    user32.GetWindowRect(active_win["hwnd"], ctypes.byref(rect))
+                    win_w = rect.right - rect.left
+                    win_h = rect.bottom - rect.top
+                    app_name = (active_win.get("app_name") or "").lower()
+                    title = (active_win.get("title") or "").lower()
+
+                    if "spotify" in app_name or "spotify" in title:
+                        cx = rect.left + min(380, max(260, int(win_w * 0.28)))
+                        cy = rect.top + 45
+                        return int(cx), int(cy)
+                    elif any(b in app_name or b in title for b in ["brave", "chrome", "edge", "firefox"]):
+                        cx = rect.left + win_w // 2
+                        cy = rect.top + 80
+                        return int(cx), int(cy)
+                    elif "explorer" in app_name or "folder" in app_name or "explorer" in title:
+                        cx = rect.right - 140
+                        cy = rect.top + 55
+                        return int(cx), int(cy)
+                    elif win_w > 300 and win_h > 200:
+                        cx = rect.left + min(350, win_w // 2)
+                        cy = rect.top + 45
+                        return int(cx), int(cy)
+            except Exception:
+                pass
+
+        # B. User's Real Windows Taskbar Layout (Left-to-Right Verified Anchors)
+        # 1. Weather / Orange Circle (Bottom-Left)
+        if any(w in clean_t for w in ["weather", "orange circle", "temperature", "sunny"]):
+            return 46, 1402
+
+        # 2. Windows 11 Start Icon
+        if any(w in clean_t for w in ["window", "windows", "start", "start button", "win icon", "start icon", "os icon", "win button", "windows icon"]):
+            return 748, taskbar_y
+
+        # 3. Windows Search Bar (Explicit Taskbar Request Only)
+        if any(w in clean_t for w in ["taskbar search", "windows search", "start search", "taskbar search bar", "task bar search"]):
+            return 943, taskbar_y
+
+        # 4. Task View
+        if any(w in clean_t for w in ["task view", "virtual desktop", "desktops"]):
+            return 1146, taskbar_y
+
+        # 5. WhatsApp
+        if any(w in clean_t for w in ["whatsapp", "whatapp", "whatsapp icon", "whatapp icon", "chat app", "wa"]):
+            return 1217, taskbar_y
+
+        # 6. File Explorer / Files / Folder
+        if any(w in clean_t for w in ["folder", "file explorer", "explorer", "files icon", "files", "my pc", "this pc"]):
+            return 1282, taskbar_y
+
+        # 7. Spotify
+        if any(w in clean_t for w in ["spotify", "music", "spotify icon", "music icon"]):
+            return 1349, taskbar_y
+
+        # 8. Canva
+        if any(w in clean_t for w in ["canva", "canva icon", "canva app"]):
+            return 1415, taskbar_y
+
+        # 9. Antigravity IDE
+        if any(w in clean_t for w in ["antigravity", "ide", "code icon", "editor"]):
+            return 1481, taskbar_y
+
+        # 10. Microsoft Word
+        if any(w in clean_t for w in ["word", "doc", "word icon", "microsoft word"]):
+            return 1545, taskbar_y
+
+        # 11. Brave Browser / Lion
+        if any(w in clean_t for w in ["brave", "lion", "lion icon", "lion icone", "brave icon", "brave browser"]):
+            return 1610, taskbar_y
+
+        # 12. Terminal / Command Prompt
+        if any(w in clean_t for w in ["terminal", "cmd", "command prompt", "console"]):
+            return 1740, taskbar_y
+
+        # 13. Python
+        if any(w in clean_t for w in ["python", "python icon", "py"]):
+            return 1805, taskbar_y
+
+        # C. System Tray Elements
+        # Wi-Fi: X = 2311 on 2560x1440
+        if any(w in clean_t for w in ["wifi", "wi-fi", "internet", "network", "wireless", "wifi icon", "wi-fi icon"]):
+            return self.screen_width - 249, taskbar_y
+
+        # Sound / Volume: X = 2352 on 2560x1440
+        if any(w in clean_t for w in ["sound", "volume", "speaker", "audio", "sound icon", "volume icon"]):
+            return self.screen_width - 208, taskbar_y
+
+        # Battery: X = 2398 on 2560x1440
+        if any(w in clean_t for w in ["battery", "power", "charge", "battery icon", "charge icon"]):
+            return self.screen_width - 162, taskbar_y
+
+        # Clock / Time: X = 2483 on 2560x1440
+        if any(w in clean_t for w in ["clock", "time", "calendar", "date", "clock icon"]):
+            return self.screen_width - 77, taskbar_y
+
+        # D. Active Window Controls (Close, Minimize, Maximize)
+        if any(w in clean_t for w in ["close", "exit", "x button", "x icon"]):
+            return self.screen_width - 25, 18
+        if any(w in clean_t for w in ["minimize", "dash button", "minus button"]):
+            return self.screen_width - 75, 18
+        if any(w in clean_t for w in ["maximize", "restore"]):
+            return self.screen_width - 50, 18
+
+        return None
+
     def type_text(self, text: str):
         if not text:
             return False, "No text provided to type, sir."
         if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
             text = text[1:-1]
         try:
+            # For short text (contact names, search queries, commands), type directly with key events
+            # This triggers live autocomplete and search filters in WhatsApp, Spotify, Chrome, etc.
+            if HAS_PYAUTOGUI and len(text) <= 80 and not any(ord(c) > 127 for c in text):
+                pyautogui.write(text, interval=0.02)
+                return True, f"Typed requested text, sir."
+
             if HAS_PYAUTOGUI and pyperclip:
                 old_clip = ""
                 try: old_clip = pyperclip.paste()
                 except: pass
                 
                 pyperclip.copy(text)
+                time.sleep(0.04)
                 pyautogui.hotkey('ctrl', 'v')
-                time.sleep(0.05)
+                time.sleep(0.35)
                 
                 try: pyperclip.copy(old_clip)
                 except: pass
@@ -616,9 +1093,29 @@ class HardwareDriver:
                 return False, "Failed to access clipboard."
         except Exception:
             if HAS_PYAUTOGUI:
-                pyautogui.write(text, interval=0.01)
+                pyautogui.write(text, interval=0.02)
                 return True, f"Typed requested text, sir."
             return False, "Typing execution failed."
+
+    def press_media_key(self, action: str):
+        """Global Windows hardware multimedia keys (works in background)."""
+        vk_map = {
+            "play_pause": 0xB3, "play": 0xB3, "pause": 0xB3,
+            "stop": 0xB2,
+            "next": 0xB0, "next_track": 0xB0,
+            "prev": 0xB1, "previous": 0xB1, "prev_track": 0xB1,
+            "volume_up": 0xAF, "volume_down": 0xAE, "mute": 0xAD
+        }
+        vk = vk_map.get(action.lower().strip())
+        if not vk:
+            return False, f"Unknown media action: {action}"
+        try:
+            ctypes.windll.user32.keybd_event(vk, 0, 0, 0)
+            time.sleep(0.03)
+            ctypes.windll.user32.keybd_event(vk, 0, 2, 0)
+            return True, f"Triggered {action}, sir."
+        except Exception as e:
+            return False, f"Media key error: {e}"
 
     def press_key(self, key_name: str, count: int = 1):
         low = key_name.lower().strip()
@@ -640,10 +1137,19 @@ class HardwareDriver:
             "f6": "f6", "f7": "f7", "f8": "f8", "f9": "f9", "f10": "f10",
             "f11": "f11", "f12": "f12",
             "win": "win", "windows": "win",
-            "capslock": "capslock"
+            "capslock": "capslock",
+            "volumeup": "volumeup", "vol up": "volumeup", "volume up": "volumeup",
+            "volumedown": "volumedown", "vol down": "volumedown", "volume down": "volumedown",
+            "volumemute": "volumemute", "mute": "volumemute",
+            "playpause": "playpause", "play": "playpause", "pause": "playpause",
+            "stop": "stop", "nexttrack": "nexttrack", "prevtrack": "prevtrack"
         }
         actual_key = key_map.get(low, low)
         try:
+            if actual_key in ["playpause", "stop", "nexttrack", "prevtrack"]:
+                media_act = "play_pause" if actual_key == "playpause" else ("next" if actual_key == "nexttrack" else ("prev" if actual_key == "prevtrack" else "stop"))
+                return self.press_media_key(media_act)
+
             if HAS_PYAUTOGUI:
                 for _ in range(count):
                     pyautogui.press(actual_key)
@@ -653,7 +1159,9 @@ class HardwareDriver:
                     "esc": 0x1B, "delete": 0x2E, "up": 0x26, "down": 0x28, "left": 0x25,
                     "right": 0x27, "home": 0x24, "end": 0x23, "pageup": 0x21, "pagedown": 0x22,
                     "win": 0x5B, "f1": 0x70, "f2": 0x71, "f3": 0x72, "f4": 0x73, "f5": 0x74,
-                    "f6": 0x75, "f7": 0x76, "f8": 0x77, "f9": 0x78, "f10": 0x79, "f11": 0x7A, "f12": 0x7B
+                    "f6": 0x75, "f7": 0x76, "f8": 0x77, "f9": 0x78, "f10": 0x79, "f11": 0x7A, "f12": 0x7B,
+                    "volumeup": 0xAF, "volumedown": 0xAE, "volumemute": 0xAD,
+                    "playpause": 0xB3, "stop": 0xB2, "nexttrack": 0xB0, "prevtrack": 0xB1
                 }
                 vk = vk_map.get(actual_key)
                 if vk:
@@ -705,6 +1213,39 @@ class HardwareDriver:
             if cmd.startswith(w):
                 cmd = cmd[len(w):].strip()
 
+        # 0. AI NEURAL INTENT HOOK (Active when Nebius / NVIDIA API key is configured)
+        try:
+            from ai_engine import ai_interpret_intent
+            ai_data = ai_interpret_intent(command)
+            if ai_data and isinstance(ai_data, dict):
+                act = ai_data.get("action")
+                tgt = ai_data.get("target") or ai_data.get("direction")
+                btn = (ai_data.get("button") or "left").lower()
+                clicks = int(ai_data.get("clicks") or 1)
+                spoken = ai_data.get("spoken_ack")
+
+                if act in ["MOVE", "MOVE_AND_CLICK"] and tgt:
+                    pt = self.find_visual_target(tgt)
+                    if pt:
+                        self.move_to(pt[0], pt[1], duration=0.25)
+                        if act == "MOVE_AND_CLICK":
+                            time.sleep(0.08)
+                            self.click(button=btn, clicks=clicks)
+                        return True, spoken or f"Moved to {tgt}, sir."
+                elif act == "CLICK":
+                    if tgt:
+                        pt = self.find_visual_target(tgt)
+                        if pt:
+                            self.move_to(pt[0], pt[1], duration=0.25)
+                            time.sleep(0.08)
+                    self.click(button=btn, clicks=clicks)
+                    return True, spoken or "Clicked, sir."
+                elif act == "SCROLL":
+                    amt = -6 if ai_data.get("direction") == "down" else 6
+                    return self.scroll(amt)
+        except Exception:
+            pass
+
         # 1. SCROLLING
         if any(w in cmd for w in ["scroll to top", "scroll top", "go to top"]):
             return self.hotkey("ctrl", "home")
@@ -728,54 +1269,142 @@ class HardwareDriver:
                 return self.scroll(6)
 
         # 2. MOUSE CLICKS
-        if cmd in ["double click", "double-click", "double click mouse", "double click please"]:
+        click_coord_match = re.search(r'(double|right|triple|left)?\s*click\s*(?:at|on)?\s*(\d+)[,\s]+(\d+)', cmd)
+        if click_coord_match:
+            b_type = (click_coord_match.group(1) or "left").lower()
+            x, y = int(click_coord_match.group(2)), int(click_coord_match.group(3))
+            clicks = 2 if b_type == "double" else (3 if b_type == "triple" else 1)
+            button = "right" if b_type == "right" else "left"
+            return self.click_at(x, y, button=button, clicks=clicks)
+
+        if cmd in ["double click", "double-click", "double click mouse"]:
             return self.click("left", clicks=2)
         if cmd in ["triple click", "triple-click"]:
             return self.click("left", clicks=3)
-        if cmd in ["right click", "right click mouse", "right-click", "context menu"]:
+        if cmd in ["right click", "right-click", "context menu"]:
             return self.click("right", clicks=1)
         if cmd in ["middle click", "middle-click"]:
             return self.click("middle", clicks=1)
-        if cmd in ["click", "left click", "click mouse", "click here", "press click"]:
+        if cmd in ["click", "left click", "click mouse", "click here", "press click", "single click", "click the mouse", "just click"]:
             return self.click("left", clicks=1)
 
-        click_coord_match = re.search(r'click (?:at|on)?\s*(\d+)[,\s]+(\d+)', cmd)
-        if click_coord_match:
-            x, y = int(click_coord_match.group(1)), int(click_coord_match.group(2))
-            return self.click_at(x, y)
-
         # 3. MOUSE MOVEMENT
-        move_coord_match = re.search(r'(?:move|cursor|mouse) (?:to)?\s*(\d+)[,\s]+(\d+)', cmd)
-        if move_coord_match:
+        # Center detection (handles all natural variations)
+        center_matches = [
+            "mouse to center", "cursor to center", "mouse to the center", "cursor to the center",
+            "mouse to middle", "cursor to middle", "mouse to the middle", "cursor to the middle",
+            "center mouse", "center the mouse", "center cursor", "center the cursor",
+            "mouse center", "cursor center", "put mouse in center", "put mouse in middle",
+            "move mouse center", "move cursor center", "to center", "to the center"
+        ]
+        if any(w in cmd for w in center_matches) or (("mouse" in cmd or "cursor" in cmd or "pointer" in cmd) and ("center" in cmd or "middle" in cmd)):
+            self.move_to(self.screen_width // 2, self.screen_height // 2)
+            return True, "Moved mouse to the center of your screen, sir."
+
+        # Coordinate movement
+        move_coord_match = re.search(r'(?:move\s+)?(?:mouse|cursor|pointer)?\s*(?:to|at)?\s*(\d+)[,\s]+(\d+)', cmd)
+        if move_coord_match and any(w in cmd for w in ["move", "mouse", "cursor", "pointer", "to", "at"]):
             x, y = int(move_coord_match.group(1)), int(move_coord_match.group(2))
-            return self.move_to(x, y)
+            if x <= self.screen_width and y <= self.screen_height:
+                return self.move_to(x, y)
 
-        if any(w in cmd for w in ["mouse to center", "cursor to center", "mouse to middle", "cursor to middle"]):
-            return self.move_to(self.screen_width // 2, self.screen_height // 2)
-        if any(w in cmd for w in ["mouse to top left", "cursor to top left"]):
-            return self.move_to(50, 50)
-        if any(w in cmd for w in ["mouse to top right", "cursor to top right"]):
-            return self.move_to(self.screen_width - 50, 50)
-        if any(w in cmd for w in ["mouse to bottom left", "cursor to bottom left"]):
-            return self.move_to(50, self.screen_height - 50)
-        if any(w in cmd for w in ["mouse to bottom right", "cursor to bottom right"]):
-            return self.move_to(self.screen_width - 50, self.screen_height - 50)
+        # Cardinal screen directions (bottom, top, left, right, corners)
+        # ONLY trigger if the user did NOT specify a visual object or color
+        has_visual_object = any(w in cmd for w in [
+            "circle", "icon", "button", "dot", "folder", "app", "window", "weather", "widget",
+            "orange", "green", "blue", "yellow", "red", "cyan", "purple", "white", "black",
+            "whatsapp", "whatapp", "spotify", "brave", "lion", "canva", "word", "explorer", "files"
+        ])
+        if not has_visual_object and any(w in cmd for w in ["mouse", "cursor", "pointer", "move", "go"]):
+            if any(w in cmd for w in ["top left", "top-left", "upper left"]):
+                self.move_to(60, 60)
+                return True, "Moved mouse to top left, sir."
+            if any(w in cmd for w in ["top right", "top-right", "upper right"]):
+                self.move_to(self.screen_width - 60, 60)
+                return True, "Moved mouse to top right, sir."
+            if any(w in cmd for w in ["bottom left", "bottom-left", "lower left"]):
+                self.move_to(60, self.screen_height - 60)
+                return True, "Moved mouse to bottom left, sir."
+            if any(w in cmd for w in ["bottom right", "bottom-right", "lower right"]):
+                self.move_to(self.screen_width - 60, self.screen_height - 60)
+                return True, "Moved mouse to bottom right, sir."
+            if re.search(r'\b(?:to\s+(?:the\s+)?)?bottom\b', cmd) and not any(w in cmd for w in ["left", "right"]):
+                self.move_to(self.screen_width // 2, self.screen_height - 60)
+                return True, "Moved mouse to the bottom of the screen, sir."
+            if re.search(r'\b(?:to\s+(?:the\s+)?)?top\b', cmd) and not any(w in cmd for w in ["left", "right"]):
+                self.move_to(self.screen_width // 2, 60)
+                return True, "Moved mouse to the top of the screen, sir."
+            if re.search(r'\b(?:to\s+(?:the\s+)?)?left\b', cmd) and not any(w in cmd for w in ["top", "bottom", "click"]):
+                self.move_to(60, self.screen_height // 2)
+                return True, "Moved mouse to the left side of the screen, sir."
+            if re.search(r'\b(?:to\s+(?:the\s+)?)?right\b', cmd) and not any(w in cmd for w in ["top", "bottom", "click"]):
+                self.move_to(self.screen_width - 60, self.screen_height // 2)
+                return True, "Moved mouse to the right side of the screen, sir."
 
-        rel_match = re.search(r'(?:move )?(?:mouse |cursor )?(up|down|left|right)(?:\s*(?:by\s*)?(\d+))?', cmd)
-        if rel_match and any(w in cmd for w in ["move", "mouse", "cursor"]):
+        # 3.5 VISUAL TARGET DETECTION & GROUNDED MOUSE INTERACTION (SCREEN VISION)
+        # Compound command: "move the mouse to the sun icon and left click", "move to the sun icon and click"
+        move_click_match = re.search(r'(?:move|glide|point)\s+(?:the\s+)?(?:mouse|cursor)?\s*(?:to|where)?\s*(?:the\s+)?(.+?)\s*(?:is\s*)?and\s*(left\s*click|right\s*click|double\s*click|click)(?:\s+it|\s+on\s+it)?$', cmd)
+        if move_click_match:
+            target_raw = move_click_match.group(1).strip()
+            click_raw = move_click_match.group(2).strip()
+            pt = self.find_visual_target(target_raw)
+            if pt:
+                x, y = pt
+                self.move_to(x, y, duration=0.25)
+                time.sleep(0.08)
+                b_type = "right" if "right" in click_raw else "left"
+                clicks = 2 if "double" in click_raw else 1
+                self.click(button=b_type, clicks=clicks)
+                return True, f"Moved to the {target_raw} and clicked, sir."
+            else:
+                return True, f"I could not visually identify the {target_raw} on your screen, sir."
+
+        # Direct click on named visual element: "click the sun icon", "click on the sun icon", "left click the sun icon"
+        direct_click_match = re.search(r'^(left\s*click|right\s*click|double\s*click|click)\s+(?:on\s+)?(?:the\s+)?(.+?)(?:\s+icon)?$', cmd)
+        if direct_click_match:
+            click_raw = direct_click_match.group(1).strip()
+            target_raw = direct_click_match.group(2).strip()
+            if not any(target_raw.startswith(w) for w in ["at", "on 1", "on 2", "on 3", "on 4", "on 5", "on 6", "on 7", "on 8", "on 9", "here"]):
+                pt = self.find_visual_target(target_raw)
+                if pt:
+                    x, y = pt
+                    self.move_to(x, y, duration=0.25)
+                    time.sleep(0.08)
+                    b_type = "right" if "right" in click_raw else "left"
+                    clicks = 2 if "double" in click_raw else 1
+                    self.click(button=b_type, clicks=clicks)
+                    return True, f"Moved to the {target_raw} and clicked, sir."
+
+        # Pure visual move: "move the mouse where the sun icon is", "move mouse to the sun icon", "move to sun icon"
+        visual_move_match = re.search(r'(?:move|glide|point)\s+(?:the\s+)?(?:mouse|cursor)?\s*(?:to|where)?\s*(?:the\s+)?(.+?)(?:\s+is)?$', cmd)
+        if visual_move_match:
+            target_raw = visual_move_match.group(1).strip()
+            if not any(target_raw.startswith(w) for w in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]):
+                pt = self.find_visual_target(target_raw)
+                if pt:
+                    x, y = pt
+                    self.move_to(x, y, duration=0.25)
+                    return True, f"Moved mouse to where the {target_raw} is, sir."
+                else:
+                    return True, f"I could not visually identify the {target_raw} on your screen, sir."
+
+        # Relative directional movement
+        rel_match = re.search(r'\b(up|down|left|right)\b(?!\s*click)(?:\s*(?:by\s*)?(\d+))?', cmd)
+        if rel_match and any(w in cmd for w in ["move", "mouse", "cursor", "pointer", "nudge", "shift", "glide"]):
             direction = rel_match.group(1)
             dist = int(rel_match.group(2)) if rel_match.group(2) else 150
-            if direction == "up": return self.move_relative(0, -dist)
-            if direction == "down": return self.move_relative(0, dist)
-            if direction == "left": return self.move_relative(-dist, 0)
-            if direction == "right": return self.move_relative(dist, 0)
+            if direction == "up": self.move_relative(0, -dist)
+            elif direction == "down": self.move_relative(0, dist)
+            elif direction == "left": self.move_relative(-dist, 0)
+            elif direction == "right": self.move_relative(dist, 0)
+            return True, f"Moved mouse {direction} by {dist} pixels, sir."
 
-        if any(w in cmd for w in ["where is the mouse", "where is mouse", "mouse position", "cursor position", "current coordinates"]):
+        if any(w in cmd for w in ["where is the mouse", "where is mouse", "where's the mouse", "mouse position", "cursor position", "current coordinates", "where is cursor"]):
             x, y = self.get_position()
             return True, f"Mouse cursor is currently at coordinates {x} by {y} on your {self.screen_width} by {self.screen_height} screen, sir."
 
         # Drag and drop
-        drag_coord_match = re.search(r'drag (?:to)?\s*(\d+)[,\s]+(\d+)', cmd)
+        drag_coord_match = re.search(r'drag (?:mouse |cursor )?(?:to )?\s*(\d+)[,\s]+(\d+)', cmd)
         if drag_coord_match:
             x, y = int(drag_coord_match.group(1)), int(drag_coord_match.group(2))
             return self.drag_to(x, y)
@@ -793,19 +1422,26 @@ class HardwareDriver:
         if any(w in cmd for w in ["release mouse", "release left click", "mouse up"]):
             return self.mouse_up("left")
 
-        # 4. TYPING TEXT (Preserve case from raw_cmd)
-        type_match = re.search(r'^(?:type|write|enter text)\s+(.*)', raw_cmd, re.IGNORECASE)
-        if type_match:
-            text_to_type = type_match.group(1).strip()
-            if text_to_type.lower().startswith("this:"):
-                text_to_type = text_to_type[5:].strip()
-            elif text_to_type.lower().startswith("this "):
-                text_to_type = text_to_type[5:].strip()
-            return self.type_text(text_to_type)
+        # 4. TYPING TEXT (Safeguarded against Notepad/file creation)
+        if not any(w in cmd for w in ["note", "notepad", "file", "document", "create", "make"]):
+            type_match = re.search(r'^(?:type|write|enter text)\s+(.*)', raw_cmd, re.IGNORECASE)
+            if type_match:
+                text_to_type = type_match.group(1).strip()
+                if text_to_type.lower().startswith("this:"):
+                    text_to_type = text_to_type[5:].strip()
+                elif text_to_type.lower().startswith("this "):
+                    text_to_type = text_to_type[5:].strip()
+                
+                # Check if content requires intelligent AI expansion
+                from ai_engine import is_semantic_content_request, expand_intelligent_content
+                if is_semantic_content_request(text_to_type):
+                    text_to_type = expand_intelligent_content(text_to_type)
+
+                return self.type_text(text_to_type)
 
         # 5. KEYBOARD PRESSES
         key_press_triggers = {
-            "enter": ["press enter", "hit enter", "press return", "hit return"],
+            "enter": ["press enter", "hit enter", "press return", "hit return", "press this", "hit this", "press that", "press it", "hit it"],
             "tab": ["press tab", "hit tab"],
             "escape": ["press escape", "press esc", "hit escape"],
             "space": ["press space", "hit space", "press spacebar", "hit spacebar"],
@@ -820,7 +1456,10 @@ class HardwareDriver:
             "pageup": ["page up", "press page up"],
             "pagedown": ["page down", "press page down"],
             "f5": ["press f5", "refresh", "refresh page", "reload page", "reload"],
-            "f11": ["full screen", "fullscreen", "press f11", "toggle full screen"]
+            "f11": ["full screen", "fullscreen", "press f11", "toggle full screen"],
+            "volumeup": ["press vol up", "press vol up button", "press volume up", "volume up", "increase volume", "vol up"],
+            "volumedown": ["press vol down", "press vol down button", "press volume down", "volume down", "decrease volume", "vol down"],
+            "volumemute": ["press mute", "mute volume", "mute", "unmute"]
         }
         for key_name, triggers in key_press_triggers.items():
             if cmd in triggers or any(cmd == t for t in triggers):
@@ -859,19 +1498,616 @@ class HardwareDriver:
                 self.hotkey(*keys)
                 return True, reply
 
+        # 7. BRIGHTNESS CONTROLS
+        if "brightness" in cmd:
+            bright_match = re.search(r'brightness\s*(?:to\s*|at\s*)?(\d+)', cmd)
+            if bright_match:
+                lvl = int(bright_match.group(1))
+                return self.set_brightness(lvl)
+            if any(w in cmd for w in ["increase", "up", "raise", "higher", "more"]):
+                cur = self.get_brightness()
+                return self.set_brightness(min(100, cur + 15))
+            if any(w in cmd for w in ["decrease", "down", "lower", "reduce", "dim", "less"]):
+                cur = self.get_brightness()
+                return self.set_brightness(max(10, cur - 15))
+            if any(w in cmd for w in ["maximum", "max", "full", "100"]):
+                return self.set_brightness(100)
+            if any(w in cmd for w in ["minimum", "min", "lowest"]):
+                return self.set_brightness(15)
+            cur = self.get_brightness()
+            return True, f"Display brightness is currently at {cur} percent, sir."
+
+        return False, None
+
+class WirelessDriver:
+    """
+    Phase 3: Wireless Connections Engine for HYDRA.
+    Provides complete non-elevated control over:
+    - Wi-Fi Radio (Power On, Power Off, Disconnect, Connect to SSID, Scan Networks, Diagnostics)
+    - Bluetooth Radio (Power On, Power Off, Radio State, Paired Device Inspection, Pairing Settings)
+    - Mobile Hotspot & Airplane Mode
+    - Network Diagnostics (Local IP, Latency / Ping Test)
+    Equipped with dual-path intelligence:
+    1. Local Semantic Intent Classifier (handles natural variations, slang, and indirect phrasing offline)
+    2. Cloud LLM Hook via ai_interpret_intent (NVIDIA Nemotron via Nebius Token Factory)
+    """
+
+    def __init__(self):
+        self._radio_cache = {}
+
+    # --- WINRT HARDWARE RADIO CONTROLLER ---
+    def _execute_ps(self, ps_code: str, timeout: int = 8) -> str:
+        try:
+            res = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_code],
+                capture_output=True,
+                text=True,
+                timeout=timeout
+            )
+            return res.stdout.strip()
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    def get_radio_states(self) -> Dict[str, str]:
+        ps = """
+        Add-Type -AssemblyName System.Runtime.WindowsRuntime
+        $null = [Windows.Devices.Radios.Radio, Windows.System.Devices, ContentType = WindowsRuntime]
+        $asTaskGeneric = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { 
+            $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' 
+        } | Select-Object -First 1
+
+        $op = [Windows.Devices.Radios.Radio]::GetRadiosAsync()
+        $task = $asTaskGeneric.MakeGenericMethod([System.Collections.Generic.IReadOnlyList[Windows.Devices.Radios.Radio]]).Invoke($null, @($op))
+        $task.Wait()
+        $radios = $task.Result
+        $list = @()
+        foreach ($r in $radios) {
+            $list += [PSCustomObject]@{
+                Kind = $r.Kind.ToString()
+                State = $r.State.ToString()
+            }
+        }
+        $list | ConvertTo-Json
+        """
+        raw = self._execute_ps(ps, timeout=6)
+        try:
+            data = json.loads(raw) if raw else []
+            if isinstance(data, dict):
+                data = [data]
+            return {d["Kind"]: d["State"] for d in data}
+        except Exception:
+            return {}
+
+    def set_radio_state(self, kind: str, state: str) -> Tuple[bool, str]:
+        """
+        kind: 'WiFi' or 'Bluetooth'
+        state: 'On' or 'Off'
+        """
+        ps = f"""
+        Add-Type -AssemblyName System.Runtime.WindowsRuntime
+        $null = [Windows.Devices.Radios.Radio, Windows.System.Devices, ContentType = WindowsRuntime]
+        $asTaskGeneric = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {{ 
+            $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' 
+        }} | Select-Object -First 1
+
+        $op = [Windows.Devices.Radios.Radio]::GetRadiosAsync()
+        $task = $asTaskGeneric.MakeGenericMethod([System.Collections.Generic.IReadOnlyList[Windows.Devices.Radios.Radio]]).Invoke($null, @($op))
+        $task.Wait()
+        $target = $task.Result | Where-Object {{ $_.Kind.ToString() -eq '{kind}' }} | Select-Object -First 1
+        if ($target) {{
+            $setOp = $target.SetStateAsync([Windows.Devices.Radios.RadioState]::{state})
+            $setTask = $asTaskGeneric.MakeGenericMethod([Windows.Devices.Radios.RadioAccessStatus]).Invoke($null, @($setOp))
+            $setTask.Wait()
+            Write-Output "STATUS: $($setTask.Result)"
+        }} else {{
+            Write-Output "ERROR: Radio {kind} not found"
+        }}
+        """
+        out = self._execute_ps(ps, timeout=8)
+        if "STATUS: Allowed" in out:
+            return True, f"{kind} radio powered {state.lower()}, sir."
+        return False, f"Could not power {state.lower()} {kind}: {out}"
+
+    # --- WI-FI CONTROLS ---
+    def turn_on_wifi(self) -> Tuple[bool, str]:
+        succ, msg = self.set_radio_state("WiFi", "On")
+        if succ:
+            profiles = self.get_saved_profiles()
+            if profiles:
+                subprocess.Popen(f'netsh wlan connect name="{profiles[0]}"', shell=True)
+            return True, "Wi-Fi radio has been powered on and is reconnecting, sir."
+        subprocess.Popen('explorer.exe ms-availablenetworks:', shell=True)
+        return True, "Opening available wireless networks to enable Wi-Fi, sir."
+
+    def turn_off_wifi(self) -> Tuple[bool, str]:
+        succ, msg = self.set_radio_state("WiFi", "Off")
+        if succ:
+            return True, "Wi-Fi radio has been powered off completely, sir."
+        self.disconnect_wifi()
+        return True, "Wi-Fi disconnected, sir."
+
+    def get_wifi_status(self) -> Tuple[bool, str]:
+        try:
+            res = subprocess.run('netsh wlan show interfaces', shell=True, capture_output=True, text=True, timeout=4)
+            out = res.stdout
+            state_m = re.search(r'State\s*:\s*(.*)', out)
+            ssid_m = re.search(r'SSID\s*:\s*(.*)', out)
+            signal_m = re.search(r'Signal\s*:\s*(.*)', out)
+            rx_m = re.search(r'Receive rate \(Mbps\)\s*:\s*(.*)', out)
+
+            state = state_m.group(1).strip() if state_m else "disconnected"
+            if state.lower() == "connected":
+                ssid = ssid_m.group(1).strip() if ssid_m else "Unknown Network"
+                signal = signal_m.group(1).strip() if signal_m else "N/A"
+                rate = rx_m.group(1).strip() if rx_m else "N/A"
+                return True, f"Wi-Fi is connected to {ssid} with {signal} signal strength at {rate} megabits per second, sir."
+            else:
+                radios = self.get_radio_states()
+                if radios.get("WiFi") == "Off":
+                    return True, "Wi-Fi radio is currently powered off, sir."
+                return True, "Wi-Fi is currently disconnected, sir."
+        except Exception as e:
+            return False, f"Could not determine Wi-Fi status: {e}"
+
+    def scan_wifi_networks(self) -> Tuple[bool, str]:
+        try:
+            res = subprocess.run('netsh wlan show networks', shell=True, capture_output=True, text=True, timeout=6)
+            ssids = re.findall(r'SSID\s+\d+\s*:\s*([^\r\n]+)', res.stdout)
+            cleaned = [s.strip() for s in ssids if s.strip() and not s.startswith('Network type')]
+            unique_ssids = list(dict.fromkeys(cleaned))
+            if unique_ssids:
+                if len(unique_ssids) == 1:
+                    return True, f"I found 1 visible Wi-Fi network nearby: {unique_ssids[0]}, sir."
+                elif len(unique_ssids) <= 4:
+                    networks_str = ", ".join(unique_ssids[:-1]) + f", and {unique_ssids[-1]}"
+                    return True, f"I found {len(unique_ssids)} visible Wi-Fi networks nearby: {networks_str}, sir."
+                else:
+                    networks_str = ", ".join(unique_ssids[:3]) + f", plus {len(unique_ssids)-3} others"
+                    return True, f"I found {len(unique_ssids)} Wi-Fi networks nearby including {networks_str}, sir."
+            return True, "No wireless networks are currently within range, sir."
+        except Exception as e:
+            return False, f"Failed to scan Wi-Fi networks: {e}"
+
+    def get_saved_profiles(self) -> List[str]:
+        try:
+            res = subprocess.run('netsh wlan show profiles', shell=True, capture_output=True, text=True, timeout=4)
+            profiles = [p.strip() for p in re.findall(r'All User Profile\s*:\s*([^\r\n]+)', res.stdout)]
+            return [p for p in profiles if p]
+        except Exception:
+            return []
+
+    def connect_wifi(self, ssid: str) -> Tuple[bool, str]:
+        if not ssid:
+            return False, "Please specify the Wi-Fi network name to connect to, sir."
+        target_ssid = ssid.strip().strip('"\'')
+        target_ssid = re.sub(r'^(?:to|the|wifi|network)\s+', '', target_ssid, flags=re.IGNORECASE).strip()
+        
+        try:
+            radios = self.get_radio_states()
+            if radios.get("WiFi") == "Off":
+                self.set_radio_state("WiFi", "On")
+
+            profiles = self.get_saved_profiles()
+            matched = next((p for p in profiles if p.lower() == target_ssid.lower()), None)
+            if not matched:
+                matched = next((p for p in profiles if target_ssid.lower() in p.lower() or p.lower() in target_ssid.lower()), None)
+
+            if matched:
+                c = subprocess.run(f'netsh wlan connect name="{matched}"', shell=True, capture_output=True, text=True, timeout=5)
+                if c.returncode == 0:
+                    return True, f"Connecting to Wi-Fi network {matched}, sir."
+                else:
+                    err_msg = c.stderr.strip() or c.stdout.strip()
+                    return False, f"Connection request to {matched} failed: {err_msg}"
+            else:
+                subprocess.Popen('explorer.exe ms-availablenetworks:', shell=True)
+                return True, f"No saved credentials for {target_ssid}. Opening available networks flyout for you, sir."
+        except Exception as e:
+            return False, f"Error connecting to Wi-Fi: {e}"
+
+    def disconnect_wifi(self) -> Tuple[bool, str]:
+        try:
+            res = subprocess.run('netsh wlan disconnect', shell=True, capture_output=True, text=True, timeout=4)
+            if res.returncode == 0:
+                return True, "Disconnected from Wi-Fi, sir."
+            return False, "Failed to disconnect from Wi-Fi."
+        except Exception as e:
+            return False, f"Error disconnecting from Wi-Fi: {e}"
+
+    def open_wifi_flyout(self) -> Tuple[bool, str]:
+        try:
+            subprocess.Popen('explorer.exe ms-availablenetworks:', shell=True)
+            return True, "Opening available wireless networks, sir."
+        except Exception as e:
+            return False, f"Failed to open Wi-Fi flyout: {e}"
+
+    def open_wifi_settings(self) -> Tuple[bool, str]:
+        try:
+            subprocess.Popen('explorer.exe ms-settings:network-wifi', shell=True)
+            return True, "Opening Wi-Fi settings, sir."
+        except Exception as e:
+            return False, f"Failed to open Wi-Fi settings: {e}"
+
+    # --- BLUETOOTH CONTROLS ---
+    def turn_on_bluetooth(self) -> Tuple[bool, str]:
+        succ, msg = self.set_radio_state("Bluetooth", "On")
+        if succ:
+            return True, "Bluetooth radio has been powered on, sir."
+        return self.open_bluetooth_settings()
+
+    def turn_off_bluetooth(self) -> Tuple[bool, str]:
+        succ, msg = self.set_radio_state("Bluetooth", "Off")
+        if succ:
+            return True, "Bluetooth radio has been powered off completely, sir."
+        return False, "Could not turn off Bluetooth radio."
+
+    def get_bluetooth_status(self) -> Tuple[bool, str]:
+        radios = self.get_radio_states()
+        state = radios.get("Bluetooth", "Unknown")
+        if state == "Off":
+            return True, "Bluetooth is currently powered off, sir."
+        
+        succ, dev_msg = self.list_bluetooth_devices()
+        if succ and "paired" in dev_msg:
+            return True, f"Bluetooth is powered on, sir. {dev_msg}"
+        return True, "Bluetooth radio is powered on, sir."
+
+    def list_bluetooth_devices(self) -> Tuple[bool, str]:
+        try:
+            ps = """
+            Get-PnpDevice -Class Bluetooth | 
+            Where-Object { 
+                $_.FriendlyName -notmatch 'Transport|Enumerator|Adapter|Controller|Service|Radio|Protocol|Device \\(' -and 
+                $_.FriendlyName -ne 'Bluetooth' 
+            } | 
+            Select-Object -Unique FriendlyName, Status | 
+            ConvertTo-Json
+            """
+            raw = self._execute_ps(ps, timeout=6)
+            if not raw or raw.startswith("ERROR:") or not (raw.strip().startswith("{") or raw.strip().startswith("[")):
+                return True, "No paired Bluetooth devices detected, sir."
+            data = json.loads(raw)
+            if isinstance(data, dict):
+                data = [data]
+            devices = []
+            for d in data:
+                name = d.get('FriendlyName')
+                if name and name not in devices and not any(k in name for k in ['Generic Attribute', 'Generic Access', 'Wireless Bluetooth']):
+                    devices.append(name)
+
+            if devices:
+                if len(devices) == 1:
+                    return True, f"You have 1 paired Bluetooth device: {devices[0]}, sir."
+                dev_str = ", ".join(devices[:-1]) + f", and {devices[-1]}"
+                return True, f"You have {len(devices)} paired Bluetooth devices: {dev_str}, sir."
+            return True, "No paired Bluetooth devices detected, sir."
+        except Exception:
+            return True, "Bluetooth peripheral scanner is idle, sir."
+
+    def open_bluetooth_settings(self) -> Tuple[bool, str]:
+        try:
+            subprocess.Popen('explorer.exe ms-settings:bluetooth', shell=True)
+            return True, "Opening Bluetooth and device pairing settings, sir."
+        except Exception as e:
+            return False, f"Failed to open Bluetooth settings: {e}"
+
+    def get_paired_bluetooth_devices(self) -> List[Dict[str, str]]:
+        ps = """
+        Get-PnpDevice -Class Bluetooth | 
+        Where-Object { 
+            $_.FriendlyName -notmatch 'Transport|Enumerator|Adapter|Controller|Service|Radio|Protocol|Device \\(' -and 
+            $_.FriendlyName -ne 'Bluetooth' 
+        } | 
+        Select-Object FriendlyName, InstanceId, Status, Present | 
+        ConvertTo-Json
+        """
+        try:
+            raw = self._execute_ps(ps, timeout=6)
+            if not raw or not (raw.startswith("{") or raw.startswith("[")):
+                return []
+            data = json.loads(raw)
+            if isinstance(data, dict):
+                data = [data]
+            devices = []
+            seen = set()
+            for d in data:
+                name = d.get('FriendlyName')
+                inst = d.get('InstanceId')
+                if name and name not in seen and not any(k in name for k in ['Generic Attribute', 'Generic Access', 'Wireless Bluetooth']):
+                    seen.add(name)
+                    mac_m = re.search(r'DEV_([0-9A-Fa-f]{12})', inst or "")
+                    mac = mac_m.group(1) if mac_m else None
+                    devices.append({
+                        "name": name,
+                        "instance_id": inst,
+                        "mac": mac,
+                        "status": d.get("Status", "Unknown")
+                    })
+            return devices
+        except Exception:
+            return []
+
+    def get_connected_bluetooth_device(self) -> Optional[str]:
+        ps = """
+        Get-PnpDevice -Class AudioEndpoint | 
+        Where-Object { $_.Present -eq $true -and $_.Status -eq 'OK' } | 
+        Select-Object FriendlyName | 
+        ConvertTo-Json
+        """
+        try:
+            raw = self._execute_ps(ps, timeout=5)
+            if raw and (raw.startswith("{") or raw.startswith("[")):
+                data = json.loads(raw)
+                if isinstance(data, dict):
+                    data = [data]
+                for d in data:
+                    fn = d.get("FriendlyName", "")
+                    for target in ["HAMMER", "Wave Pro", "ROVER PRO", "TECNO SPARK"]:
+                        if target.lower() in fn.lower():
+                            return target
+        except Exception:
+            pass
+        return None
+
+    def switch_bluetooth_device(self, target_name: str) -> Tuple[bool, str]:
+        if not target_name:
+            return False, "Please specify which Bluetooth device to connect to, sir."
+        target_clean = re.sub(r'^(?:to|with|the|device)\s+', '', target_name.strip(), flags=re.IGNORECASE).strip()
+        paired = self.get_paired_bluetooth_devices()
+        target_dev = None
+        for p in paired:
+            if target_clean.lower() in p["name"].lower() or p["name"].lower() in target_clean.lower():
+                target_dev = p
+                break
+
+        if not target_dev:
+            known = ", ".join([p["name"] for p in paired]) if paired else "none"
+            return False, f"I could not find a paired Bluetooth device named '{target_clean}'. Known paired devices: {known}, sir."
+
+        cur_connected = self.get_connected_bluetooth_device()
+        target_display = target_dev["name"]
+
+        if cur_connected and cur_connected.lower() in target_display.lower():
+            return True, f"Audio is already actively routed to {target_display}, sir."
+
+        shift_msg = f"Shifting from {cur_connected} to {target_display}" if cur_connected else f"Connecting to {target_display}"
+
+        mac = target_dev.get("mac")
+        connected = False
+        if mac:
+            ps_connect = f"""
+            Add-Type -AssemblyName System.Runtime.WindowsRuntime
+            $null = [Windows.Devices.Bluetooth.BluetoothDevice, Windows.Devices.Bluetooth, ContentType = WindowsRuntime]
+            $asTaskGeneric = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {{ 
+                $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' 
+            }} | Select-Object -First 1
+
+            $addr = [Convert]::ToUInt64("{mac}", 16)
+            $op = [Windows.Devices.Bluetooth.BluetoothDevice]::FromBluetoothAddressAsync($addr)
+            $task = $asTaskGeneric.MakeGenericMethod([Windows.Devices.Bluetooth.BluetoothDevice]).Invoke($null, @($op))
+            $task.Wait(3000)
+            if ($task.IsCompleted -and $task.Result) {{
+                $dev = $task.Result
+                $rfOp = $dev.GetRfcommServicesAsync([Windows.Devices.Bluetooth.BluetoothCacheMode]::Uncached)
+                $rfTask = $asTaskGeneric.MakeGenericMethod([Windows.Devices.Bluetooth.Rfcomm.RfcommDeviceServicesResult]).Invoke($null, @($rfOp))
+                $rfTask.Wait(4000)
+                Write-Output "STATUS: $($dev.ConnectionStatus)"
+            }} else {{
+                Write-Output "STATUS: Failed"
+            }}
+            """
+            try:
+                out = self._execute_ps(ps_connect, timeout=8)
+                if "STATUS: Connected" in out:
+                    connected = True
+            except Exception:
+                pass
+
+        if connected:
+            return True, f"Successfully {shift_msg.lower()}, sir. Audio output is now live."
+        else:
+            if cur_connected:
+                return True, f"Disconnected {cur_connected} to shift to {target_display}, but {target_display} did not respond. Please ensure it is powered on and in range, sir."
+            else:
+                return True, f"Attempting connection to {target_display}, sir. Please ensure the device is powered on."
+
+    # --- NETWORK DIAGNOSTICS & IP / PING ---
+    def get_network_diagnostics(self) -> Tuple[bool, str]:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(0.6)
+            try:
+                s.connect(('8.8.8.8', 80))
+                local_ip = s.getsockname()[0]
+            except Exception:
+                local_ip = socket.gethostbyname(socket.gethostname())
+            finally:
+                s.close()
+
+            ping_res = subprocess.run("ping -n 1 8.8.8.8", shell=True, capture_output=True, text=True, timeout=3)
+            time_m = re.search(r'time[=<](\d+)ms', ping_res.stdout)
+            latency = f"{time_m.group(1)}ms" if time_m else "nominal"
+
+            return True, f"Network online. Your local IP address is {local_ip} with {latency} latency, sir."
+        except Exception as e:
+            return False, f"Network diagnostic failure: {e}"
+
+    # --- AIRPLANE & HOTSPOT ---
+    def toggle_airplane_mode(self) -> Tuple[bool, str]:
+        try:
+            subprocess.Popen('explorer.exe ms-settings:network-airplanemode', shell=True)
+            return True, "Opening Airplane Mode settings, sir."
+        except Exception as e:
+            return False, f"Failed to access Airplane Mode: {e}"
+
+    def toggle_hotspot(self) -> Tuple[bool, str]:
+        try:
+            subprocess.Popen('explorer.exe ms-settings:network-mobilehotspot', shell=True)
+            return True, "Opening Mobile Hotspot settings, sir."
+        except Exception as e:
+            return False, f"Failed to access Mobile Hotspot: {e}"
+
+    # --- INTELLIGENT SEMANTIC PARSER (DUAL PATH: AI + LOCAL NLP) ---
+    def parse_and_execute(self, command: str) -> Tuple[bool, Optional[str]]:
+        if not command:
+            return False, None
+        cmd = command.strip().lower()
+        clean = re.sub(r'[\.\?!,]', '', cmd).strip()
+
+        # PATH 1: CLOUD LLM INTENT (Nebius Token Factory / NVIDIA Nemotron)
+        try:
+            from ai_engine import ai_interpret_intent
+            ai_data = ai_interpret_intent(command)
+            if ai_data and ai_data.get("domain") == "WIRELESS":
+                action = ai_data.get("action", "")
+                target = ai_data.get("target")
+                if action == "WIFI_ON":
+                    return self.turn_on_wifi()
+                elif action == "WIFI_OFF":
+                    return self.turn_off_wifi()
+                elif action == "WIFI_STATUS":
+                    return self.get_wifi_status()
+                elif action == "WIFI_SCAN":
+                    return self.scan_wifi_networks()
+                elif action == "WIFI_CONNECT" and target:
+                    return self.connect_wifi(target)
+                elif action == "WIFI_DISCONNECT":
+                    return self.disconnect_wifi()
+                elif action == "BLUETOOTH_ON":
+                    return self.turn_on_bluetooth()
+                elif action == "BLUETOOTH_OFF":
+                    return self.turn_off_bluetooth()
+                elif action == "BLUETOOTH_STATUS":
+                    return self.get_bluetooth_status()
+                elif action in ["BLUETOOTH_CONNECT", "BLUETOOTH_SWITCH"] and target:
+                    return self.switch_bluetooth_device(target)
+                elif action == "BLUETOOTH_LIST":
+                    return self.list_bluetooth_devices()
+                elif action == "BLUETOOTH_SETTINGS":
+                    return self.open_bluetooth_settings()
+                elif action == "NETWORK_INFO":
+                    return self.get_network_diagnostics()
+                elif action == "AIRPLANE_MODE":
+                    return self.toggle_airplane_mode()
+                elif action == "HOTSPOT":
+                    return self.toggle_hotspot()
+        except Exception:
+            pass
+
+        # PATH 2: HIGH-INTELLIGENCE LOCAL SEMANTIC CLASSIFIER
+        # 1. NETWORK DIAGNOSTICS (IP, PING, SPEED, ONLINE STATUS)
+        if any(w in clean for w in ["ip address", "my ip", "what ip", "ping", "latency", "network speed", "internet speed", "are we online"]):
+            return self.get_network_diagnostics()
+
+        # 2. AIRPLANE / FLIGHT MODE
+        if any(k in clean for k in ["airplane mode", "flight mode", "aeroplane mode", "cut all wireless"]):
+            return self.toggle_airplane_mode()
+
+        # 3. MOBILE HOTSPOT
+        if any(k in clean for k in ["mobile hotspot", "hotspot", "share internet", "share wifi", "tethering"]):
+            return self.toggle_hotspot()
+
+        # 4. BLUETOOTH INTELLIGENCE & AUDIO DEVICE SHIFTING
+        if "bluetooth" in clean or "bt " in clean or clean.endswith(" bt") or " bt " in clean:
+            if any(w in clean for w in ["turn off", "shut down", "kill", "disable", "power off", "switch off", "deactivate"]):
+                return self.turn_off_bluetooth()
+            if any(w in clean for w in ["turn on", "enable", "start", "activate", "power on", "switch on"]):
+                return self.turn_on_bluetooth()
+            # Connect / Shift / Switch specific device (e.g. "connect bt with wave pro", "switch bt to hammer")
+            if any(w in clean for w in ["connect", "switch", "shift", "route", "pair with"]):
+                target_m = re.search(r'(?:connect|switch|shift|route|pair with)(?:\s+(?:bt|bluetooth|audio))?(?:\s+(?:to|with|into))?(?:\s+(?:the|device))?\s+([a-zA-Z0-9_\-\s\+]+)', clean)
+                if target_m:
+                    cand = target_m.group(1).strip()
+                    cand_clean = re.sub(r'^(?:bt|bluetooth|with|to)\s+', '', cand).strip()
+                    if cand_clean and cand_clean not in ["settings", "device", "devices"]:
+                        return self.switch_bluetooth_device(cand_clean)
+            if any(w in clean for w in ["setting", "settings", "pair", "add device", "open bluetooth"]):
+                return self.open_bluetooth_settings()
+            if any(w in clean for w in ["status", "is bluetooth", "on or off", "check"]):
+                return self.get_bluetooth_status()
+            return self.list_bluetooth_devices()
+
+        # 5. WI-FI TURN OFF / POWER DOWN
+        if any(w in clean for w in ["turn off", "shut down", "kill", "disable", "power off", "switch off", "deactivate"]) and \
+           any(w in clean for w in ["wifi", "wi-fi", "wireless"]):
+            return self.turn_off_wifi()
+
+        # 6. WI-FI TURN ON / POWER UP
+        if any(w in clean for w in ["turn on", "enable", "start", "activate", "power on", "switch on"]) and \
+           any(w in clean for w in ["wifi", "wi-fi", "wireless"]):
+            return self.turn_on_wifi()
+
+        # 7. WI-FI DISCONNECT / UNHOOK
+        if any(w in clean for w in ["disconnect", "drop", "unhook", "sever", "leave"]) and \
+           any(w in clean for w in ["wifi", "wi-fi", "network", "internet", "connection"]):
+            return self.disconnect_wifi()
+
+        # 8. WI-FI SCAN / SEARCH
+        if any(p in clean for p in [
+            "scan wifi", "scan for wifi", "search wifi", "search for wifi",
+            "available wifi", "available networks", "wifi list", "list wifi",
+            "nearby wifi", "wifi nearby", "networks nearby", "show networks",
+            "show available networks", "show wifi", "what wifi is nearby"
+        ]):
+            return self.scan_wifi_networks()
+
+        # 9. WI-FI STATUS / QUERY
+        if any(p in clean for p in [
+            "what wifi", "which wifi", "current wifi", "wifi status", "check wifi",
+            "am i connected", "are we connected", "connection status", "how is my wifi",
+            "wifi signal", "wifi info"
+        ]):
+            return self.get_wifi_status()
+
+        # 10. WI-FI SETTINGS / FLYOUT
+        if any(p in clean for p in ["wifi settings", "open wifi", "open wifi settings", "show available networks"]):
+            return self.open_wifi_flyout()
+
+        # 11. WI-FI CONNECT TO NETWORK
+        connect_match = re.search(r'(?:connect|join|link)\s+(?:to\s+)?(?:the\s+)?(?:wifi\s+|network\s+)?([a-zA-Z0-9_\-\s]+)', clean)
+        if connect_match:
+            candidate = connect_match.group(1).strip()
+            if candidate and candidate not in ["internet", "web", "online"]:
+                profiles = self.get_saved_profiles()
+                candidate_clean = re.sub(r'^(?:wifi|network)\s+', '', candidate).strip()
+                matches_profile = any(candidate_clean.lower() in p.lower() or p.lower() in candidate_clean.lower() for p in profiles)
+                if matches_profile or "wifi" in clean or "network" in clean:
+                    return self.connect_wifi(candidate_clean if candidate_clean else candidate)
+
         return False, None
 
 class SystemDriver:
     def __init__(self):
         self.app_engine = AppIndexEngine()
         self.hardware = HardwareDriver()
+        self.wireless = WirelessDriver()
+        from window_ops import WINDOW_MGR
+        self.window_mgr = WINDOW_MGR
+        from vision_ops import VISION_ENGINE
+        self.vision = VISION_ENGINE
         # Fast load cache synchronously in <15ms
         self.app_engine.load_cache()
         # Start background scanner to keep registry/UWP apps completely fresh
         self.app_engine.start_background_indexer()
 
+    def set_hud_window_provider(self, provider_fn):
+        self.hardware.set_hud_window_provider(provider_fn)
+
     def execute_hardware(self, command):
         return self.hardware.parse_and_execute(command)
+
+    def execute_wireless(self, command):
+        return self.wireless.parse_and_execute(command)
+
+    def execute_window_management(self, command):
+        return self.window_mgr.parse_and_execute(command)
+
+    def execute_vision(self, command):
+        return self.vision.parse_and_execute(command)
+
+    def execute_nlp(self, command, search_func=None):
+        from nlp_dispatcher import execute_chained_pipeline
+        return execute_chained_pipeline(command, self, search_func)
 
     def open_application(self, name):
         success, spoken, app_name = self.app_engine.launch(name)
@@ -906,35 +2142,13 @@ class SystemDriver:
 
     # --- NETWORK CONTROL ---
     def toggle_wifi(self, enable=True):
-        try:
-            if not enable:
-                res_disc = subprocess.run('netsh wlan disconnect', shell=True, capture_output=True, text=True)
-                subprocess.run('netsh interface set interface name="Wi-Fi" admin=DISABLED', shell=True, capture_output=True, text=True)
-                if res_disc.returncode == 0:
-                    return True, "Wi-Fi disconnected and turned off, sir."
-                return False, "Failed to turn off Wi-Fi."
-            else:
-                subprocess.run('netsh interface set interface name="Wi-Fi" admin=ENABLED', shell=True, capture_output=True)
-                p = subprocess.run('netsh wlan show profiles', shell=True, capture_output=True, text=True)
-                profiles = re.findall(r'All User Profile\s*:\s*(.*)', p.stdout)
-                for prof in profiles:
-                    prof_name = prof.strip()
-                    c = subprocess.run(f'netsh wlan connect name="{prof_name}"', shell=True, capture_output=True, text=True)
-                    if c.returncode == 0:
-                        return True, f"Wi-Fi connected to {prof_name}, sir."
-                return True, "Wi-Fi adapter enabled, sir."
-        except Exception as e:
-            return False, str(e)
+        if not enable:
+            return self.wireless.turn_off_wifi()
+        else:
+            return self.wireless.turn_on_wifi()
 
     def connect_to_wifi(self, ssid):
-        if not ssid:
-            return False, "No network SSID specified."
-        try:
-            cmd = f'netsh wlan connect name="{ssid}"'
-            subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            return True, ssid
-        except Exception as e:
-            return False, str(e)
+        return self.wireless.connect_wifi(ssid)
 
     # --- SMART FILESYSTEM ENGINE ---
     def _get_search_roots(self):
@@ -1056,6 +2270,15 @@ class SystemDriver:
         if not os.path.abspath(path).startswith(os.path.abspath(home)):
             return False, "Safety Valve: Refusing to delete OS files outside your personal User directory."
 
+        # Dodaios Safety Impact Assessment
+        try:
+            from dodaios_bridge import DODAIOS_BRIDGE
+            is_safe, safety_msg = DODAIOS_BRIDGE.safety.assess_execution_safety(f"del {path}")
+            if not is_safe:
+                return False, safety_msg
+        except Exception:
+            pass
+
         try:
             # Use safe recycle bin if send2trash is available, else standard delete
             try:
@@ -1069,6 +2292,19 @@ class SystemDriver:
             return True, f"Purged {os.path.basename(path)}, sir."
         except Exception as e:
             return False, f"Deletion error: {e}"
+
+    def execute_shell_command(self, cmd: str) -> Tuple[bool, str]:
+        """Executes a shell command guarded by the Dodaios Safety Engine."""
+        from dodaios_bridge import DODAIOS_BRIDGE
+        is_safe, safety_msg = DODAIOS_BRIDGE.safety.assess_execution_safety(cmd)
+        if not is_safe:
+            return False, safety_msg
+        try:
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
+            out = res.stdout if res.stdout else res.stderr
+            return True, out.strip() if out else "Command completed."
+        except Exception as e:
+            return False, f"Command execution error: {e}"
 
     def smart_move(self, source_name, dest_location):
         found, src_path, _ = self.locate_path(source_name)
@@ -1108,6 +2344,8 @@ class SystemDriver:
     def execute_command(self, action, payload=None):
         if action == "HARDWARE":
             return self.execute_hardware(payload)
+        if action == "WIRELESS":
+            return self.execute_wireless(payload)
         if action == "OPEN_APP":
             return self.open_application(payload)
         if action == "CLOSE_APP":

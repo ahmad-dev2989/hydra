@@ -1,0 +1,860 @@
+{
+  "spotify:mute": {
+    "id": "spotify:mute",
+    "application": "spotify",
+    "intent": "MUTE",
+    "parameters": {
+      "level": 0
+    },
+    "steps": [
+      {
+        "id": 1,
+        "action": "MUTE",
+        "target": "",
+        "parameters": {
+          "level": 0
+        },
+        "expected_state": "",
+        "verification_rule": {},
+        "description": "Adjust Spotify audio (MUTE)"
+      }
+    ],
+    "final_verification": {
+      "type": "custom"
+    },
+    "success_count": 2,
+    "failure_count": 0,
+    "confidence": 0.99,
+    "last_success": 1792503747.3226104,
+    "last_duration": 0.533862829208374
+  },
+  "spotify:play_song": {
+    "id": "spotify:play_song:laapata",
+    "application": "spotify",
+    "intent": "PLAY_SONG",
+    "parameters": {
+      "song_name": "laapata"
+    },
+    "steps": [
+      {
+        "id": 1,
+        "action": "OPEN_APPLICATION",
+        "target": "Spotify",
+        "parameters": {},
+        "expected_state": "Spotify is opened in maximized form",
+        "verification_rule": {
+          "type": "window_maximized",
+          "value": "spotify"
+        },
+        "description": "Open and maximize Spotify"
+      },
+      {
+        "id": 2,
+        "action": "FOCUS_WINDOW",
+        "target": "Spotify",
+        "parameters": {},
+        "expected_state": "Spotify has active window focus",
+        "verification_rule": {
+          "type": "window_active",
+          "value": "Spotify"
+        },
+        "description": "Focus Spotify window"
+      },
+      {
+        "id": 3,
+        "action": "PRESS_KEYS",
+        "target": "",
+        "parameters": {
+          "keys": [
+            "ctrl",
+            "l"
+          ]
+        },
+        "expected_state": "Spotify search bar active",
+        "verification_rule": {},
+        "description": "Press main search button/shortcut (Ctrl+L)"
+      },
+      {
+        "id": 4,
+        "action": "PRESS_KEYS",
+        "target": "",
+        "parameters": {
+          "keys": [
+            "ctrl",
+            "a"
+          ]
+        },
+        "expected_state": "Search bar content selected",
+        "verification_rule": {},
+        "description": "Select all in search bar"
+      },
+      {
+        "id": 5,
+        "action": "PRESS_KEY",
+        "target": "",
+        "parameters": {
+          "key": "backspace"
+        },
+        "expected_state": "Search bar cleared",
+        "verification_rule": {},
+        "description": "Clear search bar"
+      },
+      {
+        "id": 6,
+        "action": "PASTE_TEXT",
+        "target": "",
+        "parameters": {
+          "text": "laapata"
+        },
+        "expected_state": "Song name 'laapata' typed into search",
+        "verification_rule": {},
+        "description": "Paste song query 'laapata'"
+      },
+      {
+        "id": 7,
+        "action": "PRESS_KEY",
+        "target": "",
+        "parameters": {
+          "key": "enter"
+        },
+        "expected_state": "Search results returned",
+        "verification_rule": {},
+        "description": "Submit search query"
+      },
+      {
+        "id": 8,
+        "action": "WAIT",
+        "target": "",
+        "parameters": {
+          "seconds": 0.45
+        },
+        "expected_state": "Results displayed",
+        "verification_rule": {},
+        "description": "Wait for tracks to load"
+      },
+      {
+        "id": 9,
+        "action": "CUSTOM",
+        "target": "spotify_click_play_song",
+        "parameters": {
+          "song_name": "laapata"
+        },
+        "expected_state": "Play button clicked alongside matching song",
+        "verification_rule": {},
+        "description": "Click play button alongside matching song"
+      },
+      {
+        "id": 10,
+        "action": "WAIT",
+        "target": "",
+        "parameters": {
+          "seconds": 0.5
+        },
+        "expected_state": "Track 'laapata' starts playing",
+        "verification_rule": {
+          "type": "spotify_playing",
+          "value": "laapata"
+        },
+        "description": "Verify track starts playing"
+      }
+    ],
+    "final_verification": {
+      "type": "spotify_playing",
+      "value": "laapata"
+    },
+    "success_count": 12,
+    "failure_count": 6,
+    "confidence": 0.6,
+    "last_success": 1792584266.469165,
+    "last_duration": 9.382184505462646,
+    "last_failure": 1792584776.0487332,
+    "last_failure_reason": "Audio is playing, but track 'Natasha Baig - Maikhana' does not match expected song 'my liked songs'."
+  },
+  "spotify:open_app": {
+    "id": "spotify:open_app:planned",
+    "application": "spotify",
+    "intent": "OPEN_APP",
+    "parameters": {},
+    "steps": [
+      {
+        "id": 1,
+        "action": "OPEN_APPLICATION",
+        "target": "spotify",
+        "parameters": {},
+        "expected_state": "spotify is open",
+        "verification_rule": {
+          "type": "custom"
+        },
+        "description": "Launch spotify"
+      },
+      {
+        "id": 2,
+        "action": "FOCUS_WINDOW",
+        "target": "spotify",
+        "parameters": {},
+        "expected_state": "spotify is focused",
+        "verification_rule": {
+          "type": "custom"
+        },
+        "description": "Focus spotify"
+      }
+    ],
+    "final_verification": {
+      "type": "window_active",
+      "value": "spotify"
+    },
+    "success_count": 7,
+    "failure_count": 0,
+    "confidence": 0.99,
+    "last_success": 1792584802.3559937,
+    "last_duration": 1.1156859397888184
+  },
+  "whatsapp:send_message": {
+    "id": "whatsapp:send_message:qaseem",
+    "application": "whatsapp",
+    "intent": "SEND_MESSAGE",
+    "parameters": {
+      "recipient": "qaseem",
+      "message": "https://chatgpt.com/share/6ad7b9a2-8240-83ee-b5d3-9e49c20bea67"
+    },
+    "steps": [
+      {
+        "id": 1,
+        "action": "OPEN_APPLICATION",
+        "target": "WhatsApp",
+        "parameters": {},
+        "expected_state": "WhatsApp is opened in maximized form",
+        "verification_rule": {
+          "type": "window_maximized",
+          "value": "whatsapp"
+        },
+        "description": "Open and maximize WhatsApp"
+      },
+      {
+        "id": 2,
+        "action": "FOCUS_WINDOW",
+        "target": "WhatsApp",
+        "parameters": {},
+        "expected_state": "WhatsApp has active input focus",
+        "verification_rule": {
+          "type": "window_active",
+          "value": "WhatsApp"
+        },
+        "description": "Bring WhatsApp to active focus"
+      },
+      {
+        "id": 3,
+        "action": "PRESS_KEYS",
+        "target": "",
+        "parameters": {
+          "keys": [
+            "ctrl",
+            "f"
+          ]
+        },
+        "expected_state": "Search field is focused",
+        "verification_rule": {
+          "type": "custom"
+        },
+        "description": "Trigger search shortcut Ctrl+F"
+      },
+      {
+        "id": 4,
+        "action": "PRESS_KEYS",
+        "target": "",
+        "parameters": {
+          "keys": [
+            "ctrl",
+            "a"
+          ]
+        },
+        "expected_state": "Search field selected",
+        "verification_rule": {},
+        "description": "Select all in search field"
+      },
+      {
+        "id": 5,
+        "action": "PRESS_KEY",
+        "target": "",
+        "parameters": {
+          "key": "backspace"
+        },
+        "expected_state": "Search field cleared",
+        "verification_rule": {},
+        "description": "Clear search field"
+      },
+      {
+        "id": 6,
+        "action": "PASTE_TEXT",
+        "target": "",
+        "parameters": {
+          "text": "qaseem"
+        },
+        "expected_state": "Contact 'qaseem' is typed in search box",
+        "verification_rule": {},
+        "description": "Paste contact name 'qaseem'"
+      },
+      {
+        "id": 7,
+        "action": "WAIT",
+        "target": "",
+        "parameters": {
+          "seconds": 0.4
+        },
+        "expected_state": "Search results loaded",
+        "verification_rule": {},
+        "description": "Wait for contact search results"
+      },
+      {
+        "id": 8,
+        "action": "CUSTOM",
+        "target": "whatsapp_select_contact",
+        "parameters": {
+          "recipient": "qaseem"
+        },
+        "expected_state": "Conversation with 'qaseem' is opened",
+        "verification_rule": {},
+        "description": "Scan and click contact 'qaseem'"
+      },
+      {
+        "id": 9,
+        "action": "CUSTOM",
+        "target": "whatsapp_click_message_box",
+        "parameters": {},
+        "expected_state": "Message composer input box focused",
+        "verification_rule": {},
+        "description": "Focus message composer input box"
+      },
+      {
+        "id": 10,
+        "action": "PASTE_TEXT",
+        "target": "",
+        "parameters": {
+          "text": "https://chatgpt.com/share/6ad7b9a2-8240-83ee-b5d3-9e49c20bea67"
+        },
+        "expected_state": "Exact message text is entered into input box",
+        "verification_rule": {},
+        "description": "Paste exact message text: 'https://chatgpt.com/share/6ad7b9a2-8240-83ee-b5d3-9e49c20bea67'"
+      },
+      {
+        "id": 11,
+        "action": "PRESS_KEY",
+        "target": "",
+        "parameters": {
+          "key": "enter"
+        },
+        "expected_state": "Message is dispatched to conversation",
+        "verification_rule": {
+          "type": "whatsapp_sent",
+          "value": "https://chatgpt.com/share/6ad7b9a2-8240-83ee-b5d3-9e49c20bea67",
+          "recipient": "qaseem"
+        },
+        "description": "Press Enter to send message"
+      }
+    ],
+    "final_verification": {
+      "type": "whatsapp_sent",
+      "value": "https://chatgpt.com/share/6ad7b9a2-8240-83ee-b5d3-9e49c20bea67",
+      "recipient": "qaseem"
+    },
+    "success_count": 5,
+    "failure_count": 2,
+    "confidence": 0.74,
+    "last_success": 1792522860.5234158,
+    "last_duration": 21.327367305755615
+  },
+  "whatsapp:voice_call": {
+    "id": "whatsapp:call:moeez",
+    "application": "whatsapp",
+    "intent": "VOICE_CALL",
+    "parameters": {
+      "recipient": "moeez",
+      "video": false
+    },
+    "steps": [
+      {
+        "id": 1,
+        "action": "OPEN_APPLICATION",
+        "target": "WhatsApp",
+        "parameters": {},
+        "expected_state": "WhatsApp visible",
+        "verification_rule": {},
+        "description": ""
+      },
+      {
+        "id": 2,
+        "action": "FOCUS_WINDOW",
+        "target": "WhatsApp",
+        "parameters": {},
+        "expected_state": "WhatsApp active",
+        "verification_rule": {},
+        "description": ""
+      },
+      {
+        "id": 3,
+        "action": "PRESS_KEYS",
+        "target": "",
+        "parameters": {
+          "keys": [
+            "ctrl",
+            "f"
+          ]
+        },
+        "expected_state": "Search focused",
+        "verification_rule": {},
+        "description": ""
+      },
+      {
+        "id": 4,
+        "action": "PASTE_TEXT",
+        "target": "",
+        "parameters": {
+          "text": "moeez"
+        },
+        "expected_state": "Contact searched",
+        "verification_rule": {},
+        "description": ""
+      },
+      {
+        "id": 5,
+        "action": "WAIT",
+        "target": "",
+        "parameters": {
+          "seconds": 0.3
+        },
+        "expected_state": "Results visible",
+        "verification_rule": {},
+        "description": ""
+      },
+      {
+        "id": 6,
+        "action": "PRESS_KEY",
+        "target": "",
+        "parameters": {
+          "key": "enter"
+        },
+        "expected_state": "Conversation active",
+        "verification_rule": {},
+        "description": ""
+      },
+      {
+        "id": 7,
+        "action": "CUSTOM",
+        "target": "call_button",
+        "parameters": {},
+        "expected_state": "Call initiated",
+        "verification_rule": {},
+        "description": "Trigger call button"
+      }
+    ],
+    "final_verification": {
+      "type": "window_active",
+      "value": "WhatsApp"
+    },
+    "success_count": 3,
+    "failure_count": 0,
+    "confidence": 0.99,
+    "last_success": 1792507251.5436122,
+    "last_duration": 123.67926836013794
+  },
+  "antigravity:change_theme": {
+    "id": "antigravity:open_app:planned",
+    "application": "antigravity",
+    "intent": "CHANGE_THEME",
+    "parameters": {},
+    "steps": [
+      {
+        "id": 1,
+        "action": "FOCUS_WINDOW",
+        "target": "HYDRA",
+        "parameters": {},
+        "expected_state": "Window focused",
+        "verification_rule": {
+          "type": "custom"
+        },
+        "description": "Focus HYDRA window"
+      },
+      {
+        "id": 2,
+        "action": "CUSTOM",
+        "target": "toggle_theme",
+        "parameters": {
+          "theme": "light"
+        },
+        "expected_state": "Theme set to light",
+        "verification_rule": {
+          "type": "custom"
+        },
+        "description": "Switch theme to light"
+      }
+    ],
+    "final_verification": {
+      "type": "theme_state",
+      "value": "light"
+    },
+    "success_count": 4,
+    "failure_count": 0,
+    "confidence": 0.99,
+    "last_success": 1792512781.0972738,
+    "last_duration": 4.940812587738037
+  },
+  "spotify:open_profile": {
+    "id": "spotify:open_profile",
+    "application": "spotify",
+    "intent": "OPEN_PROFILE",
+    "parameters": {},
+    "steps": [
+      {
+        "id": 1,
+        "action": "OPEN_APPLICATION",
+        "target": "Spotify",
+        "parameters": {},
+        "expected_state": "Spotify is opened",
+        "verification_rule": {
+          "type": "window_active",
+          "value": "spotify"
+        },
+        "description": "Open Spotify"
+      },
+      {
+        "id": 2,
+        "action": "FOCUS_WINDOW",
+        "target": "Spotify",
+        "parameters": {},
+        "expected_state": "Spotify focused",
+        "verification_rule": {
+          "type": "window_active",
+          "value": "spotify"
+        },
+        "description": "Focus Spotify window"
+      },
+      {
+        "id": 3,
+        "action": "WAIT",
+        "target": "",
+        "parameters": {
+          "seconds": 0.35
+        },
+        "expected_state": "Spotify UI active",
+        "verification_rule": {},
+        "description": "Wait for Spotify UI to render"
+      },
+      {
+        "id": 4,
+        "action": "CUSTOM",
+        "target": "spotify_open_profile",
+        "parameters": {},
+        "expected_state": "Navigated to Spotify Profile",
+        "verification_rule": {},
+        "description": "Open Spotify user profile"
+      }
+    ],
+    "final_verification": {
+      "type": "window_active",
+      "value": "spotify"
+    },
+    "success_count": 2,
+    "failure_count": 0,
+    "confidence": 0.99,
+    "last_success": 1792543251.9550438,
+    "last_duration": 4.527559041976929
+  },
+  "canva:open_app": {
+    "id": "canva:open_app:planned",
+    "application": "canva",
+    "intent": "OPEN_APP",
+    "parameters": {},
+    "steps": [
+      {
+        "id": 1,
+        "action": "OPEN_APPLICATION",
+        "target": "canva",
+        "parameters": {},
+        "expected_state": "canva is open",
+        "verification_rule": {
+          "type": "custom"
+        },
+        "description": "Launch canva"
+      },
+      {
+        "id": 2,
+        "action": "FOCUS_WINDOW",
+        "target": "canva",
+        "parameters": {},
+        "expected_state": "canva is focused",
+        "verification_rule": {
+          "type": "custom"
+        },
+        "description": "Focus canva"
+      }
+    ],
+    "final_verification": {
+      "type": "window_active",
+      "value": "canva"
+    },
+    "success_count": 1,
+    "failure_count": 0,
+    "confidence": 0.93,
+    "last_success": 1792543456.878787,
+    "last_duration": 4.720430612564087
+  },
+  "general:execute_task": {
+    "id": "general:execute_task:planned",
+    "application": "general",
+    "intent": "EXECUTE_TASK",
+    "parameters": {},
+    "steps": [
+      {
+        "id": 1,
+        "action": "OPEN_APPLICATION",
+        "target": "general",
+        "parameters": {},
+        "expected_state": "general is open",
+        "verification_rule": {
+          "type": "custom"
+        },
+        "description": "Launch general"
+      },
+      {
+        "id": 2,
+        "action": "FOCUS_WINDOW",
+        "target": "general",
+        "parameters": {},
+        "expected_state": "general is focused",
+        "verification_rule": {
+          "type": "custom"
+        },
+        "description": "Focus general"
+      }
+    ],
+    "final_verification": {
+      "type": "window_active",
+      "value": "general"
+    },
+    "success_count": 4,
+    "failure_count": 0,
+    "confidence": 0.99,
+    "last_success": 1792584809.0820959,
+    "last_duration": 1.0879466533660889
+  },
+  "brave:open_web_app": {
+    "id": "brave:open_web_app:classroom",
+    "application": "brave",
+    "intent": "OPEN_WEB_APP",
+    "parameters": {
+      "browser": "brave",
+      "service": "classroom",
+      "url": "https://classroom.google.com"
+    },
+    "steps": [
+      {
+        "id": 1,
+        "action": "OPEN_APPLICATION",
+        "target": "brave",
+        "parameters": {},
+        "expected_state": "Brave is opened",
+        "verification_rule": {
+          "type": "window_active",
+          "value": "brave"
+        },
+        "description": "Open Brave"
+      },
+      {
+        "id": 2,
+        "action": "FOCUS_WINDOW",
+        "target": "brave",
+        "parameters": {},
+        "expected_state": "Brave has active input focus",
+        "verification_rule": {
+          "type": "window_active",
+          "value": "brave"
+        },
+        "description": "Focus Brave window"
+      },
+      {
+        "id": 3,
+        "action": "PRESS_KEYS",
+        "target": "",
+        "parameters": {
+          "keys": [
+            "ctrl",
+            "l"
+          ]
+        },
+        "expected_state": "Address bar focused and highlighted",
+        "verification_rule": {},
+        "description": "Focus browser address bar (Ctrl+L)"
+      },
+      {
+        "id": 4,
+        "action": "PASTE_TEXT",
+        "target": "",
+        "parameters": {
+          "text": "https://classroom.google.com"
+        },
+        "expected_state": "URL 'https://classroom.google.com' entered into address bar",
+        "verification_rule": {},
+        "description": "Enter URL 'https://classroom.google.com'"
+      },
+      {
+        "id": 5,
+        "action": "PRESS_KEY",
+        "target": "",
+        "parameters": {
+          "key": "enter"
+        },
+        "expected_state": "Navigating to classroom",
+        "verification_rule": {},
+        "description": "Submit URL (Enter)"
+      },
+      {
+        "id": 6,
+        "action": "WAIT",
+        "target": "",
+        "parameters": {
+          "seconds": 0.8
+        },
+        "expected_state": "classroom page loaded",
+        "verification_rule": {},
+        "description": "Wait for classroom to load"
+      }
+    ],
+    "final_verification": {
+      "type": "window_active",
+      "value": "brave"
+    },
+    "success_count": 2,
+    "failure_count": 0,
+    "confidence": 0.99,
+    "last_success": 1792584319.0762935,
+    "last_duration": 3.2816340923309326
+  },
+  "spotify:like_song": {
+    "id": "spotify:like_song:believer",
+    "application": "spotify",
+    "intent": "LIKE_SONG",
+    "parameters": {
+      "song_name": "believer",
+      "artist": ""
+    },
+    "steps": [
+      {
+        "id": 1,
+        "action": "OPEN_APPLICATION",
+        "target": "Spotify",
+        "parameters": {},
+        "expected_state": "Spotify is opened",
+        "verification_rule": {
+          "type": "window_active",
+          "value": "spotify"
+        },
+        "description": "Open Spotify"
+      },
+      {
+        "id": 2,
+        "action": "FOCUS_WINDOW",
+        "target": "Spotify",
+        "parameters": {},
+        "expected_state": "Spotify has active window focus",
+        "verification_rule": {
+          "type": "window_active",
+          "value": "Spotify"
+        },
+        "description": "Focus Spotify window"
+      },
+      {
+        "id": 3,
+        "action": "PRESS_KEYS",
+        "target": "",
+        "parameters": {
+          "keys": [
+            "ctrl",
+            "l"
+          ]
+        },
+        "expected_state": "Spotify search bar active",
+        "verification_rule": {},
+        "description": "Press search shortcut (Ctrl+L)"
+      },
+      {
+        "id": 4,
+        "action": "PRESS_KEYS",
+        "target": "",
+        "parameters": {
+          "keys": [
+            "ctrl",
+            "a"
+          ]
+        },
+        "expected_state": "Search bar content selected",
+        "verification_rule": {},
+        "description": "Select all in search bar"
+      },
+      {
+        "id": 5,
+        "action": "PRESS_KEY",
+        "target": "",
+        "parameters": {
+          "key": "backspace"
+        },
+        "expected_state": "Search bar cleared",
+        "verification_rule": {},
+        "description": "Clear search bar"
+      },
+      {
+        "id": 6,
+        "action": "PASTE_TEXT",
+        "target": "",
+        "parameters": {
+          "text": "believer"
+        },
+        "expected_state": "Song 'believer' entered into search bar",
+        "verification_rule": {},
+        "description": "Paste query 'believer'"
+      },
+      {
+        "id": 7,
+        "action": "PRESS_KEY",
+        "target": "",
+        "parameters": {
+          "key": "enter"
+        },
+        "expected_state": "Search query submitted",
+        "verification_rule": {},
+        "description": "Submit search query"
+      },
+      {
+        "id": 8,
+        "action": "WAIT",
+        "target": "",
+        "parameters": {
+          "seconds": 0.6
+        },
+        "expected_state": "Track list loaded",
+        "verification_rule": {},
+        "description": "Wait for tracks to load"
+      },
+      {
+        "id": 9,
+        "action": "CUSTOM",
+        "target": "spotify_like_song",
+        "parameters": {
+          "song_name": "believer",
+          "artist": ""
+        },
+        "expected_state": "Song 'believer' added to Liked Songs",
+        "verification_rule": {},
+        "description": "Locate and add 'believer' to Liked Songs"
+      }
+    ],
+    "final_verification": {
+      "type": "window_active",
+      "value": "spotify"
+    },
+    "success_count": 2,
+    "failure_count": 0,
+    "confidence": 0.99,
+    "last_success": 1792584517.9757829,
+    "last_duration": 9.301287174224854
+  }
+}
