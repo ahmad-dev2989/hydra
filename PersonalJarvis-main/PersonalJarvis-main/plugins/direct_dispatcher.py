@@ -4,6 +4,7 @@ Intercepts user commands and dispatches them to connected headless background wo
 before attempting desktop/browser window launches.
 """
 
+import re
 from typing import Optional, Tuple
 from .vault_manager import VAULT_MGR
 from .gmail_direct_worker import GMAIL_WORKER
@@ -80,8 +81,11 @@ class DirectBackgroundDispatcher:
         is_music_cmd = any(w in low for w in ["spotify", "music", "song", "track", "playlist"])
         is_audio_control = any(w in low for w in ["volume up", "volume down", "louder", "quieter", "mute", "unmute"])
         is_transport_action = any(w in low for w in ["play", "pause", "resume", "unpause", "stop", "next", "prev", "previous", "skip", "what song", "which song", "current song", "now playing", "playing song"])
+        is_play_song = bool(re.search(r'\b(?:play|listen to|put on)\s+(.+)', low)) and not any(w in low for w in ["youtube", "video", "yt", "game"])
+        is_resume = any(w in low for w in ["resume", "unpause"])
+        is_spotify_query = ("spotify" in low or "music" in low) and any(w in low for w in ["subscription", "plan", "settings", "setting", "account", "status", "quality", "tier"])
 
-        if (is_music_cmd and is_transport_action) or is_audio_control:
+        if (is_music_cmd and is_transport_action) or is_audio_control or is_play_song or is_resume or is_spotify_query:
             if SPOTIFY_WORKER.is_ready():
                 print("[DIRECT DISPATCHER] Routing to Spotify Direct Background Worker...")
                 ok, speech, _ = SPOTIFY_WORKER.execute_task("transport", cmd_clean)

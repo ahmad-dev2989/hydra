@@ -4703,14 +4703,14 @@
                 customFieldsHtml = `
                     <div class="one-click-auth-card" style="margin-bottom: 20px; padding: 18px; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 10px; background: rgba(15, 23, 42, 0.7); text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
                         <div style="font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #10b981; margin-bottom: 6px; letter-spacing: 1px; font-weight: bold;">
-                            EMBEDDED PKCE 1-CLICK AUTHENTICATION
+                            SPOTIFY AUTHENTICATION CENTER (GOOGLE & EMAIL)
                         </div>
                         <p style="font-size: 12px; color: #94a3b8; margin: 0 0 14px 0; line-height: 1.4;">
-                            Pair your Spotify account via internal loopback bridge for instant background music control and HUD media capsule controls.
+                            Redirects to Spotify's Authentication Center with "Continue with Google" or email login. Your session is saved forever in your local secure vault for headless background playback, subscription monitoring, and media control.
                         </p>
                         <button type="button" class="btn-connect-primary" onclick="startOneClickAuth('spotify')" style="width: 100%; justify-content: center; background: #059669; color: #fff; font-weight: bold; border: 1px solid #34d399; box-shadow: 0 0 16px rgba(16, 185, 129, 0.4); cursor: pointer; padding: 10px 16px;">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 8px;"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
-                            CONNECT SPOTIFY (1-CLICK)
+                            SIGN IN TO SPOTIFY (GOOGLE / EMAIL)
                         </button>
                     </div>
                     <details style="margin-bottom: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
@@ -5011,9 +5011,12 @@
             if (notice) {
                 notice.className = 'connect-status-box';
                 notice.style.display = 'flex';
+                const msg = (service === 'whatsapp')
+                    ? 'Launching WhatsApp Dynamic QR Pairing Window... Scan the QR code with your phone (Linked Devices).'
+                    : `Initiating 1-Click Zero-Code Neural Link for ${service.toUpperCase()}...`;
                 notice.innerHTML = `
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
-                    <span>Initiating 1-Click Zero-Code Neural Link for ${service.toUpperCase()}...</span>
+                    <span>${msg}</span>
                 `;
             }
             console.log('HYDRA_AUTH_CONNECT:' + service);
@@ -5096,11 +5099,23 @@
                 connectedPlugins = {};
             }
 
+            // Purge any stale mock/dummy google accounts
+            for (let k in connectedPlugins) {
+                if (connectedPlugins[k] && (connectedPlugins[k].account === 'connected_google_user@gmail.com' || connectedPlugins[k].account === 'primary.user@gmail.com')) {
+                    delete connectedPlugins[k];
+                }
+            }
+
             // Also attempt to load saved configuration from disk
             fetch('connected_plugins.json')
                 .then(r => r.json())
                 .then(data => {
                     if (data && typeof data === 'object') {
+                        for (let k in data) {
+                            if (data[k] && (data[k].account === 'connected_google_user@gmail.com' || data[k].account === 'primary.user@gmail.com')) {
+                                delete data[k];
+                            }
+                        }
                         connectedPlugins = Object.assign({}, data, connectedPlugins);
                         try {
                             localStorage.setItem('HYDRA_CONNECTED_PLUGINS', JSON.stringify(connectedPlugins));

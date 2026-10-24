@@ -31,18 +31,9 @@
             "verified": true
         }
     },
-    "gmail": {
-        "connected": true,
-        "account": "ahmad.pilot@gmail.com",
-        "authType": "google_session",
-        "data": {
-            "session_enc": "google_session.enc",
-            "verified": true
-        }
-    },
     "google_classroom": {
         "connected": true,
-        "account": "ahmad.pilot@gmail.com",
+        "account": "connected_google_user@gmail.com",
         "authType": "google_session",
         "data": {
             "session_enc": "google_session.enc",
@@ -51,7 +42,16 @@
     },
     "youtube": {
         "connected": true,
-        "account": "ahmad.pilot@gmail.com",
+        "account": "connected_google_user@gmail.com",
+        "authType": "google_session",
+        "data": {
+            "session_enc": "google_session.enc",
+            "verified": true
+        }
+    },
+    "gmail": {
+        "connected": true,
+        "account": "f240004@cfd.nu.edu.pk",
         "authType": "google_session",
         "data": {
             "session_enc": "google_session.enc",
@@ -60,19 +60,10 @@
     },
     "spotify": {
         "connected": true,
-        "account": "ahmad.premium@spotify.com",
+        "account": "ahmadfarooq29898@gmail.com",
         "authType": "spotify_pkce",
         "data": {
             "session_enc": "spotify_session.enc",
-            "verified": true
-        }
-    },
-    "whatsapp": {
-        "connected": true,
-        "account": "Connected Device (+92-300-1234567)",
-        "authType": "whatsapp_qr",
-        "data": {
-            "session_enc": "session.enc",
             "verified": true
         }
     }

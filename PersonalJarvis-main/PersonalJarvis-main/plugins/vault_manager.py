@@ -366,6 +366,13 @@ class VaultManager:
                     WHATSAPP_SESSION_ENC.unlink(missing_ok=True)
                 except Exception:
                     pass
+            wa_prof = VAULT_DIR / "whatsapp_web_profile"
+            if wa_prof.exists():
+                try:
+                    import shutil
+                    shutil.rmtree(str(wa_prof), ignore_errors=True)
+                except Exception:
+                    pass
 
         print(f"[VAULT] Disconnected '{app_id}' and pruned vault session.")
 

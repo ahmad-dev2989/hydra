@@ -1,10 +1,33 @@
 {
-    "gmail": {
+    "canva": {
         "connected": true,
-        "account": "connected_google_user@gmail.com",
-        "authType": "google_session",
+        "account": "ahmad@canva.com",
+        "authType": "oauth",
         "data": {
-            "session_enc": "google_session.enc",
+            "verified": true
+        }
+    },
+    "discord": {
+        "connected": true,
+        "account": "Ahmad#1234",
+        "authType": "bot_token",
+        "data": {
+            "verified": true
+        }
+    },
+    "github": {
+        "connected": true,
+        "account": "ahmad-dev2989",
+        "authType": "pat",
+        "data": {
+            "verified": true
+        }
+    },
+    "linkedin": {
+        "connected": true,
+        "account": "ahmad-pro",
+        "authType": "oauth",
+        "data": {
             "verified": true
         }
     },
@@ -23,6 +46,24 @@
         "authType": "google_session",
         "data": {
             "session_enc": "google_session.enc",
+            "verified": true
+        }
+    },
+    "gmail": {
+        "connected": true,
+        "account": "f240004@cfd.nu.edu.pk",
+        "authType": "google_session",
+        "data": {
+            "session_enc": "google_session.enc",
+            "verified": true
+        }
+    },
+    "spotify": {
+        "connected": true,
+        "account": "ahmadfarooq29898@gmail.com",
+        "authType": "spotify_pkce",
+        "data": {
+            "session_enc": "spotify_session.enc",
             "verified": true
         }
     }
