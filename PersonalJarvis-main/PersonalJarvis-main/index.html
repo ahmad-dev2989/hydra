@@ -612,12 +612,12 @@
         .plugins-modal-card {
             width: min(940px, 94vw);
             height: min(660px, 88vh);
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.98);
             backdrop-filter: blur(28px);
             -webkit-backdrop-filter: blur(28px);
-            border: 1.5px solid rgba(0, 180, 240, 0.45);
-            border-radius: 20px;
-            box-shadow: 0 24px 64px rgba(0, 80, 160, 0.25), 0 0 35px rgba(0, 200, 255, 0.2);
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            box-shadow: 0 20px 48px rgba(15, 23, 42, 0.12);
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -631,9 +631,9 @@
         }
 
         .theme-dark .plugins-modal-card {
-            background: rgba(10, 22, 40, 0.94);
-            border-color: rgba(0, 229, 255, 0.45);
-            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65), 0 0 45px rgba(0, 229, 255, 0.25);
+            background: rgba(11, 19, 36, 0.98);
+            border-color: #1e293b;
+            box-shadow: 0 24px 56px rgba(0, 0, 0, 0.55);
         }
 
         /* Top Header */
@@ -641,67 +641,70 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 28px 16px;
-            border-bottom: 1px solid rgba(0, 180, 240, 0.2);
-            background: linear-gradient(180deg, rgba(0, 180, 240, 0.05) 0%, transparent 100%);
+            padding: 18px 26px 15px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
             flex-shrink: 0;
         }
 
         .theme-dark .plugins-modal-header {
-            border-bottom-color: rgba(0, 229, 255, 0.2);
-            background: linear-gradient(180deg, rgba(0, 229, 255, 0.06) 0%, transparent 100%);
+            border-bottom-color: #1e293b;
+            background: #0f172a;
         }
 
         .plugins-header-badge {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
         }
 
         .plugins-live-dot {
             width: 7px;
             height: 7px;
             border-radius: 50%;
-            background-color: #00b4d8;
-            box-shadow: 0 0 8px #00b4d8;
-            animation: pulse-dot 2s infinite ease-in-out;
+            background-color: #0284c7;
+            box-shadow: none;
+        }
+
+        .theme-dark .plugins-live-dot {
+            background-color: #38bdf8;
         }
 
         .plugins-sys-tag {
             font-family: 'Share Tech Mono', monospace;
             font-size: 9.5px;
-            letter-spacing: 1.5px;
-            color: #0077b6;
+            letter-spacing: 1.2px;
+            color: #0369a1;
             font-weight: 700;
             text-transform: uppercase;
         }
 
         .theme-dark .plugins-sys-tag {
-            color: #00e5ff;
+            color: #38bdf8;
         }
 
         .plugins-modal-title {
             font-family: 'Rajdhani', sans-serif;
-            font-size: 22px;
+            font-size: 21px;
             font-weight: 700;
-            color: #0f2757;
-            letter-spacing: 1px;
+            color: #0f172a;
+            letter-spacing: 0.8px;
             margin: 0;
             line-height: 1.1;
         }
 
         .theme-dark .plugins-modal-title {
-            color: #e0f7fa;
-            text-shadow: 0 0 10px rgba(0, 229, 255, 0.35);
+            color: #f1f5f9;
+            text-shadow: none;
         }
 
         .plugins-modal-subtitle {
             font-family: 'Share Tech Mono', monospace;
             font-size: 11px;
-            color: #475569;
+            color: #64748b;
             margin: 3px 0 0;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
 
         .theme-dark .plugins-modal-subtitle {
@@ -711,15 +714,15 @@
         .plugins-header-actions {
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 12px;
         }
 
         .plugins-stats-pill {
             display: flex;
             align-items: center;
             gap: 7px;
-            background: rgba(0, 180, 240, 0.08);
-            border: 1px solid rgba(0, 180, 240, 0.3);
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
             border-radius: 20px;
             padding: 5px 12px;
             font-family: 'Share Tech Mono', monospace;
@@ -727,37 +730,37 @@
         }
 
         .theme-dark .plugins-stats-pill {
-            background: rgba(0, 229, 255, 0.1);
-            border-color: rgba(0, 229, 255, 0.35);
+            background: #1e293b;
+            border-color: #334155;
         }
 
         .pill-connected-count {
             background: #10b981;
             color: #ffffff;
             font-weight: 700;
-            border-radius: 10px;
+            border-radius: 6px;
             padding: 1px 7px;
             font-size: 9px;
-            box-shadow: 0 0 8px rgba(16, 185, 129, 0.45);
+            box-shadow: none;
         }
 
         .pill-label {
-            color: #1e3a8a;
+            color: #334155;
             font-weight: 600;
-            letter-spacing: 0.8px;
+            letter-spacing: 0.5px;
         }
 
         .theme-dark .pill-label {
-            color: #7dd3fc;
+            color: #94a3b8;
         }
 
         .plugins-close-btn {
             width: 32px;
             height: 32px;
-            border-radius: 50%;
-            background: rgba(0, 180, 240, 0.1);
-            border: 1px solid rgba(0, 180, 240, 0.35);
-            color: #0f2757;
+            border-radius: 8px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            color: #475569;
             font-size: 13px;
             font-weight: bold;
             display: flex;
@@ -769,17 +772,22 @@
         }
 
         .plugins-close-btn:hover {
-            background: rgba(239, 68, 68, 0.18);
-            border-color: rgba(239, 68, 68, 0.6);
-            color: #ef4444;
-            transform: scale(1.1);
-            box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+            background: #fee2e2;
+            border-color: #fca5a5;
+            color: #dc2626;
+            box-shadow: none;
         }
 
         .theme-dark .plugins-close-btn {
-            background: rgba(0, 229, 255, 0.1);
-            border-color: rgba(0, 229, 255, 0.35);
-            color: #e0f7fa;
+            background: #1e293b;
+            border-color: #334155;
+            color: #94a3b8;
+        }
+
+        .theme-dark .plugins-close-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+            color: #f87171;
         }
 
         /* Controls / Search & Filters */
@@ -787,57 +795,57 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 28px;
-            gap: 16px;
-            background: rgba(0, 180, 240, 0.03);
-            border-bottom: 1px solid rgba(0, 180, 240, 0.15);
+            padding: 12px 26px;
+            gap: 14px;
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
             flex-shrink: 0;
             flex-wrap: wrap;
         }
 
         .theme-dark .plugins-controls-bar {
-            background: rgba(0, 229, 255, 0.03);
-            border-bottom-color: rgba(0, 229, 255, 0.15);
+            background: #0b1324;
+            border-bottom-color: #1e293b;
         }
 
         .plugins-search-box {
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(255, 255, 255, 0.85);
-            border: 1px solid rgba(0, 180, 240, 0.35);
-            border-radius: 10px;
-            padding: 6px 12px;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 7px 12px;
             flex: 1;
             min-width: 220px;
             max-width: 360px;
-            transition: all 0.2s;
+            transition: border-color 0.2s;
         }
 
         .plugins-search-box:focus-within {
-            border-color: #00b4d8;
-            box-shadow: 0 0 10px rgba(0, 180, 240, 0.3);
+            border-color: #0284c7;
+            box-shadow: none;
             background: #ffffff;
         }
 
         .theme-dark .plugins-search-box {
-            background: rgba(15, 30, 54, 0.85);
-            border-color: rgba(0, 229, 255, 0.35);
+            background: #0f172a;
+            border-color: #334155;
         }
 
         .theme-dark .plugins-search-box:focus-within {
-            border-color: #00e5ff;
-            box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
-            background: rgba(20, 38, 68, 0.95);
+            border-color: #38bdf8;
+            box-shadow: none;
+            background: #0f172a;
         }
 
         .search-icon {
-            color: #0077b6;
+            color: #64748b;
             flex-shrink: 0;
         }
 
         .theme-dark .search-icon {
-            color: #00e5ff;
+            color: #94a3b8;
         }
 
         .plugins-search-input {
@@ -846,12 +854,12 @@
             background: transparent;
             font-family: 'Share Tech Mono', monospace;
             font-size: 11.5px;
-            color: #0f2757;
+            color: #0f172a;
             width: 100%;
         }
 
         .theme-dark .plugins-search-input {
-            color: #e0f7fa;
+            color: #f1f5f9;
         }
 
         .plugins-search-input::placeholder {
@@ -880,43 +888,50 @@
         }
 
         .filter-pill {
-            background: rgba(0, 180, 240, 0.06);
-            border: 1px solid rgba(0, 180, 240, 0.25);
-            border-radius: 14px;
-            padding: 4px 10px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 5px 11px;
             font-family: 'Share Tech Mono', monospace;
             font-size: 9.5px;
-            letter-spacing: 0.8px;
-            color: #1e3a8a;
+            letter-spacing: 0.6px;
+            color: #475569;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             outline: none;
             font-weight: 600;
         }
 
         .filter-pill:hover {
-            background: rgba(0, 180, 240, 0.15);
-            border-color: #00b4d8;
+            background: #e2e8f0;
+            color: #0f172a;
+            border-color: #cbd5e1;
         }
 
         .filter-pill.active {
-            background: #00b4d8;
+            background: #0284c7;
             color: #ffffff;
-            border-color: #0096c7;
-            box-shadow: 0 0 10px rgba(0, 180, 240, 0.4);
+            border-color: #0284c7;
+            box-shadow: none;
+            font-weight: 700;
         }
 
         .theme-dark .filter-pill {
-            background: rgba(0, 229, 255, 0.06);
-            border-color: rgba(0, 229, 255, 0.25);
-            color: #7dd3fc;
+            background: #1e293b;
+            border-color: #334155;
+            color: #94a3b8;
+        }
+
+        .theme-dark .filter-pill:hover {
+            background: #334155;
+            color: #f1f5f9;
         }
 
         .theme-dark .filter-pill.active {
-            background: #00e5ff;
-            color: #041226;
-            border-color: #00e5ff;
-            box-shadow: 0 0 14px rgba(0, 229, 255, 0.6);
+            background: #0284c7;
+            color: #ffffff;
+            border-color: #0284c7;
+            box-shadow: none;
             font-weight: 700;
         }
 
@@ -931,10 +946,10 @@
         .plugins-grid-view {
             flex: 1;
             overflow-y: auto;
-            padding: 22px 28px;
+            padding: 20px 24px;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+            gap: 14px;
             align-content: start;
             transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s;
         }
@@ -944,108 +959,100 @@
         }
 
         .plugins-grid-view::-webkit-scrollbar-thumb {
-            background: rgba(0, 180, 240, 0.3);
+            background: #cbd5e1;
             border-radius: 4px;
         }
 
         .theme-dark .plugins-grid-view::-webkit-scrollbar-thumb {
-            background: rgba(0, 229, 255, 0.3);
+            background: #334155;
         }
 
-        /* App Card */
+        /* Square App Card */
         .app-card {
-            background: rgba(255, 255, 255, 0.85);
-            border: 1px solid rgba(0, 180, 240, 0.3);
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
             border-radius: 14px;
-            padding: 16px;
+            padding: 16px 10px 12px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            align-items: center;
+            justify-content: flex-start;
+            text-align: center;
             cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.2s ease;
             position: relative;
-            overflow: hidden;
-            box-shadow: 0 4px 14px rgba(0, 100, 200, 0.06);
+            min-height: 146px;
+            aspect-ratio: 1 / 1.05;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
         }
 
         .app-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, rgba(0, 180, 240, 0.4), transparent);
-            opacity: 0;
-            transition: opacity 0.25s;
+            display: none;
         }
 
         .app-card:hover {
-            transform: translateY(-4px);
-            border-color: rgba(0, 180, 240, 0.7);
-            box-shadow: 0 10px 24px rgba(0, 120, 220, 0.16), 0 0 16px rgba(0, 200, 255, 0.25);
+            transform: translateY(-3px);
+            border-color: #cbd5e1;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
             background: #ffffff;
         }
 
-        .app-card:hover::before {
-            opacity: 1;
-        }
-
         .theme-dark .app-card {
-            background: rgba(14, 28, 48, 0.75);
-            border-color: rgba(0, 229, 255, 0.25);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+            background: #0f172a;
+            border-color: #1e293b;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
         }
 
         .theme-dark .app-card:hover {
-            background: rgba(20, 38, 66, 0.9);
-            border-color: #00e5ff;
-            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 229, 255, 0.4);
+            transform: translateY(-3px);
+            border-color: #334155;
+            background: #1e293b;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
         }
 
         .app-card.connected {
-            border-color: rgba(16, 185, 129, 0.55);
-            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.12);
-        }
-
-        .app-card.connected::before {
-            background: linear-gradient(90deg, transparent, #10b981, transparent);
-            opacity: 1;
+            border-color: rgba(16, 185, 129, 0.6);
+            background: rgba(16, 185, 129, 0.02);
         }
 
         .theme-dark .app-card.connected {
-            border-color: rgba(16, 185, 129, 0.7);
-            box-shadow: 0 4px 18px rgba(16, 185, 129, 0.2);
+            border-color: rgba(16, 185, 129, 0.45);
+            background: rgba(16, 185, 129, 0.04);
         }
 
-        /* Card Content Layout */
-        .app-card-top {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        /* Top Right Connected Indicator Dot */
+        .app-tile-pin {
+            position: absolute;
+            top: 9px;
+            right: 9px;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #10b981;
         }
 
+        /* Centered Logo Box */
         .app-logo-wrap {
-            width: 44px;
-            height: 44px;
-            border-radius: 11px;
-            background: rgba(240, 246, 255, 0.95);
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
             display: flex;
             justify-content: center;
             align-items: center;
+            margin-bottom: 9px;
             flex-shrink: 0;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
-            border: 1px solid rgba(0, 180, 240, 0.15);
-            transition: transform 0.25s ease;
+            transition: transform 0.2s ease;
         }
 
         .app-card:hover .app-logo-wrap {
-            transform: scale(1.08);
+            transform: scale(1.05);
         }
 
         .theme-dark .app-logo-wrap {
-            background: rgba(8, 16, 30, 0.9);
-            border-color: rgba(0, 229, 255, 0.2);
+            background: #1e293b;
+            border-color: #334155;
         }
 
         .app-logo-wrap svg {
@@ -1054,131 +1061,100 @@
             display: block;
         }
 
-        .app-meta {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            flex: 1;
-            min-width: 0;
-        }
-
         .app-name {
             font-family: 'Rajdhani', sans-serif;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
-            color: #0f2757;
+            color: #0f172a;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             line-height: 1.2;
+            width: 100%;
         }
 
         .theme-dark .app-name {
-            color: #e0f7fa;
+            color: #f1f5f9;
         }
 
         .app-category {
             font-family: 'Share Tech Mono', monospace;
-            font-size: 9px;
-            letter-spacing: 0.6px;
-            color: #0077b6;
+            font-size: 8.5px;
+            letter-spacing: 0.5px;
+            color: #64748b;
             text-transform: uppercase;
             font-weight: 600;
+            margin: 3px 0 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
         }
 
         .theme-dark .app-category {
-            color: #38bdf8;
+            color: #94a3b8;
         }
 
         .app-desc {
-            font-size: 11px;
-            line-height: 1.45;
-            color: #475569;
-            margin: 0;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            font-family: sans-serif;
-        }
-
-        .theme-dark .app-desc {
-            color: #94a3b8;
+            display: none;
         }
 
         .app-card-footer {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
             margin-top: auto;
-            padding-top: 10px;
-            border-top: 1px solid rgba(0, 180, 240, 0.12);
+            width: 100%;
+            padding-top: 4px;
         }
 
         .theme-dark .app-card-footer {
-            border-top-color: rgba(0, 229, 255, 0.12);
+            border-top: none;
         }
 
         .app-status-badge {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            justify-content: center;
+            gap: 4px;
             font-family: 'Share Tech Mono', monospace;
             font-size: 9px;
             padding: 3px 8px;
-            border-radius: 8px;
+            border-radius: 6px;
             font-weight: 600;
             letter-spacing: 0.5px;
+            width: 100%;
+            text-align: center;
         }
 
         .badge-disconnected {
-            background: rgba(0, 180, 240, 0.08);
-            color: #0077b6;
-            border: 1px solid rgba(0, 180, 240, 0.3);
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
         }
 
         .theme-dark .badge-disconnected {
-            background: rgba(0, 229, 255, 0.08);
-            color: #7dd3fc;
-            border-color: rgba(0, 229, 255, 0.25);
+            background: #1e293b;
+            color: #94a3b8;
+            border-color: #334155;
         }
 
         .badge-connected {
-            background: rgba(16, 185, 129, 0.15);
+            background: rgba(16, 185, 129, 0.12);
             color: #059669;
-            border: 1px solid rgba(16, 185, 129, 0.4);
-            box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            box-shadow: none;
         }
 
         .theme-dark .badge-connected {
-            background: rgba(16, 185, 129, 0.2);
+            background: rgba(16, 185, 129, 0.16);
             color: #34d399;
-            border-color: rgba(52, 211, 153, 0.5);
-            box-shadow: 0 0 10px rgba(52, 211, 153, 0.3);
+            border-color: rgba(16, 185, 129, 0.4);
+            box-shadow: none;
         }
 
         .card-action-hint {
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 9px;
-            color: #0096c7;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 3px;
-            transition: transform 0.2s;
-        }
-
-        .app-card:hover .card-action-hint {
-            transform: translateX(3px);
-            color: #0077b6;
-        }
-
-        .theme-dark .card-action-hint {
-            color: #38bdf8;
-        }
-
-        .theme-dark .app-card:hover .card-action-hint {
-            color: #00e5ff;
+            display: none;
         }
 
         /* Dedicated Connection Panel / Slide-Over */
@@ -1383,9 +1359,9 @@
         }
 
         .form-input:focus {
-            border-color: #00b4d8;
+            border-color: #0284c7;
             background: #ffffff;
-            box-shadow: 0 0 12px rgba(0, 180, 240, 0.3);
+            box-shadow: none;
         }
 
         .theme-dark .form-input {
@@ -1395,9 +1371,9 @@
         }
 
         .theme-dark .form-input:focus {
-            border-color: #00e5ff;
+            border-color: #38bdf8;
             background: rgba(18, 36, 68, 0.95);
-            box-shadow: 0 0 14px rgba(0, 229, 255, 0.45);
+            box-shadow: none;
         }
 
         .form-input::placeholder {
@@ -1479,18 +1455,18 @@
 
         .btn-connect-primary {
             flex: 1;
-            background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
+            background: #0284c7;
             border: none;
-            border-radius: 10px;
-            padding: 12px 20px;
+            border-radius: 8px;
+            padding: 11px 18px;
             color: #ffffff;
             font-family: 'Share Tech Mono', monospace;
-            font-size: 12px;
+            font-size: 11.5px;
             font-weight: 700;
-            letter-spacing: 1px;
+            letter-spacing: 0.8px;
             cursor: pointer;
-            transition: all 0.25s ease;
-            box-shadow: 0 6px 18px rgba(0, 150, 230, 0.35);
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -1499,9 +1475,9 @@
         }
 
         .btn-connect-primary:hover {
-            background: linear-gradient(135deg, #00c4ec 0%, #0088d0 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 22px rgba(0, 180, 240, 0.5);
+            background: #0369a1;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
         }
 
         .btn-connect-primary:active {
@@ -1509,23 +1485,24 @@
         }
 
         .theme-dark .btn-connect-primary {
-            background: linear-gradient(135deg, #00e5ff 0%, #0096c7 100%);
-            color: #041226;
-            box-shadow: 0 6px 20px rgba(0, 229, 255, 0.4);
+            background: #0284c7;
+            color: #ffffff;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
         }
 
         .theme-dark .btn-connect-primary:hover {
-            box-shadow: 0 8px 26px rgba(0, 229, 255, 0.65);
+            background: #0369a1;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
         }
 
         .btn-disconnect {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.4);
-            border-radius: 10px;
-            padding: 12px 18px;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            border-radius: 8px;
+            padding: 11px 16px;
             color: #ef4444;
             font-family: 'Share Tech Mono', monospace;
-            font-size: 11.5px;
+            font-size: 11px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -1533,9 +1510,9 @@
         }
 
         .btn-disconnect:hover {
-            background: rgba(239, 68, 68, 0.22);
+            background: rgba(239, 68, 68, 0.18);
             border-color: #ef4444;
-            box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+            box-shadow: none;
         }
 
         /* Success & Status Animation Box */
@@ -4606,26 +4583,18 @@
 
             grid.innerHTML = filtered.map(app => {
                 const isConn = !!(connectedPlugins[app.id] && connectedPlugins[app.id].connected);
-                const connData = connectedPlugins[app.id] || {};
 
                 return `
                     <div class="app-card ${isConn ? 'connected' : ''}" onclick="openAppConnection('${app.id}')" title="Configure ${escapeHtml(app.name)}">
-                        <div class="app-card-top">
-                            <div class="app-logo-wrap">
-                                ${app.logoSvg}
-                            </div>
-                            <div class="app-meta">
-                                <div class="app-name">${escapeHtml(app.name)}</div>
-                                <div class="app-category">${escapeHtml(app.categoryName)}</div>
-                            </div>
+                        ${isConn ? '<span class="app-tile-pin" title="Connected"></span>' : ''}
+                        <div class="app-logo-wrap">
+                            ${app.logoSvg}
                         </div>
-                        <p class="app-desc">${escapeHtml(app.desc)}</p>
+                        <div class="app-name">${escapeHtml(app.name)}</div>
+                        <div class="app-category">${escapeHtml(app.categoryName)}</div>
                         <div class="app-card-footer">
                             <span class="app-status-badge ${isConn ? 'badge-connected' : 'badge-disconnected'}">
                                 ${isConn ? '● CONNECTED' : '+ CONNECT'}
-                            </span>
-                            <span class="card-action-hint">
-                                ${isConn ? 'CONFIG' : 'LINK'} →
                             </span>
                         </div>
                     </div>
@@ -4662,14 +4631,14 @@
 
             if (app.authType === 'google') {
                 customFieldsHtml = `
-                    <div class="one-click-auth-card" style="margin-bottom: 20px; padding: 18px; border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 10px; background: rgba(15, 23, 42, 0.7); text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <div class="one-click-auth-card" style="margin-bottom: 20px; padding: 18px; border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 10px; background: rgba(15, 23, 42, 0.7); text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
                         <div style="font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #38bdf8; margin-bottom: 6px; letter-spacing: 1px; font-weight: bold;">
                             ZERO-CODE 1-CLICK CONNECTION (PHASE 1)
                         </div>
                         <p style="font-size: 12px; color: #94a3b8; margin: 0 0 14px 0; line-height: 1.4;">
                             Sign in once securely via isolated local window. HYDRA extracts session tokens into encrypted local vault for 100% background Gmail, Classroom, and YouTube execution.
                         </p>
-                        <button type="button" class="btn-connect-primary" onclick="startOneClickAuth('google')" style="width: 100%; justify-content: center; background: #2563eb; color: #fff; font-weight: bold; border: 1px solid #60a5fa; box-shadow: 0 0 16px rgba(37, 99, 235, 0.4); cursor: pointer; padding: 10px 16px;">
+                        <button type="button" class="btn-connect-primary" onclick="startOneClickAuth('google')" style="width: 100%; justify-content: center; background: #2563eb; color: #fff; font-weight: bold; border: 1px solid #3b82f6; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; padding: 10px 16px; border-radius: 8px;">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 8px;"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/></svg>
                             CONNECT WITH GOOGLE (1-CLICK)
                         </button>
@@ -4701,14 +4670,14 @@
                 `;
             } else if (app.id === 'spotify') {
                 customFieldsHtml = `
-                    <div class="one-click-auth-card" style="margin-bottom: 20px; padding: 18px; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 10px; background: rgba(15, 23, 42, 0.7); text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <div class="one-click-auth-card" style="margin-bottom: 20px; padding: 18px; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 10px; background: rgba(15, 23, 42, 0.7); text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
                         <div style="font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #10b981; margin-bottom: 6px; letter-spacing: 1px; font-weight: bold;">
                             SPOTIFY AUTHENTICATION CENTER (GOOGLE & EMAIL)
                         </div>
                         <p style="font-size: 12px; color: #94a3b8; margin: 0 0 14px 0; line-height: 1.4;">
                             Redirects to Spotify's Authentication Center with "Continue with Google" or email login. Your session is saved forever in your local secure vault for headless background playback, subscription monitoring, and media control.
                         </p>
-                        <button type="button" class="btn-connect-primary" onclick="startOneClickAuth('spotify')" style="width: 100%; justify-content: center; background: #059669; color: #fff; font-weight: bold; border: 1px solid #34d399; box-shadow: 0 0 16px rgba(16, 185, 129, 0.4); cursor: pointer; padding: 10px 16px;">
+                        <button type="button" class="btn-connect-primary" onclick="startOneClickAuth('spotify')" style="width: 100%; justify-content: center; background: #059669; color: #fff; font-weight: bold; border: 1px solid #10b981; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; padding: 10px 16px; border-radius: 8px;">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 8px;"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
                             SIGN IN TO SPOTIFY (GOOGLE / EMAIL)
                         </button>
@@ -4727,14 +4696,14 @@
                 `;
             } else if (app.id === 'whatsapp') {
                 customFieldsHtml = `
-                    <div class="one-click-auth-card" style="margin-bottom: 20px; padding: 18px; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 10px; background: rgba(15, 23, 42, 0.7); text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <div class="one-click-auth-card" style="margin-bottom: 20px; padding: 18px; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 10px; background: rgba(15, 23, 42, 0.7); text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
                         <div style="font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #10b981; margin-bottom: 6px; letter-spacing: 1px; font-weight: bold;">
                             DYNAMIC QR SESSION PAIRING (PHASE 1.2)
                         </div>
                         <p style="font-size: 12px; color: #94a3b8; margin: 0 0 14px 0; line-height: 1.4;">
                             Scan pairing link with WhatsApp on your phone (Linked Devices) for autonomous background message dispatch without opening any browser window.
                         </p>
-                        <button type="button" class="btn-connect-primary" onclick="startOneClickAuth('whatsapp')" style="width: 100%; justify-content: center; background: #059669; color: #fff; font-weight: bold; border: 1px solid #34d399; box-shadow: 0 0 16px rgba(16, 185, 129, 0.4); cursor: pointer; padding: 10px 16px;">
+                        <button type="button" class="btn-connect-primary" onclick="startOneClickAuth('whatsapp')" style="width: 100%; justify-content: center; background: #059669; color: #fff; font-weight: bold; border: 1px solid #10b981; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; padding: 10px 16px; border-radius: 8px;">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 8px;"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
                             PAIR WHATSAPP (DYNAMIC QR)
                         </button>
@@ -4824,7 +4793,7 @@
                     <div class="connected-info-card">
                         <div class="connected-info-header">
                             <span class="connected-tag">
-                                <span class="plugins-live-dot" style="background:#10b981; box-shadow: 0 0 8px #10b981;"></span>
+                                <span class="plugins-live-dot" style="background:#10b981; box-shadow: none;"></span>
                                 STATUS: HYDRA NEURAL LINK ACTIVE
                             </span>
                             <span style="font-family:'Share Tech Mono', monospace; font-size: 10px; color:#10b981; font-weight:bold;">OPERATIONAL</span>
@@ -4852,7 +4821,7 @@
                     <div id="connectStatusNotice" class="connect-status-box"></div>
 
                     <div class="connect-actions-row">
-                        <button class="btn-connect-primary" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);" onclick="testAppConnection('${app.id}')">
+                        <button class="btn-connect-primary" style="background: #0284c7;" onclick="testAppConnection('${app.id}')">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
                             TEST NEURAL LINK
                         </button>
@@ -5099,9 +5068,19 @@
                 connectedPlugins = {};
             }
 
-            // Purge any stale mock/dummy google accounts
+            // Purge any stale mock/dummy accounts from previous testing
+            const MOCK_ACCOUNTS = [
+                'connected_google_user@gmail.com',
+                'primary.user@gmail.com',
+                'ahmad@canva.com',
+                'Ahmad#1234',
+                'ahmad-dev2989',
+                'ahmad-pro',
+                'Connected Device (+92-300-1234567)',
+                'Connected WhatsApp Device'
+            ];
             for (let k in connectedPlugins) {
-                if (connectedPlugins[k] && (connectedPlugins[k].account === 'connected_google_user@gmail.com' || connectedPlugins[k].account === 'primary.user@gmail.com')) {
+                if (connectedPlugins[k] && MOCK_ACCOUNTS.includes(connectedPlugins[k].account)) {
                     delete connectedPlugins[k];
                 }
             }
@@ -5112,7 +5091,7 @@
                 .then(data => {
                     if (data && typeof data === 'object') {
                         for (let k in data) {
-                            if (data[k] && (data[k].account === 'connected_google_user@gmail.com' || data[k].account === 'primary.user@gmail.com')) {
+                            if (data[k] && MOCK_ACCOUNTS.includes(data[k].account)) {
                                 delete data[k];
                             }
                         }

@@ -124,81 +124,8 @@ class ClassroomDirectWorker(BaseDirectWorker):
             except Exception:
                 pass
 
-        # Default realistic academic courses for enrolled user
-        today = datetime.now()
-        tomorrow = today + timedelta(days=1)
-        in_3_days = today + timedelta(days=3)
-
-        return [
-            {
-                "id": "course_algo_401",
-                "name": "Advanced Algorithms",
-                "section": "BCS-7A",
-                "instructor": "Dr. Farooq",
-                "assignments": [
-                    {
-                        "id": "asg_101",
-                        "title": "Lab Task 4: Dynamic Programming & Graph Flows",
-                        "due_date": tomorrow.strftime("%Y-%m-%d"),
-                        "due_time": "23:59",
-                        "due_human": "tomorrow at 11:59 PM",
-                        "submitted": False,
-                        "points": 10
-                    }
-                ],
-                "announcements": [
-                    {
-                        "id": "ann_201",
-                        "title": "Lab session relocated to Lab 3 for next session.",
-                        "posted_at": "Today at 9:30 AM",
-                        "author": "Dr. Farooq"
-                    }
-                ]
-            },
-            {
-                "id": "course_ml_502",
-                "name": "Machine Learning",
-                "section": "BCS-7A",
-                "instructor": "Dr. Usman",
-                "assignments": [
-                    {
-                        "id": "asg_102",
-                        "title": "Assignment 2: Convolutional Neural Networks and Transfer Learning",
-                        "due_date": in_3_days.strftime("%Y-%m-%d"),
-                        "due_time": "23:59",
-                        "due_human": in_3_days.strftime("%A at 11:59 PM"),
-                        "submitted": False,
-                        "points": 20
-                    }
-                ],
-                "announcements": [
-                    {
-                        "id": "ann_202",
-                        "title": "Quiz 2 will be conducted on Thursday covering CNN architectures.",
-                        "posted_at": "Yesterday at 4:15 PM",
-                        "author": "Dr. Usman"
-                    }
-                ]
-            },
-            {
-                "id": "course_os_301",
-                "name": "Operating Systems",
-                "section": "BCS-7A",
-                "instructor": "Prof. Tariq",
-                "assignments": [
-                    {
-                        "id": "asg_103",
-                        "title": "Project Phase 1: Process Scheduler Simulator",
-                        "due_date": (today - timedelta(days=2)).strftime("%Y-%m-%d"),
-                        "due_time": "23:59",
-                        "due_human": "submitted",
-                        "submitted": True,
-                        "points": 50
-                    }
-                ],
-                "announcements": []
-            }
-        ]
+        # If no live API or cached data available, return empty list (no fake mock assignments)
+        return []
 
     # =========================================================================
     # Phase 3.1: Upcoming Assignments Inspection
@@ -235,7 +162,7 @@ class ClassroomDirectWorker(BaseDirectWorker):
                         pass
 
         if not pending:
-            speech = "Sir, all your assignments across all courses are currently submitted and up to date."
+            speech = f"Sir, I checked your Google Classroom ({account or 'connected'}). You have no pending assignments or due coursework at this time."
             return True, speech, []
 
         if len(pending) == 1:

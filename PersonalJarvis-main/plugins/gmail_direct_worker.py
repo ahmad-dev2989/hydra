@@ -99,6 +99,66 @@ class GmailDirectWorker(BaseDirectWorker):
         )
         return email_addr, password
 
+    def _fetch_unread_from_web_profile(self, email_addr: str, limit: int = 5) -> Tuple[bool, str, List[Dict[str, Any]]]:
+        """
+        Attempts to read live unread emails from connected web profile or advises App Password.
+        Completely eliminates fake simulated emails.
+        """
+        try:
+            profile_dir = ROOT_DIR / "data" / "vault" / "google_web_profile"
+            if profile_dir.exists():
+                from PyQt6.QtCore import QUrl, QEventLoop, QTimer
+                from PyQt6.QtWidgets import QApplication
+                from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
+
+                app = QApplication.instance()
+                if app:
+                    profile = QWebEngineProfile.defaultProfile()
+                    page = QWebEnginePage(profile, app)
+
+                    loop = QEventLoop()
+                    page.loadFinished.connect(lambda ok: loop.quit())
+                    QTimer.singleShot(4000, loop.quit)
+                    page.load(QUrl("https://mail.google.com/mail/u/0/feed/atom"))
+                    loop.exec()
+
+                    feed_html = ""
+                    loop2 = QEventLoop()
+                    def on_html(h):
+                        nonlocal feed_html
+                        feed_html = h
+                        loop2.quit()
+                    page.toHtml(on_html)
+                    QTimer.singleShot(2000, loop2.quit)
+                    loop2.exec()
+
+                    import re
+                    titles = re.findall(r'<title>(.*?)</title>', feed_html)
+                    authors = re.findall(r'<name>(.*?)</name>', feed_html)
+                    email_titles = titles[1:] if len(titles) > 1 else []
+
+                    if email_titles:
+                        emails_summary = []
+                        for i in range(min(len(email_titles), limit)):
+                            raw_subj = email_titles[i] if i < len(email_titles) else "New Message"
+                            raw_author = authors[i] if i < len(authors) else "Unknown"
+                            clean_subj = re.sub(r'[^\x00-\x7F]+', ' ', raw_subj).strip()
+                            clean_author = re.sub(r'[^\x00-\x7F]+', ' ', raw_author).strip()
+                            emails_summary.append({
+                                "from": clean_author or "Sender",
+                                "subject": clean_subj or "Subject",
+                                "date": "Recent"
+                            })
+                        top_items = [f"{e['from']} regarding '{e['subject']}'" for e in emails_summary[:min(3, len(emails_summary))]]
+                        speech = f"Sir, you have {len(email_titles)} unread email(s) on {email_addr}: from {', '.join(top_items)}."
+                        return True, speech, emails_summary
+        except Exception as e:
+            print(f"[GMAIL DIRECT NOTICE] {e}")
+
+        # Truthful status — no fake emails
+        speech = f"Sir, your Gmail account ({email_addr}) is connected. To read your live inbox directly in the background, please configure a Gmail App Password in the Plugins Hub."
+        return True, speech, []
+
     # =========================================================================
     # Phase 2.1: Check Unread Emails (Native IMAP SSL in < 300ms)
     # =========================================================================
@@ -113,18 +173,9 @@ class GmailDirectWorker(BaseDirectWorker):
         if not email_addr:
             return False, "Gmail is not connected in your Plugins Hub, sir. Please connect via 1-Click Sign in with Google.", []
 
-        # If no password/app token provided yet, return graceful simulated preview for demo/offline
+        # If no IMAP password, fetch live unread emails from connected Google web profile
         if not password:
-            sample_emails = [
-                {"from": "FAST CFD Academic Portal", "subject": "Fall Semester Course Registration & Schedule Update", "date": "Today, 10:15 AM"},
-                {"from": "Google Security Team", "subject": "Security Notice: New device authenticated to your account", "date": "Yesterday, 8:40 PM"},
-                {"from": "Ahmad", "subject": "Project HYDRA: Milestone 2 Architecture Review", "date": "Yesterday, 4:20 PM"}
-            ]
-            speech = (
-                f"Sir, you have 3 unread emails: an academic update from FAST CFD, "
-                f"a security notice from Google, and a message from Ahmad."
-            )
-            return True, speech, sample_emails
+            return self._fetch_unread_from_web_profile(email_addr, limit)
 
         try:
             t0 = time.perf_counter()
@@ -195,13 +246,18 @@ class GmailDirectWorker(BaseDirectWorker):
         if not clean_q:
             return False, "Please specify an email keyword or sender to search for, sir.", []
 
-        if not email_addr or not password:
-            sample_results = [
-                {"from": "Fast Admissions", "subject": f"Notice regarding '{clean_q}'", "snippet": "Please review the attached details."},
-                {"from": "Ahmad", "subject": f"Update on {clean_q}", "snippet": "Completed phase test."}
-            ]
-            speech = f"Sir, I found 2 emails matching '{clean_q}': the first from Fast Admissions regarding '{sample_results[0]['subject']}'."
-            return True, speech, sample_results
+        if not email_addr:
+            return False, "Gmail is not connected in your Plugins Hub, sir.", []
+
+        if not password:
+            ok, _, unread_list = self._fetch_unread_from_web_profile(email_addr, limit=20)
+            if ok and unread_list:
+                low_q = clean_q.lower()
+                matches = [e for e in unread_list if low_q in e.get("subject", "").lower() or low_q in e.get("from", "").lower()]
+                if matches:
+                    top = matches[0]
+                    return True, f"Sir, I found {len(matches)} email(s) matching '{clean_q}': the newest is from {top['from']} regarding '{top['subject']}'.", matches[:limit]
+            return True, f"Sir, I searched your connected Gmail ({email_addr}) but found no recent messages matching '{clean_q}'.", []
 
         try:
             t0 = time.perf_counter()

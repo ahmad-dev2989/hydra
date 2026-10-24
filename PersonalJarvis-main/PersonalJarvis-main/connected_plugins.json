@@ -33,7 +33,7 @@
     },
     "google_classroom": {
         "connected": true,
-        "account": "connected_google_user@gmail.com",
+        "account": "f240004@cfd.nu.edu.pk",
         "authType": "google_session",
         "data": {
             "session_enc": "google_session.enc",
@@ -49,6 +49,15 @@
             "verified": true
         }
     },
+    "spotify": {
+        "connected": true,
+        "account": "ahmadfarooq29898@gmail.com",
+        "authType": "spotify_pkce",
+        "data": {
+            "session_enc": "spotify_session.enc",
+            "verified": true
+        }
+    },
     "gmail": {
         "connected": true,
         "account": "f240004@cfd.nu.edu.pk",
@@ -58,12 +67,12 @@
             "verified": true
         }
     },
-    "spotify": {
+    "whatsapp": {
         "connected": true,
-        "account": "ahmadfarooq29898@gmail.com",
-        "authType": "spotify_pkce",
+        "account": "WhatsApp Linked Device",
+        "authType": "whatsapp_qr",
         "data": {
-            "session_enc": "spotify_session.enc",
+            "session_enc": "session.enc",
             "verified": true
         }
     }

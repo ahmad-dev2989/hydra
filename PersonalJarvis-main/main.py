@@ -332,6 +332,22 @@ class HydraPage(QWebEnginePage):
             with open(target_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=4)
             print(f"[HYDRA PLUGINS] Synchronized {len(data)} app connection states to {target_path}")
+
+            # Automatically persist connected app credentials into Secure Local Vault
+            try:
+                from plugins.vault_manager import VAULT_MGR
+                for app_id, conn_info in data.items():
+                    if isinstance(conn_info, dict) and conn_info.get("connected"):
+                        acc = conn_info.get("account", "").strip()
+                        if acc:
+                            VAULT_MGR.set_plugin_credential(
+                                app_id=app_id,
+                                account=acc,
+                                auth_type=conn_info.get("authType", "account"),
+                                extra_data=conn_info.get("data", {})
+                            )
+            except Exception as ve:
+                print(f"[HYDRA PLUGINS VAULT SYNC NOTE]: {ve}")
         except Exception as e:
             print(f"[HYDRA PLUGINS ERROR]: {e}")
 
