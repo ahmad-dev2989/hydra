@@ -1,0 +1,79 @@
+{
+    "canva": {
+        "connected": true,
+        "account": "ahmad@canva.com",
+        "authType": "oauth",
+        "data": {
+            "verified": true
+        }
+    },
+    "discord": {
+        "connected": true,
+        "account": "Ahmad#1234",
+        "authType": "bot_token",
+        "data": {
+            "verified": true
+        }
+    },
+    "github": {
+        "connected": true,
+        "account": "ahmad-dev2989",
+        "authType": "pat",
+        "data": {
+            "verified": true
+        }
+    },
+    "linkedin": {
+        "connected": true,
+        "account": "ahmad-pro",
+        "authType": "oauth",
+        "data": {
+            "verified": true
+        }
+    },
+    "gmail": {
+        "connected": true,
+        "account": "ahmad.pilot@gmail.com",
+        "authType": "google_session",
+        "data": {
+            "session_enc": "google_session.enc",
+            "verified": true
+        }
+    },
+    "google_classroom": {
+        "connected": true,
+        "account": "ahmad.pilot@gmail.com",
+        "authType": "google_session",
+        "data": {
+            "session_enc": "google_session.enc",
+            "verified": true
+        }
+    },
+    "youtube": {
+        "connected": true,
+        "account": "ahmad.pilot@gmail.com",
+        "authType": "google_session",
+        "data": {
+            "session_enc": "google_session.enc",
+            "verified": true
+        }
+    },
+    "spotify": {
+        "connected": true,
+        "account": "ahmad.premium@spotify.com",
+        "authType": "spotify_pkce",
+        "data": {
+            "session_enc": "spotify_session.enc",
+            "verified": true
+        }
+    },
+    "whatsapp": {
+        "connected": true,
+        "account": "Connected Device (+92-300-1234567)",
+        "authType": "whatsapp_qr",
+        "data": {
+            "session_enc": "session.enc",
+            "verified": true
+        }
+    }
+}

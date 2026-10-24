@@ -87,7 +87,9 @@ APP_CORRECTIONS = {
     "watsp": "whatsapp",
     "youtub": "youtube",
     "calclator": "calculator",
-    "calc": "calculator"
+    "calc": "calculator",
+    "canwa": "canva",
+    "canv": "canva"
 }
 
 def correct_app_name(text: str) -> str:

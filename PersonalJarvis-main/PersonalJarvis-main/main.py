@@ -295,6 +295,45 @@ class HydraPage(QWebEnginePage):
         elif message.startswith("HYDRA_MEDIA_CMD:"):
             action = message[16:].strip()
             self.handle_media_command(action)
+        elif message.startswith("HYDRA_PLUGIN_SAVE:"):
+            payload = message[18:].strip()
+            self.handle_plugin_save(payload)
+        elif message.startswith("HYDRA_AUTH_CONNECT:"):
+            app_id = message[19:].strip()
+            self.handle_auth_connect(app_id)
+        elif message.startswith("HYDRA_AUTH_DISCONNECT:"):
+            app_id = message[22:].strip()
+            self.handle_auth_disconnect(app_id)
+
+    def handle_auth_connect(self, app_id: str):
+        try:
+            from plugins.auth_bridge import AUTH_BRIDGE
+            def on_connected(connected_app, account):
+                safe_emit_js(f"if (window.onAppConnected) window.onAppConnected('{connected_app}', '{account}');")
+                speak_voice(f"Sir, your {connected_app.replace('_', ' ').title()} account has been securely connected to HYDRA.")
+
+            AUTH_BRIDGE.start_connection(app_id, on_success=on_connected)
+        except Exception as e:
+            print(f"[HYDRA AUTH ERROR]: {e}")
+
+    def handle_auth_disconnect(self, app_id: str):
+        try:
+            from plugins.auth_bridge import AUTH_BRIDGE
+            AUTH_BRIDGE.disconnect(app_id)
+            safe_emit_js(f"if (window.onAppDisconnected) window.onAppDisconnected('{app_id}');")
+            speak_voice(f"Sir, {app_id.replace('_', ' ').title()} has been disconnected.")
+        except Exception as e:
+            print(f"[HYDRA DISCONNECT ERROR]: {e}")
+
+    def handle_plugin_save(self, payload: str):
+        try:
+            data = json.loads(payload)
+            target_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "connected_plugins.json")
+            with open(target_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
+            print(f"[HYDRA PLUGINS] Synchronized {len(data)} app connection states to {target_path}")
+        except Exception as e:
+            print(f"[HYDRA PLUGINS ERROR]: {e}")
 
     def handle_media_command(self, action):
         try:
@@ -326,6 +365,17 @@ class HydraPage(QWebEnginePage):
 
         print(f"\n[USER INPUT]: {cmd_clean}")
 
+        # Check if HYDRA is paused waiting for user clarification (Phase 4 Human-in-the-Loop)
+        try:
+            from disambiguation_manager import DISAMBIGUATION_MGR
+            if DISAMBIGUATION_MGR.is_waiting():
+                print(f"[DISAMBIGUATION BRIDGE] Routing answer to waiting agent: '{cmd_clean}'")
+                safe_emit_js("hideDisambiguationPrompt();")
+                DISAMBIGUATION_MGR.provide_answer(cmd_clean)
+                return
+        except Exception as e:
+            print(f"[DISAMBIGUATION ROUTING ERROR] {e}")
+
         # Always close side drawer on new query
         safe_emit_js("resetScreenSwipe();")
 
@@ -343,8 +393,9 @@ class HydraPage(QWebEnginePage):
             return
 
         # Normalizes voice or typed command typos (e.g. "theem" -> "theme", "step playing" -> "stop playing")
+        # Preserves exact casing, capitalization, numbers, and special characters (e.g. passwords, codes)
         def _normalize_command(text: str) -> str:
-            s = text.lower()
+            s = text
             typo_map = {
                 "theem": "theme",
                 "thems": "themes",
@@ -358,47 +409,122 @@ class HydraPage(QWebEnginePage):
                 "spotfy": "spotify",
                 "spotifi": "spotify",
                 "sopitfy": "spotify",
+                "gmails": "gmail",
+                "g-mail": "gmail",
+                "google mail": "gmail",
+                "clasroom": "classroom",
+                "classrom": "classroom",
+                "google classroom": "classroom",
+                "gclassroom": "classroom",
                 "chrme": "chrome",
                 "notpad": "notepad",
                 "vscod": "vscode",
+                "whatsap": "whatsapp",
+                "watsapp": "whatsapp",
+                "watsp": "whatsapp",
+                "canwa": "canva",
+                "canv": "canva",
             }
             for typo, repl in typo_map.items():
-                s = re.sub(rf"\b{re.escape(typo)}\b", repl, s)
+                s = re.sub(rf"\b{re.escape(typo)}\b", repl, s, flags=re.IGNORECASE)
             return s
 
         cmd_normalized = _normalize_command(cmd_clean)
         cmd_norm_lower = cmd_normalized.lower()
 
+        # =========================================================================
+        # Phase 7: Unified Master Background Router & Voice Integration
+        # =========================================================================
+        # Immediately check connected headless background workers before any UI launch
+        try:
+            from plugins.direct_dispatcher import DIRECT_DISPATCHER
+            bg_result = DIRECT_DISPATCHER.dispatch(cmd_normalized)
+            if bg_result is not None:
+                ok, bg_speech = bg_result
+                if bg_speech and bg_speech.strip():
+                    speak_voice(bg_speech)
+                    safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(bg_speech)});")
+                return
+        except Exception as e:
+            print(f"[DIRECT DISPATCHER ERROR] {e}")
+
+        # Load connected plugins to dynamically recognize user-connected apps
+        def _get_connected_plugins_dict():
+            p_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "connected_plugins.json")
+            if not os.path.exists(p_file):
+                inner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "PersonalJarvis-main", "connected_plugins.json")
+                if os.path.exists(inner):
+                    p_file = inner
+            if os.path.exists(p_file):
+                try:
+                    with open(p_file, "r", encoding="utf-8") as pf:
+                        return json.load(pf)
+                except Exception:
+                    pass
+            return {}
+
+        connected_plugins_data = _get_connected_plugins_dict()
+        dynamic_plugin_apps = []
+        for pk, pv in connected_plugins_data.items():
+            if isinstance(pv, dict) and pv.get("connected"):
+                clean_k = pk.lower().replace("_", " ")
+                dynamic_plugin_apps.append(clean_k)
+                dynamic_plugin_apps.append(pk.lower().replace("_", ""))
+
         # Autonomous Desktop Goal & Keyboard-First Planning (Phase 2 & Phase 3)
         # Bypasses cloud plugin barriers for native desktop app control
-        KNOWN_APPS = ["spotify", "antigrav", "chrome", "brave", "notepad", "vscode", "vs code", "whatsapp", "calc", "calculator", "browser"]
+        KNOWN_APPS = [
+            "spotify", "whatsapp", "canva", "antigrav", "chrome", "brave",
+            "notepad", "vscode", "vs code", "calc", "calculator", "browser",
+            "gmail", "email", "mail", "inbox", "classroom", "google classroom",
+            "assignment", "assignments", "youtube", "instagram", "facebook",
+            "linkedin", "twitter", "discord", "reddit", "figma", "github",
+            "drive", "docs", "sheets", "calendar"
+        ] + dynamic_plugin_apps
+
         ACTION_VERBS = [
             "play", "pause", "resume", "stop", "next", "prev", "mute", "unmute", "volume",
             "find", "search", "open", "launch", "close", "click", "press", "toggle",
-            "type", "theme", "like", "add", "save", "circle", "button", "switch", "liked"
+            "type", "theme", "like", "add", "save", "circle", "button", "switch", "liked",
+            "create", "send", "message", "design", "blank", "draft",
+            "check", "read", "view", "show", "see", "get", "fetch", "inspect",
+            "review", "look", "examine", "due", "unread", "new", "list"
+        ]
+
+        ACTION_KEYWORDS = [
+            "song", "music", "track", "tab", "window", "file", "app", "code", "light", "dark",
+            "playlist", "design", "message", "chat", "email", "emails", "mail", "inbox",
+            "assignment", "assignments", "due", "class", "stream", "unread", "homework",
+            "notification", "notifications", "post", "video", "feed"
         ]
 
         has_app = any(app in cmd_norm_lower for app in KNOWN_APPS)
         has_action = any(act in cmd_norm_lower for act in ACTION_VERBS)
+        has_keyword = any(kw in cmd_norm_lower for kw in ACTION_KEYWORDS)
 
-        is_action_goal = has_app or (has_action and any(kw in cmd_norm_lower for kw in [
-            "song", "music", "track", "tab", "window", "file", "app", "code", "light", "dark", "playlist"
-        ]))
+        is_action_goal = has_app or (has_action and has_keyword)
 
         if is_action_goal:
             def goal_worker():
                 try:
                     from verified_executor import VERIFIED_EXECUTOR
 
-                    # Phase 3: Dynamic Vision-In-The-Loop Agent & Verified Executor
+                    # Phase 3 & Phase 4: Dynamic Vision Agent & Human-in-the-Loop Disambiguation
                     def on_hud_status(status_text):
                         safe_emit_js(f"console.log('HYDRA_HUD: {status_text}');")
 
+                    def on_hud_disambig(question, options):
+                        opts_json = json.dumps(options)
+                        safe_emit_js(f"showDisambiguationPrompt({json.dumps(question)}, {opts_json});")
+
                     success, final_reply, exec_logs = VERIFIED_EXECUTOR.run_vision_agent_task(
                         task_text=cmd_normalized,
-                        status_callback=on_hud_status
+                        status_callback=on_hud_status,
+                        voice_callback=speak_voice,
+                        hud_disambig_callback=on_hud_disambig
                     )
-                    speak_voice(final_reply)
+                    if final_reply and final_reply.strip():
+                        speak_voice(final_reply)
 
                 except Exception as e:
                     print(f"[GOAL ERROR] {e}")
@@ -411,9 +537,27 @@ class HydraPage(QWebEnginePage):
         def command_worker():
             t_start = time.perf_counter()
             try:
+                # Direct check if user is asking about connected apps or plugin status
+                low_cmd = cmd_clean.lower()
+                if any(w in low_cmd for w in ["connected", "plugin", "plugins", "link", "connection"]) and any(w in low_cmd for w in ["which", "what", "is", "are", "check", "status", "list", "show"]):
+                    active_plg = [f"{pk.replace('_', ' ').title()} ({pv.get('account', 'active')})" for pk, pv in connected_plugins_data.items() if isinstance(pv, dict) and pv.get("connected")]
+                    if active_plg:
+                        reply = f"Sir, your connected apps are: {', '.join(active_plg)}. They are fully connected and active."
+                    else:
+                        reply = "Sir, you do not have any apps connected in the Plugins Hub yet. You can connect them using the CONNECT APPS button."
+                    speak_voice(reply)
+                    return
+
+                # Enrich conversational prompt with connected plugins context
+                brain_input = cmd_clean
+                if connected_plugins_data:
+                    plg_summary = ", ".join([f"{pk.replace('_', ' ').title()} (account: {pv.get('account')})" for pk, pv in connected_plugins_data.items() if isinstance(pv, dict) and pv.get("connected")])
+                    if plg_summary:
+                        brain_input = f"[System Context: Connected plugins in HYDRA Plugins Hub: {plg_summary}]\n{cmd_clean}"
+
                 brain = get_jarvis_brain()
                 response = run_async(
-                    brain.generate(cmd_clean, publish_response=False),
+                    brain.generate(brain_input, publish_response=False),
                     timeout=120.0
                 )
                 cleaned = clean_ai_response(response, user_input_hint=cmd_clean)
@@ -483,6 +627,7 @@ def main():
     settings.setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, True)
     settings.setAttribute(QWebEngineSettings.WebAttribute.Accelerated2dCanvasEnabled, True)
     settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+    settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
     settings.setAttribute(QWebEngineSettings.WebAttribute.AllowRunningInsecureContent, True)
     settings.setAttribute(QWebEngineSettings.WebAttribute.PlaybackRequiresUserGesture, False)
 

@@ -311,6 +311,88 @@ class VisualStateVerifier:
         print(f"[VISUAL VERIFY] -> FAILED: {err_msg}")
         return False, err_msg, last_details
 
+    def compare_before_after_state(
+        self,
+        goal: str,
+        img_initial: Image.Image,
+        img_final: Image.Image,
+        app_name: str = ""
+    ) -> Tuple[bool, str]:
+        """
+        Compares INITIAL screen (taken right after opening the app) with FINAL screen
+        (taken after executing actions) to verify whether the goal (e.g. changing theme,
+        updating profile picture, sending message, creating design, playing song)
+        was successfully accomplished.
+        """
+        b64_init = self._prepare_image_b64(img_initial)
+        b64_final = self._prepare_image_b64(img_final)
+        client = self.get_client()
+
+        sys_prompt = (
+            "You are HYDRA's Expert Visual Verification AI.\n"
+            "You are comparing TWO sequential screenshots of the user's desktop/application:\n"
+            "- IMAGE 1: Initial state (taken right after opening/focusing the application, BEFORE executing the task).\n"
+            "- IMAGE 2: Final state (taken AFTER executing the saved action steps).\n\n"
+            "Your job is to determine whether the user's requested goal was successfully achieved by comparing Image 1 and Image 2.\n"
+            "Examples of changes to detect:\n"
+            "- Theme change: e.g. from light mode to dark mode, or from dark to light.\n"
+            "- Profile picture change: e.g. a new avatar/photo has been applied.\n"
+            "- Messaging: e.g. message sent and visible in the chat timeline.\n"
+            "- Media playback: e.g. song playing, play button toggled, or track active.\n"
+            "- Creation: e.g. new canvas/document/design opened with requested dimensions.\n\n"
+            "Output strictly valid JSON matching this schema:\n"
+            "{\n"
+            "  \"completed\": true,\n"
+            "  \"reason\": \"<brief 1-2 sentence explanation comparing Image 1 and Image 2>\"\n"
+            "}"
+        )
+
+        user_content = [
+            {
+                "type": "text",
+                "text": (
+                    f"User Goal: '{goal}'\n"
+                    f"Application: '{app_name}'\n\n"
+                    "Image 1 is the INITIAL state before the actions.\n"
+                    "Image 2 is the FINAL state after the actions.\n"
+                    "Did the user's goal successfully complete in Image 2 compared to Image 1? Output valid JSON."
+                )
+            },
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{b64_init}"}
+            },
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{b64_final}"}
+            }
+        ]
+
+        try:
+            res = client.chat.completions.create(
+                model=NEBIUS_VISION_MODEL,
+                messages=[
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": user_content}
+                ],
+                max_tokens=300,
+                temperature=0.1,
+                timeout=30.0
+            )
+            msg = res.choices[0].message
+            content = msg.content or ""
+            reasoning = getattr(msg, "reasoning_content", "") or ""
+            parsed = self._extract_json(content) or self._extract_json(reasoning)
+            if parsed and "completed" in parsed:
+                return bool(parsed["completed"]), parsed.get("reason", "Visual state comparison completed.")
+
+            combined = (content + " " + reasoning).lower()
+            is_done = "completed\": true" in combined or "true" in combined
+            return is_done, content[:200] or reasoning[:200]
+        except Exception as e:
+            print(f"[BEFORE/AFTER VISION ERROR] {e}")
+            return False, f"Vision model comparison error: {e}"
+
 
 # Singleton instance
 VISUAL_VERIFIER = VisualStateVerifier()

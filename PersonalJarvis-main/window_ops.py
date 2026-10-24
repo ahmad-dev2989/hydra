@@ -50,6 +50,9 @@ APP_ALIASES = {
     "notepad": ["notepad.exe", "notepad"],
     "discord": ["discord.exe", "discord"],
     "telegram": ["telegram.exe", "telegram"],
+    "gmail": ["gmail", "inbox", "google mail", "mail.google.com"],
+    "classroom": ["google classroom", "classroom", "classes", "classroom.google.com"],
+    "youtube": ["youtube", "youtube.com"],
     "hydra": ["hydra system interface", "hydra-main", "hydra"]
 }
 

@@ -25,6 +25,9 @@ VK_MEDIA_NEXT_TRACK = 0xB0
 VK_MEDIA_PREV_TRACK = 0xB1
 VK_MEDIA_STOP = 0xB2
 VK_MEDIA_PLAY_PAUSE = 0xB3
+VK_VOLUME_MUTE = 0xAD
+VK_VOLUME_DOWN = 0xAE
+VK_VOLUME_UP = 0xAF
 KEYEVENTF_KEYUP = 0x0002
 
 
@@ -271,17 +274,23 @@ class MediaController:
         res = self._run_coroutine(self._async_seek(target_seconds), timeout=1.5)
         return bool(res)
 
-    async def _async_seek(self, target_seconds):
-        try:
-            manager = await SMTCManager.request_async()
-            curr = manager.get_current_session()
-            if curr:
-                # Target in 100-nanosecond ticks
-                ticks = int(target_seconds * 10_000_000)
-                return await curr.try_change_playback_position_async(ticks)
-        except Exception:
-            pass
-        return False
+    def volume_up(self, steps=2):
+        """Increases system/media master volume."""
+        for _ in range(steps):
+            _send_media_key(VK_VOLUME_UP)
+            time.sleep(0.01)
+        return True
+
+    def volume_down(self, steps=2):
+        """Decreases system/media master volume."""
+        for _ in range(steps):
+            _send_media_key(VK_VOLUME_DOWN)
+            time.sleep(0.01)
+        return True
+
+    def toggle_mute(self):
+        """Toggles audio mute state."""
+        return _send_media_key(VK_VOLUME_MUTE)
 
 
 # Singleton instance

@@ -457,47 +457,6 @@
     "last_success": 1792507251.5436122,
     "last_duration": 123.67926836013794
   },
-  "antigravity:change_theme": {
-    "id": "antigravity:open_app:planned",
-    "application": "antigravity",
-    "intent": "CHANGE_THEME",
-    "parameters": {},
-    "steps": [
-      {
-        "id": 1,
-        "action": "FOCUS_WINDOW",
-        "target": "HYDRA",
-        "parameters": {},
-        "expected_state": "Window focused",
-        "verification_rule": {
-          "type": "custom"
-        },
-        "description": "Focus HYDRA window"
-      },
-      {
-        "id": 2,
-        "action": "CUSTOM",
-        "target": "toggle_theme",
-        "parameters": {
-          "theme": "light"
-        },
-        "expected_state": "Theme set to light",
-        "verification_rule": {
-          "type": "custom"
-        },
-        "description": "Switch theme to light"
-      }
-    ],
-    "final_verification": {
-      "type": "theme_state",
-      "value": "light"
-    },
-    "success_count": 4,
-    "failure_count": 0,
-    "confidence": 0.99,
-    "last_success": 1792512781.0972738,
-    "last_duration": 4.940812587738037
-  },
   "spotify:open_profile": {
     "id": "spotify:open_profile",
     "application": "spotify",
@@ -910,44 +869,57 @@
     "steps": [
       {
         "step": 1,
-        "action": "open_app",
-        "target": "Spotify",
-        "details": "Open the Spotify application."
+        "observation": "Spotify is open with a search query \"s theme to dark mode, but we\" in the search bar at the top of the interface.",
+        "reasoning": "To play \"din guzra\" on Spotify, I need to clear the current search and enter the new song title, so I should click on the search bar to focus it.",
+        "action": "click(x=0.458, y=0.033)",
+        "result": "Clicked at (1172, 47)"
       },
       {
         "step": 2,
-        "action": "wait",
-        "target": "Spotify window",
-        "details": "Wait until Spotify opens and the main UI is visible."
+        "observation": "Spotify is open with a search bar containing \"s theme to dark mode, but we\" and search results for \"Dark Mode\" related content displayed below.",
+        "reasoning": "To play \"Din Guzra\" on Spotify, I need to clear the current search query and enter the correct song title. Clicking on the search bar will allow me to select all the text and replace it with \"Din Guzra\".",
+        "action": "click(x=0.458, y=0.033)",
+        "result": "Clicked at (1172, 47)"
       },
       {
         "step": 3,
-        "action": "hotkey",
-        "target": "Space",
-        "details": "Press Space to toggle play/pause and functionally click the play button."
+        "observation": "The Spotify application is open with a search bar at the top containing incorrect text \"s theme to dark mode, but we\" and showing dark mode related search results instead of the target song \"din guzra\".",
+        "reasoning": "The search bar needs to be cleared of the current incorrect text before typing the correct search term \"din guzra\" to find and play the desired song.",
+        "action": "press_key('ctrl+a')",
+        "result": "Pressed key 'ctrl+a'"
       },
       {
         "step": 4,
-        "action": "wait",
-        "target": "audio_playback",
-        "details": "Wait until audio playback is confirmed and the song begins."
+        "observation": "Spotify is open with a search bar containing the text \"s theme to dark mode, but we\" and search results for \"Dark Mode\" are displayed.",
+        "reasoning": "Since Ctrl+A was just pressed to select all text in the search field, typing \"din guzra\" will replace the selected text with the correct search query for the song the user wants to play.",
+        "action": "type_text('din guzra')",
+        "result": "Typed text 'din guzra'"
       },
       {
         "step": 5,
-        "action": "scan_screen_verify",
-        "target": "playback_state",
-        "details": "Scan screen and verify that the song is currently playing (e.g., pause icon displayed, progress bar moving)."
+        "observation": "The Spotify application is open with a search bar at the top containing text \"s theme to odin guzzraark mode, but we\" and search results displayed below for \"Dark Mode\" and related content.",
+        "reasoning": "The user has typed \"din guzra\" in the search field but needs to execute the search by pressing Enter to see results for that specific query.",
+        "action": "press_key('enter')",
+        "result": "Pressed key 'enter'"
       },
       {
         "step": 6,
-        "action": "complete",
-        "target": "goal",
-        "details": "Task completed successfully."
+        "observation": "Spotify is open with search results for \"dark mode\" displayed, but the search bar contains an incorrect query that needs to be changed to find \"din guzra\".",
+        "reasoning": "To play \"din guzra\" on Spotify, I need to first click on the search bar to clear the current incorrect search query and enter the correct song title.",
+        "action": "click(x=0.458, y=0.033)",
+        "result": "Clicked at (1172, 47)"
+      },
+      {
+        "step": 7,
+        "observation": "The search results show \"Din Guzra\" by JANI, Rhythmic as the first song result in the Spotify interface.",
+        "reasoning": "Clicking on the \"Din Guzra\" song entry will select and play the requested track, which is the next logical step after searching for it.",
+        "action": "click(x=0.152, y=0.178)",
+        "result": "Clicked at (389, 256)"
       }
     ],
     "verified_by": "nvidia/Nemotron-3.5-Super-VL",
-    "success_count": 1,
-    "last_verified_timestamp": 1792691943.7715507
+    "success_count": 3,
+    "last_verified_timestamp": 1792751919.768436
   },
   "spotify:open_spotify_and_click_green_circle": {
     "id": "spotify:open_spotify_and_click_green_circle",
@@ -994,5 +966,812 @@
     "verified_by": "nvidia/Nemotron-3.5-Super-VL",
     "success_count": 1,
     "last_verified_timestamp": 1792692925.98542
+  },
+  "spotify:play_laapata_on_spotify": {
+    "id": "spotify:play_laapata_on_spotify",
+    "application": "spotify",
+    "intent": "PLAY LAAPATA ON SPOTIFY",
+    "steps": [
+      {
+        "step": 1,
+        "observation": "Spotify is open with the \"Laapata\" album already displayed in the right panel. The album cover shows \"LAAPATA\" with a road scene. The playback controls at the bottom show 0:00, indicating nothing is currently playing.",
+        "reasoning": "The album \"Laapata\" is already visible and selected in the right panel. To play it, I should click on the album artwork or title area to start playback.",
+        "action": "click(x=0.866, y=0.367)\n<<<END_THINKING>>>",
+        "result": "Clicked at (2216, 528)"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792748061.468611
+  },
+  "spotify:play_din_guzra_on_spotify": {
+    "id": "spotify:play_din_guzra_on_spotify",
+    "application": "spotify",
+    "intent": "PLAY DIN GUZRA ON SPOTIFY",
+    "steps": [
+      {
+        "step": 1,
+        "observation": "Spotify is open with a search query \"s theme to dark mode, but we\" in the search bar at the top of the interface.",
+        "reasoning": "To play \"din guzra\" on Spotify, I need to clear the current search and enter the new song title, so I should click on the search bar to focus it.",
+        "action": "click(x=0.458, y=0.033)",
+        "result": "Clicked at (1172, 47)"
+      },
+      {
+        "step": 2,
+        "observation": "Spotify is open with a search bar containing \"s theme to dark mode, but we\" and search results for \"Dark Mode\" related content displayed below.",
+        "reasoning": "To play \"Din Guzra\" on Spotify, I need to clear the current search query and enter the correct song title. Clicking on the search bar will allow me to select all the text and replace it with \"Din Guzra\".",
+        "action": "click(x=0.458, y=0.033)",
+        "result": "Clicked at (1172, 47)"
+      },
+      {
+        "step": 3,
+        "observation": "The Spotify application is open with a search bar at the top containing incorrect text \"s theme to dark mode, but we\" and showing dark mode related search results instead of the target song \"din guzra\".",
+        "reasoning": "The search bar needs to be cleared of the current incorrect text before typing the correct search term \"din guzra\" to find and play the desired song.",
+        "action": "press_key('ctrl+a')",
+        "result": "Pressed key 'ctrl+a'"
+      },
+      {
+        "step": 4,
+        "observation": "Spotify is open with a search bar containing the text \"s theme to dark mode, but we\" and search results for \"Dark Mode\" are displayed.",
+        "reasoning": "Since Ctrl+A was just pressed to select all text in the search field, typing \"din guzra\" will replace the selected text with the correct search query for the song the user wants to play.",
+        "action": "type_text('din guzra')",
+        "result": "Typed text 'din guzra'"
+      },
+      {
+        "step": 5,
+        "observation": "The Spotify application is open with a search bar at the top containing text \"s theme to odin guzzraark mode, but we\" and search results displayed below for \"Dark Mode\" and related content.",
+        "reasoning": "The user has typed \"din guzra\" in the search field but needs to execute the search by pressing Enter to see results for that specific query.",
+        "action": "press_key('enter')",
+        "result": "Pressed key 'enter'"
+      },
+      {
+        "step": 6,
+        "observation": "Spotify is open with search results for \"dark mode\" displayed, but the search bar contains an incorrect query that needs to be changed to find \"din guzra\".",
+        "reasoning": "To play \"din guzra\" on Spotify, I need to first click on the search bar to clear the current incorrect search query and enter the correct song title.",
+        "action": "click(x=0.458, y=0.033)",
+        "result": "Clicked at (1172, 47)"
+      },
+      {
+        "step": 7,
+        "observation": "The search results show \"Din Guzra\" by JANI, Rhythmic as the first song result in the Spotify interface.",
+        "reasoning": "Clicking on the \"Din Guzra\" song entry will select and play the requested track, which is the next logical step after searching for it.",
+        "action": "click(x=0.152, y=0.178)",
+        "result": "Clicked at (389, 256)"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792751468.6247172
+  },
+  "canva:open_canva_and_create_a_blank_1080_x_1920_design": {
+    "id": "canva:open_canva_and_create_a_blank_1080_x_1920_design",
+    "application": "canva",
+    "intent": "OPEN CANVA AND CREATE A BLANK 1080 X 1920 DESIGN",
+    "steps": [
+      {
+        "step": 1,
+        "observation": "Canva's \"Create a design\" dialog is open with \"Custom size\" selected, showing empty width and height input fields ready for dimension entry.",
+        "reasoning": "To create a 1080 x 1920 design, I need to first click on the width input field to begin entering the custom dimensions.",
+        "action": "click(x=0.345, y=0.222)",
+        "result": "Clicked at (883, 319)"
+      },
+      {
+        "step": 2,
+        "observation": "The Canva \"Create a design\" dialog is open with \"Custom size\" selected, showing empty width and height input fields ready for custom dimensions.",
+        "reasoning": "To create a 1080 x 1920 design, I need to first click on the width input field to enter the width value of 1080.",
+        "action": "click(x=0.345, y=0.222)",
+        "result": "Clicked at (883, 319)"
+      },
+      {
+        "step": 3,
+        "observation": "The Canva \"Create a design\" dialog is open with \"Custom size\" selected, showing empty width and height input fields ready for custom dimensions.",
+        "reasoning": "To create a 1080 x 1920 design, I need to enter the width value first in the width input field, which is currently empty and appears to be focused.",
+        "action": "type_text('1080')",
+        "result": "Typed text '1080'"
+      },
+      {
+        "step": 4,
+        "observation": "The Canva custom size dialog is open with width set to 1080, and the height input field is empty and ready for input.",
+        "reasoning": "To create a 1080 x 1920 design, I need to click on the height field to focus it so I can enter the value 1920.",
+        "action": "click(x=0.523, y=0.222)",
+        "result": "Clicked at (1338, 319)"
+      },
+      {
+        "step": 5,
+        "observation": "The Canva \"Create a design\" dialog is open with Custom size selected, width field contains \"1080\", and the height field is empty and appears to be focused.",
+        "reasoning": "The width has been set to 1080, and now the height needs to be set to 1920 to complete the custom dimensions for the design.",
+        "action": "type_text('1920')",
+        "result": "Typed text '1920'"
+      },
+      {
+        "step": 6,
+        "observation": "The Canva custom size dialog shows width 1080 and height 1920 entered with px units selected, and the purple \"Create new design\" button is ready to be clicked.",
+        "reasoning": "The dimensions have been successfully entered, so clicking the \"Create new design\" button will finalize the creation of the blank 1080 x 1920 design.",
+        "action": "click(x=0.865, y=0.222)",
+        "result": "Clicked at (2214, 319)"
+      },
+      {
+        "step": 7,
+        "observation": "Canva application is open but the main content area appears blank/white, indicating the page is still loading.",
+        "reasoning": "We need to wait for the Canva interface to fully load before we can proceed with creating the 1080 x 1920 design, as the previous steps involved entering dimensions but the design canvas hasn't appeared yet.",
+        "action": "wait(seconds=3.0)",
+        "result": "Waited 3.0 seconds"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792751854.8067296
+  },
+  "antigravity:unknown_task": {
+    "id": "antigravity:unknown_task",
+    "application": "antigravity",
+    "intent": "UNKNOWN TASK",
+    "steps": [
+      {
+        "step": 1,
+        "observation": "The screen shows a code editor with HTML and Python files open, and a Copilot chat panel. There is no visible reference to 'antigravity' or any related UI element.",
+        "reasoning": "Since the 'antigravity' application is not visible or active, the first step is to open it to proceed with the task.",
+        "action": "open_app('antigravity')",
+        "result": "Switched to application 'antigravity'"
+      },
+      {
+        "step": 2,
+        "observation": "The screen shows a code editor with HTML content displayed, specifically an index.html file with various div elements and classes related to an \"antigravity\" theme.",
+        "reasoning": "Since we've opened the antigravity application in step 1, the next logical",
+        "action": "click(x=0.2797, y=0.1759)",
+        "result": "Clicked at (716, 253)"
+      },
+      {
+        "step": 3,
+        "observation": "The screen shows a code editor with HTML content open in the antigravity application, displaying various div elements and SVG code.",
+        "reasoning": "Double-clicking on the code will select a word or element, which is likely needed for the next step in the task sequence.",
+        "action": "double_click(x=0.3059, y=0.2528)",
+        "result": "Double-clicked at (783, 364)"
+      },
+      {
+        "step": 4,
+        "observation": "The screen shows an HTML code editor with the antigravity application open, displaying code with various div elements including a \"Quick Info Slide-out Panel\" section.",
+        "reasoning": "Since we're working with HTML code and need to continue the task sequence, clicking at the current position in the code editor will allow us to interact with or modify the HTML content at that specific location.",
+        "action": "click(x=0.2797, y=0.1759)",
+        "result": "Clicked at (716, 253)"
+      },
+      {
+        "step": 5,
+        "observation": "The screen shows a code editor with HTML content, displaying various div elements including a \"Bubble Icon\" section with SVG path elements and other UI components.",
+        "reasoning": "Based on the task progression and current screen state, clicking on this specific element in the code editor is the next logical step to continue the task sequence.",
+        "action": "click(x=0.7875, y=0.2759)",
+        "result": "Clicked at (2016, 397)"
+      },
+      {
+        "step": 6,
+        "observation": "The screen shows a code editor with CSS styling for camera telemetry elements, with the cursor positioned within the code area.",
+        "reasoning": "Clicking at this position in the code editor will allow for text selection or cursor placement to continue editing the CSS properties for the camera telemetry display.",
+        "action": "click(x=0.2797, y=0.1759)",
+        "result": "Clicked at (716, 253)"
+      },
+      {
+        "step": 7,
+        "observation": "The screen shows a code editor with CSS styling for a real-time scene telemetry interface, with the cursor positioned within the camera-telemetry style block around line 2064.",
+        "reasoning": "Clicking at this position allows for editing or modifying the camera telemetry styling properties, which appears to be the next logical step in the task sequence.",
+        "action": "click(x=0.2797, y=0.1759)",
+        "result": "Clicked at (716, 253)"
+      },
+      {
+        "step": 8,
+        "observation": "The screen shows a code editor with CSS/HTML code, and the user has been repeatedly clicking the same coordinate without progress.",
+        "reasoning": "Since clicking at (716, 253) has been attempted multiple times without advancing the screen state, I need to try a different coordinate. The right side of the screen appears to have a panel or sidebar that might contain relevant controls or information for the antigravity application.",
+        "action": "click(x=0.7875, y=0.2759)",
+        "result": "Clicked at (2016, 397)"
+      },
+      {
+        "step": 9,
+        "observation": "The screen shows a code editor with CSS styling for an antigravity application, displaying various CSS rules including image modal properties and glitch effects.",
+        "reasoning": "Clicking at this position in the CSS code would allow editing or interacting with the image modal styling properties, which appears to be part of the antigravity functionality being developed.",
+        "action": "click(x=0.2797, y=0.1759)",
+        "result": "Clicked at (716, 253)"
+      },
+      {
+        "step": 10,
+        "observation": "The screen shows a code editor with CSS styling for an antigravity application, displaying various style rules including image modal properties and glitch effects.",
+        "reasoning": "Based on the pattern of previous",
+        "action": "click(x=0.2797, y=0.1759)",
+        "result": "Clicked at (716, 253)"
+      },
+      {
+        "step": 11,
+        "observation": "The screen shows a code editor with CSS/HTML code open in the \"index.html\" file, with the cursor positioned in the editor area where CSS rules for \".glitch-active\" classes are visible.",
+        "reasoning": "Since repeated clicking at the same coordinates hasn't progressed the task, using a keyboard shortcut like Ctrl+S to save the file would be a logical next step to preserve any changes made to the code.",
+        "action": "hotkey('ctrl', 's')",
+        "result": "Pressed hotkey ctrl+s"
+      },
+      {
+        "step": 12,
+        "observation": "The screen shows a code editor with CSS styling for an antigravity application, displaying modal and glitch effect styles with various properties like opacity, pointer-events, and animation settings.",
+        "reasoning": "Since the file was just saved with Ctrl+S in the previous step, the next logical",
+        "action": "click(x=0.2797, y=0.1759)",
+        "result": "Clicked at (716, 253)"
+      },
+      {
+        "step": 13,
+        "observation": "The screen shows a code editor with CSS styling for an antigravity application, displaying .img-modal styles with properties like opacity, pointer-events, and glitch effects.",
+        "reasoning": "The user needs to click at the current position to interact with the code at line 1784 where the .img-modal class is defined, likely to continue editing or selecting the styling properties.",
+        "action": "click(x=0.2797, y=0.1759)",
+        "result": "Clicked at (716, 253)"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792753039.0305326
+  },
+  "antigravity:change_antigravity_light_theme_to_dark_theme": {
+    "id": "antigravity:change_antigravity_light_theme_to_dark_theme",
+    "application": "antigravity",
+    "intent": "CHANGE ANTIGRAVITY LIGHT THEME TO DARK THEME",
+    "steps": [
+      {
+        "step": 1,
+        "observation": "Visual Studio Code is open with the Antigravity IDE displaying HTML/CSS code in a light theme.",
+        "reasoning": "To change the theme from light to dark, I need to open the Command Palette first, which is the standard way to access theme settings in VS Code.",
+        "action": "hotkey('ctrl', 'shift', 'p')",
+        "result": "Pressed hotkey ctrl+shift+p"
+      },
+      {
+        "step": 2,
+        "observation": "The Command Palette is open in VS Code showing \"Preferences: Color Theme\" as the first option in the list.",
+        "reasoning": "Clicking on \"Preferences: Color Theme\" will open the theme selection menu where we can change from light to dark theme.",
+        "action": "click(x=0.357, y=0.294)",
+        "result": "Clicked at (913, 423)"
+      },
+      {
+        "step": 3,
+        "observation": "The theme selection dropdown is open showing various theme options including \"Dark Modern\" under the dark themes section.",
+        "reasoning": "Clicking on \"Dark Modern\" will apply the dark theme to the editor, which directly accomplishes the goal of changing from light to dark theme.",
+        "action": "click(x=0.327, y=0.562)",
+        "result": "Clicked at (837, 809)"
+      },
+      {
+        "step": 4,
+        "observation": "The screen shows Visual Studio Code with the Antigravity IDE open in light theme, displaying HTML and CSS code in the editor.",
+        "reasoning": "To change the theme from light to dark, I need to access the settings menu, which is typically available through the gear icon in the bottom-left corner of VS Code.",
+        "action": "click(x=0.818, y=0.894)",
+        "result": "Clicked at (2094, 1287)"
+      },
+      {
+        "step": 5,
+        "observation": "The screen shows Visual Studio Code with a dark theme already active, and the bottom-left corner contains a gear icon for settings.",
+        "reasoning": "Clicking the gear icon in the bottom-left corner will open the settings menu where theme options can be accessed to change from light to dark theme.",
+        "action": "click(x=0.012, y=0.903)",
+        "result": "Clicked at (30, 1300)"
+      },
+      {
+        "step": 6,
+        "observation": "The screen shows Visual Studio Code with the Antigravity IDE open in light theme, displaying code in the main editor area with a file explorer on the left side.",
+        "reasoning": "To change the theme from light to dark, I need to access the settings or theme options, which are typically available through the gear icon in the bottom left corner of VS Code.",
+        "action": "click(x=0.012, y=0.903)",
+        "result": "Clicked at (30, 1300)"
+      },
+      {
+        "step": 7,
+        "observation": "The screen shows Visual Studio Code with a dark theme already active, and the previous click at the bottom left corner did not produce any change.",
+        "reasoning": "Since clicking at the bottom left corner was ineffective, I should try clicking the gear/settings icon in the bottom left corner of VS Code, which typically provides access to theme settings and preferences.",
+        "action": "click(x=0.012, y=0.903)",
+        "result": "Clicked at (30, 1300)"
+      },
+      {
+        "step": 8,
+        "observation": "The screen shows Visual Studio Code with the Antigravity IDE open, currently in a light theme, and the settings gear icon is visible in the bottom left corner.",
+        "reasoning": "Clicking the settings gear icon will open the settings menu, where I can navigate to the theme options to switch from light to dark mode.",
+        "action": "click(x=0.012, y=0.903)",
+        "result": "Clicked at (30, 1300)"
+      },
+      {
+        "step": 9,
+        "observation": "The screen shows Visual Studio Code with a dark theme already active, displaying HTML and JavaScript code in the editor with the Explorer panel open on the left side.",
+        "reasoning": "Since the goal is to change the Antigravity light theme to dark theme, and the File menu typically contains theme settings or preferences, clicking on the File menu in the top-left corner would be the logical first step to access theme options.",
+        "action": "click(x=0.039, y=0.017)",
+        "result": "Clicked at (99, 24)"
+      },
+      {
+        "step": 10,
+        "observation": "The File menu is open in Visual Studio Code, showing various options including \"Preferences\" which appears to be a submenu that would contain theme settings.",
+        "reasoning": "To change the theme from light to dark, I need to access the Preferences menu which typically contains appearance and theme configuration options in VS Code.",
+        "action": "click(x=0.052, y=0.527)",
+        "result": "Clicked at (133, 758)"
+      },
+      {
+        "step": 11,
+        "observation": "The VS Code interface shows the File menu open with Preferences submenu expanded, displaying Editor Settings options including \"Themes\" which is visible in the menu.",
+        "reasoning": "To change the Antigravity light theme to dark theme, I need to access the Themes option which is currently visible in the Editor Settings submenu.",
+        "action": "click(x=0.236, y=0.672)",
+        "result": "Clicked at (604, 967)"
+      },
+      {
+        "step": 12,
+        "observation": "The VS Code interface shows the Preferences menu expanded with the Themes submenu open, displaying \"Color Theme\" as an option with the keyboard shortcut Ctrl+K Ctrl+T.",
+        "reasoning": "To change the theme from light to dark, I need to click on \"Color Theme\" which will open the theme selection interface where I can choose a dark theme.",
+        "action": "click(x=0.419, y=0.669)",
+        "result": "Clicked at (1072, 963)"
+      },
+      {
+        "step": 13,
+        "observation": "The Antigravity IDE is displaying a color theme selection dialog with \"Dark Modern\" theme highlighted in the dark themes section.",
+        "reasoning": "Clicking on the highlighted \"Dark Modern\" option will select and apply this dark theme, completing the goal of changing from light to dark theme.",
+        "action": "click(x=0.419, y=0.562)",
+        "result": "Clicked at (1072, 809)"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792753297.9108913
+  },
+  "spotify:open_spotify_and_start_playing_the_playlist_in_which_my_liked_songs_are": {
+    "id": "spotify:open_spotify_and_start_playing_the_playlist_in_which_my_liked_songs_are",
+    "application": "spotify",
+    "intent": "OPEN SPOTIFY AND START PLAYING THE PLAYLIST IN WHICH MY LIKED SONGS ARE",
+    "steps": [
+      {
+        "step": 1,
+        "observation": "Spotify is already open and displaying a song page for \"Din Guzra\" by JANI, with the left sidebar showing various navigation options including what appears to be a heart icon for Liked Songs.",
+        "reasoning": "Since Spotify is already open, I need to navigate to the user's Liked Songs playlist by clicking on the heart icon in the left sidebar, which is the standard way to access liked songs in Spotify.",
+        "action": "click(x=0.021, y=0.214)",
+        "result": "Clicked at (53, 308)"
+      },
+      {
+        "step": 2,
+        "observation": "Spotify is open and displaying the \"Liked Songs\" playlist with 324 songs, showing the green play button in the playlist header.",
+        "reasoning": "The playlist is already loaded and visible, so clicking the green play button will start playing the liked songs as requested.",
+        "action": "click(x=0.082, y=0.406)",
+        "result": "Clicked at (209, 584)"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792753386.7619326
+  },
+  "whatsapp:yes_you_correctly_changed_the_profile_image_of_my_whatsapp": {
+    "id": "whatsapp:yes_you_correctly_changed_the_profile_image_of_my_whatsapp",
+    "application": "whatsapp",
+    "intent": "YES YOU CORRECTLY CHANGED THE PROFILE IMAGE OF MY WHATSAPP",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app('WhatsApp')",
+        "target": "WhatsApp",
+        "details": "Open and focus WhatsApp",
+        "observation": "Ensure WhatsApp is active"
+      },
+      {
+        "step": 2,
+        "action": "click(x=0.205, y=0.197)",
+        "target": "",
+        "details": "To change the profile image, I need to click on the existing profile picture to open the image selection options.",
+        "observation": "The WhatsApp \"Edit profile\" screen is open, showing the current profile picture at the top center of the page."
+      },
+      {
+        "step": 3,
+        "action": "click(x=0.196, y=0.372)",
+        "target": "",
+        "details": "To change the profile image, I need to select the \"Upload photo\" option from the menu to browse for a new image file.",
+        "observation": "The WhatsApp Edit profile screen is open with a context menu showing options for the profile picture, including \"Upload photo\"."
+      },
+      {
+        "step": 4,
+        "action": "click(x=0.205, y=0.197)",
+        "target": "",
+        "details": "To change the profile image, the next logical step is to click on the existing profile picture to open options for uploading or selecting a new image.",
+        "observation": "The WhatsApp \"Edit profile\" screen is open, displaying the current profile picture at the top center of the page."
+      },
+      {
+        "step": 5,
+        "action": "click(x=0.672, y=0.692)",
+        "target": "",
+        "details": "The user wants to change their WhatsApp profile image, and they've selected an image file in the file browser. The next logical step is to click the \"Open\" button to confirm this selection and proceed with setting it as the profile picture.",
+        "observation": "A file selection dialog is open showing various image files in a folder, with \"14 x 1.4 logo\" entered in the filename field at the bottom."
+      },
+      {
+        "step": 6,
+        "action": "click(x=0.205, y=0.197)",
+        "target": "",
+        "details": "Clicking on the profile image is the logical next step to initiate the process of changing it, as this is typically how profile picture updates are started in WhatsApp.",
+        "observation": "The screen shows the WhatsApp \"Edit profile\" page with the current profile image displayed at the top center."
+      },
+      {
+        "step": 7,
+        "action": "click(x=0.608, y=0.636)",
+        "target": "",
+        "details": "Clicking the green checkmark button will confirm and save the selected profile image, completing the profile picture change process.",
+        "observation": "The WhatsApp profile editing screen is open with an image adjustment dialog showing a university logo, and a green checkmark button is visible at the bottom right of the dialog."
+      },
+      {
+        "step": 8,
+        "action": "click(x=0.608, y=0.636)",
+        "target": "",
+        "details": "The user wants to confirm they correctly changed their WhatsApp profile image, and the green checkmark button at the bottom right of the image adjustment dialog would save and confirm the profile picture change.",
+        "observation": "The screen shows WhatsApp's Edit profile page with an image adjustment dialog open, displaying a university logo that can be dragged to adjust its position, with an \"Upload\" button in the top right corner and a green checkmark button at the bottom right."
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792754919.647344
+  },
+  "test_app:change_profile_picture": {
+    "id": "test_app:change_profile_picture",
+    "application": "whatsapp",
+    "intent": "CHANGE WHATSAPP PROFILE PICTURE",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app('whatsapp')",
+        "target": "",
+        "details": "open_app('whatsapp')",
+        "observation": "WhatsApp open"
+      },
+      {
+        "step": 2,
+        "action": "click(0.04, 0.05)",
+        "target": "",
+        "details": "click(0.04, 0.05)",
+        "observation": "Settings icon visible"
+      },
+      {
+        "step": 3,
+        "action": "click(0.15, 0.20)",
+        "target": "",
+        "details": "click(0.15, 0.20)",
+        "observation": "Profile icon visible"
+      },
+      {
+        "step": 4,
+        "action": "click(0.40, 0.50)",
+        "target": "",
+        "details": "click(0.40, 0.50)",
+        "observation": "Upload picture option visible"
+      },
+      {
+        "step": 5,
+        "action": "click(0.85, 0.90)",
+        "target": "",
+        "details": "click(0.85, 0.90)",
+        "observation": "Save button visible"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 5,
+    "last_verified_timestamp": 1792835609.0021331
+  },
+  "brave:open_brave_and_open_google_classroom_and_login_with_this_password_a1h2m3a4d_and_tell_me_if_there_is_any_due_date_today": {
+    "id": "brave:open_brave_and_open_google_classroom_and_login_with_this_password_a1h2m3a4d_and_tell_me_if_there_is_any_due_date_today",
+    "application": "brave",
+    "intent": "OPEN BRAVE AND OPEN GOOGLE CLASSROOM AND LOGIN WITH THIS PASSWORD \"**A1H2M3A4D**\" AND TELL ME IF THERE IS ANY DUE DATE TODAY",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app('Brave')",
+        "target": "Brave",
+        "details": "Open and focus Brave",
+        "observation": "Ensure Brave is active"
+      },
+      {
+        "step": 2,
+        "action": "click(x=0.391, y=0.178)",
+        "target": "",
+        "details": "The goal requires opening Google Classroom, and I can see the Google Classroom shortcut icon is available on the current new tab page, so clicking it is the logical next step.",
+        "observation": "Brave browser is open on a new tab page showing shortcut icons including Google Classroom, Gmail, YouTube, and others in the center of the screen."
+      },
+      {
+        "step": 3,
+        "action": "click(x=0.391, y=0.178)",
+        "target": "",
+        "details": "To proceed with the goal of opening Google Classroom, I need to click on the Google Classroom shortcut icon visible in the shortcuts section of the new tab page.",
+        "observation": "Brave browser is open on a new tab page showing shortcut icons including Google Classroom, Gmail, YouTube, and others against a mountain landscape background."
+      },
+      {
+        "step": 4,
+        "action": "click(x=0.759, y=0.622)",
+        "target": "",
+        "details": "Clicking the \"Next\" button is necessary to advance to the password entry screen where the provided password can be entered to complete the login.",
+        "observation": "The screen displays a Google account verification page with the email f240004@cfd.nu.edu.pk and a blue \"Next\" button to proceed with sign-in."
+      },
+      {
+        "step": 5,
+        "action": "click(x=0.759, y=0.622)",
+        "target": "",
+        "details": "Clicking the \"Next\" button will advance the login process to the password entry screen where the user can input the specified password.",
+        "observation": "The screen displays a Google account verification page with the email f240004@cfd.nu.edu.pk and a blue \"Next\" button in the bottom right corner."
+      },
+      {
+        "step": 6,
+        "action": "type_text('**A1h2m3a4d**')",
+        "target": "",
+        "details": "The password field is focused and empty, so typing the specified password is the necessary next step to progress toward logging in and accessing Google Classroom.",
+        "observation": "The screen displays a Google sign-in page with the email field pre-filled and the password input field currently active and ready for text entry."
+      },
+      {
+        "step": 7,
+        "action": "click(x=0.759, y=0.622)",
+        "target": "",
+        "details": "The password has been entered and the next logical step is to click the \"Next\" button to proceed with the login and access Google Classroom.",
+        "observation": "The Google sign-in page is displayed with the email f240004@cfd.nu.edu.pk selected and the password field filled with masked characters, ready for submission."
+      },
+      {
+        "step": 8,
+        "action": "click(x=0.759, y=0.622)",
+        "target": "",
+        "details": "The password has been entered in the previous step, so clicking the \"Next\" button will submit the credentials and proceed with the login process to access Google Classroom.",
+        "observation": "The Google sign-in page is displayed with the email f240004@cfd.nu.edu.pk selected and the password field filled with masked characters, with a blue \"Next\" button visible at the bottom right of the form."
+      },
+      {
+        "step": 9,
+        "action": "click(x=0.759, y=0.622)",
+        "target": "",
+        "details": "Since the password has been entered (shown as dots in the field), the next logical step is to click the \"Next\" button to submit the credentials and proceed with the login process.",
+        "observation": "The Google sign-in page is displayed with the email f240004@cfd.nu.edu.pk selected and the password field filled with masked characters, with a blue \"Next\" button visible at the bottom right of the form."
+      },
+      {
+        "step": 10,
+        "action": "wait(seconds=3.0)",
+        "target": "",
+        "details": "The page needs time to finish loading before I can check for due dates, so waiting is the appropriate",
+        "observation": "Google Classroom page is currently loading as indicated by the blue circular spinner in the main content area, with the left sidebar navigation menu visible showing Home, Calendar, Archived classes, and Settings options."
+      },
+      {
+        "step": 11,
+        "action": "click(x=0.884, y=0.212)",
+        "target": "",
+        "details": "To check if there are any due dates today, I need to click on \"View To-do\" to see the detailed list of upcoming and due assignments.",
+        "observation": "Google Classroom is open in Brave browser showing the home page with a \"Due soon\" section at the top that appears empty, and a \"View To-do\" link is available in the upper right of that section."
+      },
+      {
+        "step": 12,
+        "action": "click on the Calendar option in the left sidebar navigation menu",
+        "target": "",
+        "details": "To check for due dates today, I need to access the Calendar feature which will display upcoming assignments and their due dates.",
+        "observation": "Google Classroom is open in Brave browser showing the Home page with enrolled classes listed in the left sidebar, and the Calendar option is visible in the navigation menu."
+      },
+      {
+        "step": 13,
+        "action": "click on the Calendar option in the left sidebar navigation menu",
+        "target": "",
+        "details": "To check for due dates today, I need to access the Calendar feature which will show upcoming assignments and their due dates.",
+        "observation": "The screen displays Google Classroom with the left sidebar navigation menu showing options including Home, Calendar, Gemini, and enrolled classes under the \"To-do\" section."
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792755717.1326938
+  },
+  "canva:open_canva_create_a_1080_x_1920_blank_design": {
+    "id": "canva:open_canva_create_a_1080_x_1920_blank_design",
+    "application": "canva",
+    "intent": "OPEN CANVA CREATE A 1080 X 1920 BLANK DESIGN",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app('Canva')",
+        "target": "Canva",
+        "details": "Open and focus Canva",
+        "observation": "Ensure Canva is active"
+      },
+      {
+        "step": 2,
+        "action": "click(x=0.697, y=0.181)",
+        "target": "",
+        "details": "Since Canva is already open and a canvas is visible, I need to click on the canvas area to activate it and begin working with the 1080 x 1920 design.",
+        "observation": "Canva is already open with a design canvas visible showing \"1080\" in the center, with template options displayed on the left sidebar."
+      },
+      {
+        "step": 3,
+        "action": "click(x=0.182, y=0.025)",
+        "target": "",
+        "details": "Since we need to create a blank design with specific dimensions (1080 x 1920), and we're already in Canva with what appears to be the right dimensions showing, we should click on the \"Create a design\" or similar option to start a new blank design rather than selecting from the templates shown.",
+        "observation": "Canva is open with a design interface showing template options on the left and a canvas area on the right. The top bar indicates \"1080 - 1080 x 1920\" suggesting the correct dimensions may already be selected."
+      },
+      {
+        "step": 4,
+        "action": "click(x=0.227, y=0.126)",
+        "target": "",
+        "details": "To create a 1080 x 1920 blank design, I need to select the \"Custom size\" option which will allow me to input specific dimensions.",
+        "observation": "Canva is open with a dropdown menu showing design size options, including \"Custom size\" at the top of the list."
+      },
+      {
+        "step": 5,
+        "action": "click(x=0.219, y=0.157)",
+        "target": "",
+        "details": "The width field needs to be clicked first so the user can enter \"1080\" as the width value for the custom 1080 x 1920 design dimensions.",
+        "observation": "The Canva interface shows a \"Custom size\" dialog box with empty Width and Height input fields, where the user needs to enter dimensions for creating a new design."
+      },
+      {
+        "step": 6,
+        "action": "click(x=0.219, y=0.157)",
+        "target": "",
+        "details": "To create a 1080 x 1920 blank design, I need to first click on the Width input field to begin entering the width value of 1080.",
+        "observation": "The Canva interface shows a \"Custom size\" dialog box with empty Width and Height input fields, where the user needs to enter dimensions for creating a new design."
+      },
+      {
+        "step": 7,
+        "action": "type_text('1080')",
+        "target": "",
+        "details": "To create a 1080 x 1920 design, I need to enter the width value first in the currently focused width field.",
+        "observation": "The Canva custom size dialog is open with empty width and height input fields, ready for dimension entry."
+      },
+      {
+        "step": 8,
+        "action": "click(x=0.277, y=0.162)",
+        "target": "",
+        "details": "To create a 1080 x 1920 design, I need to click on the height input field to enter the value 1920.",
+        "observation": "The custom size dialog is open with width set to 1080, and the height field is empty and ready for input."
+      },
+      {
+        "step": 9,
+        "action": "type_text('1920')",
+        "target": "",
+        "details": "To create a 1080 x 1920 design, I need to enter 1920 in the height field since the width is already correctly set to 1080.",
+        "observation": "The custom size dialog is open with width set to 1080 and the height field is empty and focused, ready for input."
+      },
+      {
+        "step": 10,
+        "action": "click(x=0.284, y=0.217)",
+        "target": "",
+        "details": "The dimensions have been successfully entered, so the next logical step is to click the \"Create new design\" button to create the blank 1080 x 1920 design as requested.",
+        "observation": "The Canva custom size dialog shows width 1080 and height 1920 pixels entered, with a purple \"Create new design\" button ready to be clicked."
+      },
+      {
+        "step": 11,
+        "action": "wait(seconds=3.0)",
+        "target": "",
+        "details": "The design interface needs time to fully load after entering the custom dimensions and clicking create, so waiting is necessary before any further",
+        "observation": "Canva is open with a \"Canvas - Creating\" tab, but the main content area is blank white, indicating the page is still loading."
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792755818.0887556
+  },
+  "whatsapp:change_theme_of_whatsapp_to_dark_theme": {
+    "app": "WhatsApp",
+    "intent": "change the theme of whatsapp to dark",
+    "steps": [
+      {
+        "step": 1,
+        "action": "click(x=0.018, y=0.912)",
+        "target": "settings_profile_icon",
+        "details": "Click bottom-left profile picture to open WhatsApp settings",
+        "observation": "WhatsApp desktop open with profile picture at bottom left"
+      },
+      {
+        "step": 2,
+        "action": "click(x=0.762, y=0.922)",
+        "target": "chat_theme_option",
+        "details": "Click Chat theme option",
+        "observation": "Settings menu displayed"
+      },
+      {
+        "step": 3,
+        "action": "click(x=0.102, y=0.719)",
+        "target": "chats_tab",
+        "details": "Click Chats settings section",
+        "observation": "Chats option visible with Theme description"
+      },
+      {
+        "step": 4,
+        "action": "click(x=0.333, y=0.188)",
+        "target": "theme_button",
+        "details": "Click Theme button to open selection dialog",
+        "observation": "Theme option showing Light mode"
+      },
+      {
+        "step": 5,
+        "action": "click(x=0.393, y=0.451)",
+        "target": "dark_radio",
+        "details": "Select Dark mode radio button",
+        "observation": "Theme dialog showing Light, Dark, System default"
+      },
+      {
+        "step": 6,
+        "action": "click(x=0.596, y=0.574)",
+        "target": "ok_button",
+        "details": "Click OK button to confirm and apply Dark theme",
+        "observation": "Dark theme selected, confirming with OK"
+      }
+    ],
+    "verified_at": "2026-10-23T20:20:00"
+  },
+  "whatsapp:change_the_theme_of_whatsapp_to_dark": {
+    "app": "WhatsApp",
+    "intent": "change the theme of whatsapp to dark",
+    "steps": [
+      {
+        "step": 1,
+        "action": "click(x=0.018, y=0.912)",
+        "target": "settings_profile_icon",
+        "details": "Click bottom-left profile picture to open WhatsApp settings",
+        "observation": "WhatsApp desktop open with profile picture at bottom left"
+      },
+      {
+        "step": 2,
+        "action": "click(x=0.762, y=0.922)",
+        "target": "chat_theme_option",
+        "details": "Click Chat theme option",
+        "observation": "Settings menu displayed"
+      },
+      {
+        "step": 3,
+        "action": "click(x=0.102, y=0.719)",
+        "target": "chats_tab",
+        "details": "Click Chats settings section",
+        "observation": "Chats option visible with Theme description"
+      },
+      {
+        "step": 4,
+        "action": "click(x=0.333, y=0.188)",
+        "target": "theme_button",
+        "details": "Click Theme button to open selection dialog",
+        "observation": "Theme option showing Light mode"
+      },
+      {
+        "step": 5,
+        "action": "click(x=0.393, y=0.451)",
+        "target": "dark_radio",
+        "details": "Select Dark mode radio button",
+        "observation": "Theme dialog showing Light, Dark, System default"
+      },
+      {
+        "step": 6,
+        "action": "click(x=0.596, y=0.574)",
+        "target": "ok_button",
+        "details": "Click OK button to confirm and apply Dark theme",
+        "observation": "Dark theme selected, confirming with OK"
+      }
+    ],
+    "verified_at": "2026-10-23T20:20:00"
+  },
+  "whatsapp:change_the_theme_of_whatsapp_to_dark_theme": {
+    "app": "WhatsApp",
+    "intent": "change the theme of whatsapp to dark",
+    "steps": [
+      {
+        "step": 1,
+        "action": "click(x=0.018, y=0.912)",
+        "target": "settings_profile_icon",
+        "details": "Click bottom-left profile picture to open WhatsApp settings",
+        "observation": "WhatsApp desktop open with profile picture at bottom left"
+      },
+      {
+        "step": 2,
+        "action": "click(x=0.762, y=0.922)",
+        "target": "chat_theme_option",
+        "details": "Click Chat theme option",
+        "observation": "Settings menu displayed"
+      },
+      {
+        "step": 3,
+        "action": "click(x=0.102, y=0.719)",
+        "target": "chats_tab",
+        "details": "Click Chats settings section",
+        "observation": "Chats option visible with Theme description"
+      },
+      {
+        "step": 4,
+        "action": "click(x=0.333, y=0.188)",
+        "target": "theme_button",
+        "details": "Click Theme button to open selection dialog",
+        "observation": "Theme option showing Light mode"
+      },
+      {
+        "step": 5,
+        "action": "click(x=0.393, y=0.451)",
+        "target": "dark_radio",
+        "details": "Select Dark mode radio button",
+        "observation": "Theme dialog showing Light, Dark, System default"
+      },
+      {
+        "step": 6,
+        "action": "click(x=0.596, y=0.574)",
+        "target": "ok_button",
+        "details": "Click OK button to confirm and apply Dark theme",
+        "observation": "Dark theme selected, confirming with OK"
+      }
+    ],
+    "verified_at": "2026-10-23T20:20:00"
   }
 }

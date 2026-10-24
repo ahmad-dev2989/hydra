@@ -1,0 +1,29 @@
+{
+    "gmail": {
+        "connected": true,
+        "account": "connected_google_user@gmail.com",
+        "authType": "google_session",
+        "data": {
+            "session_enc": "google_session.enc",
+            "verified": true
+        }
+    },
+    "google_classroom": {
+        "connected": true,
+        "account": "connected_google_user@gmail.com",
+        "authType": "google_session",
+        "data": {
+            "session_enc": "google_session.enc",
+            "verified": true
+        }
+    },
+    "youtube": {
+        "connected": true,
+        "account": "connected_google_user@gmail.com",
+        "authType": "google_session",
+        "data": {
+            "session_enc": "google_session.enc",
+            "verified": true
+        }
+    }
+}
