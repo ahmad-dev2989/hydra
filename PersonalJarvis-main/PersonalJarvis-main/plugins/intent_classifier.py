@@ -450,17 +450,59 @@ def classify_command(raw_text: str) -> IntentResult:
     ])
     if target_app == "whatsapp" or (is_msg_intent and not any(w in low for w in ["email", "emails", "mail", "gmail", "inbox"])):
         target_app = "whatsapp"
+        # Check if explicit send command first
+        is_explicit_send = any(re.search(pat, low) for pat in [
+            r"\bsend\s+(?:a\s+)?(?:message|msg|text)\b",
+            r"\btext\s+[a-zA-Z0-9_+]+",
+            r"\bmessage\s+[a-zA-Z0-9_+]+",
+            r"\bwrite\s+(?:a\s+)?(?:message|msg|text)\b",
+            r"\btell\s+[a-zA-Z0-9_+]+\s+(?:that|to|saying)\b"
+        ])
+        if is_explicit_send:
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="whatsapp",
+                action="send_message",
+                reasoning="WhatsApp send message"
+            )
+
         # Check if inquiry about incoming/unread messages
         is_unread_inquiry = any(re.search(pat, low) for pat in [
             r"\btell\s+me\s+about\s+(?:the\s+)?messages\b",
             r"\bcheck\s+(?:my\s+)?(?:unread\s+|new\s+)?messages\b",
             r"\b(?:what|any)\s+(?:new\s+)?messages\b",
-            r"\bwhat\s+did\s+\w+\s+say\b",
+            r"\bwhat\s+(?:did\s+)?[a-zA-Z0-9_+]+(?:\s+|\s+\w+\s+)?(?:say|said|send|sent|write|wrote|text|texted)\b",
             r"\bread\s+(?:my\s+)?messages\b",
             r"\bunread\b",
-            r"\bwho\s+(?:sent|messaged)\b"
+            r"\bwho\s+(?:sent|messaged)\b",
+            r"\b(?:message|messages|chat)\s+(?:from|by)\s+[a-zA-Z0-9_+]+\b",
+            r"\b(?!send\b|write\b|text\b)[a-zA-Z0-9_+]+(?:\x27s|\x27)?\s+(?:message|messages|text|texts|chat)\b"
         ])
-        if not is_unread_inquiry and any(re.search(rf"\b{w}\b", low) for w in ["send", "write", "text", "message", "msg"]):
+        if is_unread_inquiry:
+            # Extract sender if inquiry specifies a contact (e.g. 'what ismail said on whatsapp')
+            sender = ""
+            m_from = re.search(r'\b(?:from|by)\s+([a-zA-Z0-9_+]+)', clean_text, re.IGNORECASE)
+            if m_from and m_from.group(1).lower() not in ['whatsapp', 'me', 'the', 'my', 'him', 'her', 'them']:
+                sender = m_from.group(1).strip()
+            if not sender:
+                m_said = re.search(r'\bwhat\s+(?:did\s+)?([a-zA-Z0-9_+]+)\s+(?:say|said|send|sent|write|wrote|text|texted)\b', clean_text, re.IGNORECASE)
+                if m_said and m_said.group(1).lower() not in ['whatsapp', 'he', 'she', 'they', 'you', 'i', 'we']:
+                    sender = m_said.group(1).strip()
+            if not sender:
+                m_msg = re.search(r'\b(?!send\b|write\b|text\b)([a-zA-Z0-9_+]+)(?:\x27s|\x27)?\s+(?:message|messages|msg|msgs|text|texts|chat)\b', clean_text, re.IGNORECASE)
+                if m_msg and m_msg.group(1).lower() not in ['what', 'any', 'new', 'unread', 'the', 'all', 'recent', 'latest', 'whatsapp', 'last', 'read', 'check', 'my']:
+                    sender = m_msg.group(1).strip()
+
+            params = {"sender": sender} if sender else {}
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="whatsapp",
+                action="check_unread",
+                parameters=params,
+                reasoning=f"WhatsApp background unread check (sender: '{sender}')" if sender else "WhatsApp background unread check"
+            )
+
+        if any(re.search(rf"\b{w}\b", low) for w in ["send", "write", "text", "message", "msg"]):
             return IntentResult(
                 intent_type=IntentType.HEADLESS_BACKGROUND,
                 target_app="whatsapp",

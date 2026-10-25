@@ -192,6 +192,52 @@ def parse_whatsapp_command(raw_text: str) -> Tuple[str, str]:
     return "", ""
 
 
+def extract_sender_from_query(raw_query: str) -> str:
+    """
+    Extracts contact/sender name from a WhatsApp message or notification query.
+    Handles:
+      - 'what ismail said on whatsapp'
+      - 'what did ismail say on whatsapp'
+      - 'what did ismail send / write / text'
+      - 'what ismail sent / wrote / texted'
+      - 'ismail's message on whatsapp' / 'ismail message on whatsapp'
+      - 'messages from ismail' / 'message from ismail'
+      - 'did ismail message / send anything'
+      - 'check message from ismail'
+    """
+    q = raw_query.strip()
+
+    # 1. 'from <name>' or 'by <name>'
+    m = re.search(r'\b(?:from|by)\s+([a-zA-Z0-9_+]+)', q, re.IGNORECASE)
+    if m:
+        candidate = m.group(1).strip()
+        if candidate.lower() not in ['whatsapp', 'me', 'the', 'my', 'him', 'her', 'them']:
+            return candidate
+
+    # 2. 'what (did) <name> (say|said|send|sent|write|wrote|text|texted)'
+    m = re.search(r'\bwhat\s+(?:did\s+)?([a-zA-Z0-9_+]+)\s+(?:say|said|send|sent|write|wrote|text|texted)\b', q, re.IGNORECASE)
+    if m:
+        candidate = m.group(1).strip()
+        if candidate.lower() not in ['whatsapp', 'he', 'she', 'they', 'you', 'i', 'we']:
+            return candidate
+
+    # 3. 'did <name> (say|send|message|text|write)'
+    m = re.search(r'\bdid\s+([a-zA-Z0-9_+]+)\s+(?:say|said|send|sent|message|text|write)\b', q, re.IGNORECASE)
+    if m:
+        candidate = m.group(1).strip()
+        if candidate.lower() not in ['whatsapp', 'you', 'he', 'she', 'they']:
+            return candidate
+
+    # 4. '<name>('s)? (message|text|chat)'
+    m = re.search(r'\b([a-zA-Z0-9_+]+)(?:\x27s|\x27)?\s+(?:message|messages|msg|msgs|text|texts|chat)\b', q, re.IGNORECASE)
+    if m:
+        candidate = m.group(1).strip()
+        if candidate.lower() not in ['what', 'any', 'new', 'unread', 'the', 'all', 'recent', 'latest', 'whatsapp', 'last', 'read', 'check', 'my']:
+            return candidate
+
+    return ""
+
+
 class WhatsAppDirectWorker(BaseDirectWorker):
     """
     Direct WhatsApp background and foreground chat worker.
@@ -475,7 +521,7 @@ class WhatsAppDirectWorker(BaseDirectWorker):
         """
         notifications = self._fetch_real_notifications(max_count=10)
 
-        # Filter by specific sender if requested (e.g. "what did Qaseem say on whatsapp")
+        # Filter by specific sender if requested (e.g. "what ismail said on whatsapp")
         if filter_sender:
             low_f = filter_sender.lower().strip()
             notifications = [m for m in notifications if low_f in m.get("sender", "").lower()]
@@ -499,6 +545,14 @@ class WhatsAppDirectWorker(BaseDirectWorker):
         first = notifications[0]
         sender = first.get("sender", "a contact")
         msg = first.get("message", "")
+
+        if filter_sender:
+            disp_sender = filter_sender.strip().title()
+            if len(notifications) == 1:
+                speech = f"Sir, {disp_sender} said '{msg}' on WhatsApp."
+            else:
+                speech = f"Sir, {disp_sender} sent {len(notifications)} recent messages on WhatsApp. The latest is: '{msg}'."
+            return True, speech, notifications
 
         if len(notifications) == 1:
             speech = f"Sir, you received a message from {sender} on WhatsApp: '{msg}'."
@@ -531,20 +585,12 @@ class WhatsAppDirectWorker(BaseDirectWorker):
         # 1. Unread / Notification Inquiry Check
         unread_triggers = [
             "unread", "check", "new message", "read message", "any message",
-            "messages from", "messages on", "what did", "tell me about the messages",
-            "who messaged", "who sent", "latest message", "recent message"
+            "messages from", "messages on", "what did", "what", "said", "say",
+            "tell me about the messages", "who messaged", "who sent", "latest message", "recent message"
         ]
         is_read_inquiry = any(w in low for w in unread_triggers)
         if task_type in ["unread", "check_unread"] or (is_read_inquiry and not any(w in low for w in ["send", "write", "text", "tell to", "chat"])):
-            filter_sender = ""
-            m_from = re.search(r'\b(?:from|by)\s+([a-zA-Z0-9_+]+)', raw_query, re.IGNORECASE)
-            if m_from:
-                filter_sender = m_from.group(1).strip()
-            else:
-                m_did = re.search(r'\bwhat\s+did\s+([a-zA-Z0-9_+]+)\s+say\b', raw_query, re.IGNORECASE)
-                if m_did:
-                    filter_sender = m_did.group(1).strip()
-
+            filter_sender = kwargs.get("sender") or kwargs.get("contact") or extract_sender_from_query(raw_query)
             ok, speech, items = self.get_unread_messages(filter_sender=filter_sender)
             return ok, speech, {"unread_messages": items, "count": len(items)}
 
