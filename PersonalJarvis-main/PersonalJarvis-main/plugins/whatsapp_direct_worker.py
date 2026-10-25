@@ -192,66 +192,54 @@ def parse_whatsapp_command(raw_text: str) -> Tuple[str, str]:
     return "", ""
 
 
-WA_STOP_WORDS = {
-    'whatsapp', 'me', 'the', 'my', 'him', 'her', 'them', 'he', 'she', 'they', 
-    'you', 'i', 'we', 'what', 'any', 'new', 'unread', 'all', 'recent', 'latest',
-    'last', 'read', 'check', 'message', 'messages', 'msg', 'msgs', 'chat', 'say',
-    'said', 'saying', 'send', 'sent', 'sending', 'that', 'which', 'this', 'a', 'an'
+COMMON_WHATSAPP_TOKENS = {
+    'check', 'read', 'tell', 'see', 'show', 'look', 'find', 'get', 'listen', 'hear',
+    'say', 'says', 'said', 'saying',
+    'send', 'sends', 'sent', 'sending',
+    'write', 'writes', 'wrote', 'writing',
+    'text', 'texts', 'texted', 'texting',
+    'type', 'types', 'typed', 'typing',
+    'message', 'messages', 'messaged', 'messaging',
+    'what', 'whats', 'who', 'whos', 'which', 'how', 'any', 'if', 'did', 'does', 'do', 'is', 'was', 'are', 'were', 'has', 'have', 'had',
+    'me', 'my', 'mine', 'i', 'you', 'your', 'yours', 'he', 'she', 'him', 'her', 'they', 'them', 'their', 'it', 'its', 'we', 'us', 'our',
+    'the', 'a', 'an', 'this', 'that', 'these', 'those',
+    'on', 'in', 'at', 'from', 'to', 'by', 'for', 'about', 'with', 'of', 'up', 'out',
+    'whatsapp', 'whatsap', 'watsapp', 'watsp', 'app', 'application',
+    'msg', 'msgs', 'note', 'notes', 'voice', 'audio', 'notification', 'notifications',
+    'latest', 'recent', 'new', 'last', 'unread', 'all', 'there', 'something', 'anything', 'nothing', 'some', 'please', 'sir'
 }
 
 
 def extract_sender_from_query(raw_query: str) -> str:
     """
     Extracts contact/sender name from a WhatsApp message or notification query.
-    Handles:
-      - 'check what qaseem is saying on whatsapp'
-      - 'check the latest message that qaseem said on whatsapp'
-      - 'what is qaseem saying on whatsapp'
-      - 'what did qaseem say on whatsapp'
-      - 'what ismail said on whatsapp'
-      - 'what was ismail saying'
-      - 'check message from ismail'
-      - 'the message that qaseem sent on whatsapp'
-      - 'latest message of qaseem on whatsapp'
-      - 'ismail message on whatsapp' / 'ismail\'s message on whatsapp'
-      - 'messages from ismail'
+    Handles all forms of communication verbs and question patterns.
     """
     q = raw_query.strip()
+    low = q.lower()
 
-    # 1. 'from <name>' or 'by <name>' or 'of <name>'
+    # 1. Structural patterns
     m = re.search(r'\b(?:from|by|of)\s+([a-zA-Z0-9_+]+)', q, re.IGNORECASE)
-    if m:
-        c = m.group(1).strip()
-        if c.lower() not in WA_STOP_WORDS:
-            return c
+    if m and m.group(1).lower() not in COMMON_WHATSAPP_TOKENS:
+        return m.group(1).strip()
 
-    # 2. 'what (did|is|was) <name> (say|said|saying|send|sent|sending|write|wrote|text)'
-    m = re.search(r'\bwhat\s+(?:did\s+|is\s+|was\s+)?([a-zA-Z0-9_+]+)\s+(?:say|said|saying|is\s+saying|was\s+saying|send|sent|sending|write|wrote|writing|text|texted)\b', q, re.IGNORECASE)
-    if m:
-        c = m.group(1).strip()
-        if c.lower() not in WA_STOP_WORDS:
-            return c
+    m = re.search(r'\bwhat\s+(?:did\s+|is\s+|was\s+|does\s+)?([a-zA-Z0-9_+]+)\s+(?:say|says|said|saying|is\s+saying|was\s+saying|send|sends|sent|sending|write|writes|wrote|writing|text|texts|texted)\b', q, re.IGNORECASE)
+    if m and m.group(1).lower() not in COMMON_WHATSAPP_TOKENS:
+        return m.group(1).strip()
 
-    # 3. 'message (that|which)? <name> (said|sent|wrote|texted|saying)'
-    m = re.search(r'\b(?:message|messages|msg|msgs|text|texts)\s+(?:that\s+|which\s+)?([a-zA-Z0-9_+]+)\s+(?:said|sent|wrote|texted|saying)\b', q, re.IGNORECASE)
-    if m:
-        c = m.group(1).strip()
-        if c.lower() not in WA_STOP_WORDS:
-            return c
+    m = re.search(r'\b(?:message|messages|msg|msgs|text|texts)\s+(?:that\s+|which\s+)?([a-zA-Z0-9_+]+)\s+(?:said|sent|wrote|texted|saying|says|sends)\b', q, re.IGNORECASE)
+    if m and m.group(1).lower() not in COMMON_WHATSAPP_TOKENS:
+        return m.group(1).strip()
 
-    # 4. 'did <name> (say|send|message|text|write)'
-    m = re.search(r'\bdid\s+([a-zA-Z0-9_+]+)\s+(?:say|said|send|sent|message|text|write)\b', q, re.IGNORECASE)
-    if m:
-        c = m.group(1).strip()
-        if c.lower() not in WA_STOP_WORDS:
-            return c
-
-    # 5. '<name>('s)? (message|text|chat)'
     m = re.search(r'\b([a-zA-Z0-9_+]+)(?:\x27s|\x27)?\s+(?:message|messages|msg|msgs|text|texts|chat)\b', q, re.IGNORECASE)
-    if m:
-        c = m.group(1).strip()
-        if c.lower() not in WA_STOP_WORDS:
-            return c
+    if m and m.group(1).lower() not in COMMON_WHATSAPP_TOKENS:
+        return m.group(1).strip()
+
+    # 2. Token subtraction fallback
+    clean = re.sub(r'[^\w\s]', ' ', low)
+    candidates = [w for w in clean.split() if w not in COMMON_WHATSAPP_TOKENS and not w.isdigit()]
+    if candidates:
+        return candidates[0]
 
     return ""
 
@@ -548,7 +536,10 @@ class WhatsAppDirectWorker(BaseDirectWorker):
         # Filter by specific sender if requested (e.g. "what ismail said on whatsapp")
         if filter_sender:
             low_f = filter_sender.lower().strip()
-            notifications = [m for m in notifications if low_f in m.get("sender", "").lower()]
+            notifications = [
+                m for m in notifications 
+                if low_f in m.get("sender", "").lower() or low_f in m.get("message", "").lower().split(":")[0]
+            ]
 
         # Fallback to local cache if DB was empty
         if not notifications and UNREAD_CACHE_FILE.exists():
@@ -557,13 +548,16 @@ class WhatsAppDirectWorker(BaseDirectWorker):
                     notifications = json.load(f).get("unread", [])
                 if filter_sender:
                     low_f = filter_sender.lower().strip()
-                    notifications = [m for m in notifications if low_f in m.get("sender", "").lower()]
+                    notifications = [
+                        m for m in notifications 
+                        if low_f in m.get("sender", "").lower() or low_f in m.get("message", "").lower().split(":")[0]
+                    ]
             except Exception:
                 notifications = []
 
         if not notifications:
             if filter_sender:
-                return True, f"Sir, you have no recent messages from {filter_sender.title()} on WhatsApp.", []
+                return True, f"Sir, you have no recent unread messages from {filter_sender.title()} on WhatsApp.", []
             return True, "Sir, you have no unread messages on WhatsApp.", []
 
         first = notifications[0]

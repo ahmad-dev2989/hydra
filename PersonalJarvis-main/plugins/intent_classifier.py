@@ -482,23 +482,73 @@ def classify_command(raw_text: str) -> IntentResult:
             r"\b(?!send\b|write\b|text\b)[a-zA-Z0-9_+]+(?:\x27s|\x27)?\s+(?:message|messages|text|texts|chat)\b"
         ])
         if is_unread_inquiry:
-            # Extract sender using comprehensive patterns
+            # Extract sender using comprehensive patterns & token subtraction
             sender = ""
             m_from = re.search(r'\b(?:from|by|of)\s+([a-zA-Z0-9_+]+)', clean_text, re.IGNORECASE)
-            if m_from and m_from.group(1).lower() not in ['whatsapp', 'me', 'the', 'my', 'him', 'her', 'them', 'that', 'which']:
+            if m_from and m_from.group(1).lower() not in [
+                'check', 'read', 'tell', 'see', 'show', 'look', 'find', 'get', 'listen', 'hear',
+                'say', 'says', 'said', 'saying', 'send', 'sends', 'sent', 'sending', 'write', 'writes', 'wrote', 'writing',
+                'text', 'texts', 'texted', 'texting', 'type', 'types', 'typed', 'typing',
+                'message', 'messages', 'messaged', 'messaging', 'what', 'whats', 'who', 'whos', 'which', 'how', 'any', 'if',
+                'did', 'does', 'do', 'is', 'was', 'are', 'were', 'has', 'have', 'had', 'me', 'my', 'mine', 'i', 'you', 'your',
+                'yours', 'he', 'she', 'him', 'her', 'they', 'them', 'their', 'it', 'its', 'we', 'us', 'our', 'the', 'a', 'an',
+                'this', 'that', 'these', 'those', 'on', 'in', 'at', 'from', 'to', 'by', 'for', 'about', 'with', 'of', 'up', 'out',
+                'whatsapp', 'whatsap', 'watsapp', 'watsp', 'app', 'application', 'msg', 'msgs', 'note', 'notes', 'voice', 'audio',
+                'notification', 'notifications', 'latest', 'recent', 'new', 'last', 'unread', 'all', 'there', 'something', 'anything',
+                'nothing', 'some', 'please', 'sir'
+            ]:
                 sender = m_from.group(1).strip()
+
             if not sender:
-                m_said = re.search(r'\bwhat\s+(?:did\s+|is\s+|was\s+)?([a-zA-Z0-9_+]+)\s+(?:say|said|saying|is\s+saying|was\s+saying|send|sent|sending|write|wrote|writing|text|texted)\b', clean_text, re.IGNORECASE)
-                if m_said and m_said.group(1).lower() not in ['whatsapp', 'he', 'she', 'they', 'you', 'i', 'we', 'the']:
+                m_said = re.search(r'\bwhat\s+(?:did\s+|is\s+|was\s+|does\s+)?([a-zA-Z0-9_+]+)\s+(?:say|says|said|saying|is\s+saying|was\s+saying|send|sends|sent|sending|write|writes|wrote|writing|text|texts|texted)\b', clean_text, re.IGNORECASE)
+                if m_said and m_said.group(1).lower() not in [
+                    'check', 'read', 'tell', 'see', 'show', 'look', 'find', 'get', 'listen', 'hear',
+                    'say', 'says', 'said', 'saying', 'send', 'sends', 'sent', 'sending', 'write', 'writes', 'wrote', 'writing',
+                    'text', 'texts', 'texted', 'texting', 'type', 'types', 'typed', 'typing',
+                    'message', 'messages', 'messaged', 'messaging', 'what', 'whats', 'who', 'whos', 'which', 'how', 'any', 'if',
+                    'did', 'does', 'do', 'is', 'was', 'are', 'were', 'has', 'have', 'had', 'me', 'my', 'mine', 'i', 'you', 'your',
+                    'yours', 'he', 'she', 'him', 'her', 'they', 'them', 'their', 'it', 'its', 'we', 'us', 'our', 'the', 'a', 'an',
+                    'this', 'that', 'these', 'those', 'on', 'in', 'at', 'from', 'to', 'by', 'for', 'about', 'with', 'of', 'up', 'out',
+                    'whatsapp', 'whatsap', 'watsapp', 'watsp', 'app', 'application', 'msg', 'msgs', 'note', 'notes', 'voice', 'audio',
+                    'notification', 'notifications', 'latest', 'recent', 'new', 'last', 'unread', 'all', 'there', 'something', 'anything',
+                    'nothing', 'some', 'please', 'sir'
+                ]:
                     sender = m_said.group(1).strip()
+
             if not sender:
-                m_that = re.search(r'\b(?:message|messages|msg|msgs|text|texts)\s+(?:that\s+|which\s+)?([a-zA-Z0-9_+]+)\s+(?:said|sent|wrote|texted|saying)\b', clean_text, re.IGNORECASE)
-                if m_that and m_that.group(1).lower() not in ['whatsapp', 'he', 'she', 'they', 'you', 'i', 'we', 'the']:
+                m_that = re.search(r'\b(?:message|messages|msg|msgs|text|texts)\s+(?:that\s+|which\s+)?([a-zA-Z0-9_+]+)\s+(?:said|sent|wrote|texted|saying|says|sends)\b', clean_text, re.IGNORECASE)
+                if m_that and m_that.group(1).lower() not in [
+                    'check', 'read', 'tell', 'see', 'show', 'look', 'find', 'get', 'listen', 'hear',
+                    'say', 'says', 'said', 'saying', 'send', 'sends', 'sent', 'sending', 'write', 'writes', 'wrote', 'writing',
+                    'text', 'texts', 'texted', 'texting', 'type', 'types', 'typed', 'typing',
+                    'message', 'messages', 'messaged', 'messaging', 'what', 'whats', 'who', 'whos', 'which', 'how', 'any', 'if',
+                    'did', 'does', 'do', 'is', 'was', 'are', 'were', 'has', 'have', 'had', 'me', 'my', 'mine', 'i', 'you', 'your',
+                    'yours', 'he', 'she', 'him', 'her', 'they', 'them', 'their', 'it', 'its', 'we', 'us', 'our', 'the', 'a', 'an',
+                    'this', 'that', 'these', 'those', 'on', 'in', 'at', 'from', 'to', 'by', 'for', 'about', 'with', 'of', 'up', 'out',
+                    'whatsapp', 'whatsap', 'watsapp', 'watsp', 'app', 'application', 'msg', 'msgs', 'note', 'notes', 'voice', 'audio',
+                    'notification', 'notifications', 'latest', 'recent', 'new', 'last', 'unread', 'all', 'there', 'something', 'anything',
+                    'nothing', 'some', 'please', 'sir'
+                ]:
                     sender = m_that.group(1).strip()
+
             if not sender:
-                m_msg = re.search(r'\b(?!send\b|write\b|text\b)([a-zA-Z0-9_+]+)(?:\x27s|\x27)?\s+(?:message|messages|msg|msgs|text|texts|chat)\b', clean_text, re.IGNORECASE)
-                if m_msg and m_msg.group(1).lower() not in ['what', 'any', 'new', 'unread', 'the', 'all', 'recent', 'latest', 'whatsapp', 'last', 'read', 'check', 'my']:
-                    sender = m_msg.group(1).strip()
+                # Token subtraction fallback
+                stop_set = {
+                    'check', 'read', 'tell', 'see', 'show', 'look', 'find', 'get', 'listen', 'hear',
+                    'say', 'says', 'said', 'saying', 'send', 'sends', 'sent', 'sending', 'write', 'writes', 'wrote', 'writing',
+                    'text', 'texts', 'texted', 'texting', 'type', 'types', 'typed', 'typing',
+                    'message', 'messages', 'messaged', 'messaging', 'what', 'whats', 'who', 'whos', 'which', 'how', 'any', 'if',
+                    'did', 'does', 'do', 'is', 'was', 'are', 'were', 'has', 'have', 'had', 'me', 'my', 'mine', 'i', 'you', 'your',
+                    'yours', 'he', 'she', 'him', 'her', 'they', 'them', 'their', 'it', 'its', 'we', 'us', 'our', 'the', 'a', 'an',
+                    'this', 'that', 'these', 'those', 'on', 'in', 'at', 'from', 'to', 'by', 'for', 'about', 'with', 'of', 'up', 'out',
+                    'whatsapp', 'whatsap', 'watsapp', 'watsp', 'app', 'application', 'msg', 'msgs', 'note', 'notes', 'voice', 'audio',
+                    'notification', 'notifications', 'latest', 'recent', 'new', 'last', 'unread', 'all', 'there', 'something', 'anything',
+                    'nothing', 'some', 'please', 'sir'
+                }
+                clean_q = re.sub(r'[^\w\s]', ' ', clean_text.lower())
+                cands = [w for w in clean_q.split() if w not in stop_set and not w.isdigit()]
+                if cands:
+                    sender = cands[0]
 
             params = {"sender": sender} if sender else {}
             return IntentResult(
