@@ -106,6 +106,11 @@ UI_MANIPULATION_PATTERNS = [
     r"\blight\s+mode\b",
     r"\bopen\s+chat\s+with\b",
     r"\bopen\s+conversation\s+with\b",
+    r"\bprofile\s+(?:picture|pic|photo|image)\b",
+    r"\bchange\s+(?:the\s+)?(?:profile|pfp|status|avatar)\b",
+    r"\bupdate\s+(?:the\s+)?(?:profile|pfp|status|avatar)\b",
+    r"\bset\s+(?:the\s+)?(?:profile|pfp|status|avatar)\b",
+    r"\bupload\s+(?:a\s+)?(?:picture|pic|photo|image|file)\b",
     r"\bgo\s+to\s+settings\b",
     r"\bopen\s+settings\b",
     r"\bchange\s+settings\b",
@@ -115,11 +120,19 @@ UI_MANIPULATION_PATTERNS = [
 
 
 def detect_target_app(text: str) -> Optional[str]:
-    """Detects target app from text using whole-word boundary matching."""
+    """Detects target app from text using whole-word boundary matching, ignoring email address domains."""
     low = text.lower()
+    # Strip email addresses so @gmail.com doesn't hijack target app detection
+    low_no_email = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '', low)
     for app_id, aliases in APP_ALIASES.items():
         for alias in aliases:
             # Whole word boundary check to avoid substrings like 'ismail' matching 'mail'
+            if re.search(rf"\b{re.escape(alias)}\b", low_no_email):
+                return app_id
+
+    # Fallback to checking full text if no app matched outside the email
+    for app_id, aliases in APP_ALIASES.items():
+        for alias in aliases:
             if re.search(rf"\b{re.escape(alias)}\b", low):
                 return app_id
     return None
@@ -311,11 +324,15 @@ def classify_command(raw_text: str) -> IntentResult:
         if any(re.search(pat, low) for pat in [r"\btheme\b", r"\bdark mode\b", r"\blight mode\b"]):
             action = "change_theme"
             params["theme"] = "dark" if any(w in low for w in ["dark", "night"]) else "light"
-        elif re.search(r"\bopen\s+chat\s+with\s+([a-zA-Z0-9_+]+)", low):
+        elif re.search(r"\bopen\s+chat\s+(?:with\s+)?([a-zA-Z0-9_+]+)", low):
             action = "open_chat"
-            m = re.search(r"\bopen\s+chat\s+with\s+([a-zA-Z0-9_+]+)", low)
+            m = re.search(r"\bopen\s+chat\s+(?:with\s+)?([a-zA-Z0-9_+]+)", low)
             if m:
                 params["contact"] = m.group(1).strip()
+            if not target_app:
+                target_app = "whatsapp"
+        elif any(re.search(pat, low) for pat in [r"\bprofile\b", r"\bpfp\b", r"\bavatar\b"]):
+            action = "change_profile"
         elif re.search(r"\bplay\b", low):
             action = "play_media_foreground"
 
@@ -424,13 +441,19 @@ def classify_command(raw_text: str) -> IntentResult:
             )
 
     # 5.4 WhatsApp Actions
-    if target_app == "whatsapp":
+    is_msg_intent = any(re.search(pat, low) for pat in [
+        r"\bsend\s+(?:a\s+)?(?:message|msg|text)\s+to\b",
+        r"\btext\s+[a-zA-Z0-9_+]+",
+        r"\bmessage\s+[a-zA-Z0-9_+]+"
+    ])
+    if target_app == "whatsapp" or (is_msg_intent and not any(w in low for w in ["email", "emails", "mail", "gmail", "inbox"])):
+        target_app = "whatsapp"
         if any(re.search(rf"\b{w}\b", low) for w in ["send", "write", "text", "message", "msg", "tell"]):
             return IntentResult(
                 intent_type=IntentType.HEADLESS_BACKGROUND,
                 target_app="whatsapp",
                 action="send_message",
-                reasoning="WhatsApp background send message"
+                reasoning="WhatsApp send message"
             )
         else:
             return IntentResult(

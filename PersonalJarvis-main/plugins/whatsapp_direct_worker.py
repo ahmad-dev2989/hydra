@@ -1,11 +1,12 @@
 """
-HYDRA Direct WhatsApp Background Worker (Phase 5)
-Provides autonomous background message dispatching, unread chat monitoring,
-and contact message querying without touching the physical keyboard or mouse.
+HYDRA Direct WhatsApp Background Worker (Phase 1.1)
+Provides reliable background and desktop chat dispatching, zero dummy data,
+and direct contact chat search without requiring manual phone numbers.
 
 Supported Modes:
-1. Headless Multi-Device Session Bridge: Uses paired keys saved during Phase 1 QR pairing (data/vault/whatsapp_session/session.enc).
-2. Direct Background Protocol Dispatch: Headless URI and direct windowless queue handling for native desktop app.
+1. Direct Chat Search & Send: Opens WhatsApp, searches contact name, and sends message directly without requiring a phone number.
+2. Verified Phone Dispatch: Dispatches directly via protocol if a verified real phone number exists.
+3. Unread Message Monitoring: Real unread status checking without mock/synthesized responses.
 """
 
 import os
@@ -29,13 +30,26 @@ CONTACTS_CANDIDATES = [
     ROOT_DIR / "contacts.json",
     ROOT_DIR.parent / "contacts.json",
     ROOT_DIR / "PersonalJarvis-main" / "contacts.json",
-    ROOT_DIR / "data" / "contacts.json"
+    ROOT_DIR / "data" / "contacts.json",
+    ROOT_DIR / "data" / "vault" / "contacts.json"
 ]
+
+
+def _is_dummy_phone(phone: str) -> bool:
+    """Detects dummy placeholder phone numbers like +923001234567, 7654321, etc."""
+    clean = re.sub(r'[^0-9]', '', str(phone or ''))
+    if len(clean) < 7:
+        return True
+    dummy_patterns = ["1234567", "7654321", "1112233", "2233445", "0000000", "9999999"]
+    if any(p in clean for p in dummy_patterns):
+        return True
+    return False
 
 
 def _resolve_contact(name_or_number: str) -> Tuple[str, str]:
     """
     Resolves contact name and phone number from candidate contacts.json files.
+    Strictly discards any dummy/mock numbers.
     Returns:
         (resolved_name: str, phone_number: str)
     """
@@ -43,10 +57,12 @@ def _resolve_contact(name_or_number: str) -> Tuple[str, str]:
     if not clean:
         return "", ""
 
-    # If already a phone number
+    # If already a valid phone number (not dummy)
     if re.match(r'^\+?[0-9\s\-()]{7,}$', clean):
         clean_num = re.sub(r'[^0-9+]', '', clean)
-        return clean_num, clean_num
+        if not _is_dummy_phone(clean_num):
+            return clean_num, clean_num
+        return "", ""
 
     low_name = clean.lower()
     for cp in CONTACTS_CANDIDATES:
@@ -56,11 +72,12 @@ def _resolve_contact(name_or_number: str) -> Tuple[str, str]:
                     cdata = json.load(f)
                 for k, v in cdata.items():
                     if k.lower() == low_name and v:
+                        phone = ""
                         if isinstance(v, dict):
                             phone = str(v.get("phone", "")).strip()
-                        else:
-                            phone = str(v).strip()
-                        if phone:
+                        elif isinstance(v, str) and re.match(r'^\+?[0-9\s\-()]{7,}$', v):
+                            phone = v.strip()
+                        if phone and not _is_dummy_phone(phone):
                             return k.title(), phone
             except Exception:
                 pass
@@ -69,10 +86,10 @@ def _resolve_contact(name_or_number: str) -> Tuple[str, str]:
 
 
 def _save_contact_phone(name: str, phone: str):
-    """Saves or updates contact phone number across candidate contacts files."""
+    """Saves or updates verified contact phone number across candidate contacts files."""
     clean_n = name.strip().lower()
     clean_p = phone.strip()
-    if not clean_n or not clean_p:
+    if not clean_n or not clean_p or _is_dummy_phone(clean_p):
         return
     for cp in CONTACTS_CANDIDATES:
         try:
@@ -86,7 +103,7 @@ def _save_contact_phone(name: str, phone: str):
             if isinstance(cdata.get(clean_n), dict):
                 cdata[clean_n]["phone"] = clean_p
             else:
-                cdata[clean_n] = clean_p
+                cdata[clean_n] = {"phone": clean_p}
             cp.parent.mkdir(parents=True, exist_ok=True)
             with open(cp, "w", encoding="utf-8") as f:
                 json.dump(cdata, f, indent=2)
@@ -99,14 +116,27 @@ def parse_whatsapp_command(raw_text: str) -> Tuple[str, str]:
     Extracts recipient contact name and message body from natural language queries.
     Examples:
         - 'send whatsapp message to tanzeel' -> ('tanzeel', '')
-        - 'send whatsapp message to tanzeel saying hello' -> ('tanzeel', 'hello')
+        - 'send message to tanzeel saying this' -> ('tanzeel', 'this')
+        - 'send message to tanzeel saying hello' -> ('tanzeel', 'hello')
         - 'text ali on whatsapp let us meet' -> ('ali', 'let us meet')
-        - 'message john' -> ('john', '')
+        - 'open chat with tanzeel on whatsapp' -> ('tanzeel', '')
+        - 'open chat with tanzeel' -> ('tanzeel', '')
     """
     text = raw_text.strip()
     cleaned = re.sub(r'\s+(?:on|via|through|using)\s+whatsapp\b', '', text, flags=re.IGNORECASE).strip()
     cleaned = re.sub(r'\bwhatsapp\b', '', cleaned, flags=re.IGNORECASE).strip()
     cleaned = re.sub(r'\s+', ' ', cleaned)
+
+    # 0. 'open chat (with)? <contact>'
+    m_open = re.search(
+        r'\bopen\s+chat\s+(?:with\s+)?([a-zA-Z0-9_+]+)',
+        cleaned,
+        re.IGNORECASE
+    )
+    if m_open:
+        cand = m_open.group(1).strip()
+        if cand.lower() not in ['a', 'the', 'chat', 'someone']:
+            return cand, ''
 
     # 1. 'send (a)? (message)? to <contact>' (strictly without body)
     m_to_only = re.search(
@@ -121,7 +151,7 @@ def parse_whatsapp_command(raw_text: str) -> Tuple[str, str]:
 
     # 2. 'send message to <contact> saying <message>'
     m1 = re.search(
-        r'(?:send\s+)?(?:a\s+)?(?:message|msg|text)\s+to\s+([a-zA-Z0-9_+]+)\s+(?:saying|that|with|:|,)\s*(.+)',
+        r'(?:send\s+)?(?:a\s+)?(?:message|msg|text)\s+to\s+([a-zA-Z0-9_+]+)\s*(?:saying|that|with|:|,)\s*(.+)',
         cleaned,
         re.IGNORECASE
     )
@@ -129,7 +159,7 @@ def parse_whatsapp_command(raw_text: str) -> Tuple[str, str]:
         return m1.group(1).strip(), m1.group(2).strip()
 
     m2 = re.search(
-        r'\b(?:tell|message|msg|text)\s+(?:to\s+)?([a-zA-Z0-9_+]+)\s+(?:saying|that|with|:|,)\s*(.+)',
+        r'\b(?:tell|message|msg|text)\s+(?:to\s+)?([a-zA-Z0-9_+]+)\s*(?:saying|that|with|:|,)\s*(.+)',
         cleaned,
         re.IGNORECASE
     )
@@ -144,7 +174,7 @@ def parse_whatsapp_command(raw_text: str) -> Tuple[str, str]:
     )
     if m_verb_to:
         contact_cand = m_verb_to.group(1).strip()
-        if contact_cand.lower() not in ['message', 'text', 'someone']:
+        if contact_cand.lower() not in ['a', 'the', 'message', 'text', 'someone']:
             return contact_cand, ''
 
     # 4. 'text <contact> <message>'
@@ -164,13 +194,15 @@ def parse_whatsapp_command(raw_text: str) -> Tuple[str, str]:
 
 class WhatsAppDirectWorker(BaseDirectWorker):
     """
-    Direct WhatsApp background execution worker executing in < 150ms.
+    Direct WhatsApp background and foreground chat worker.
+    Supports headless protocol dispatch when verified phone is known,
+    and direct WhatsApp desktop chat search when phone is unknown.
     """
     app_id = "whatsapp"
     app_name = "WhatsApp"
 
     def is_ready(self) -> bool:
-        """Returns True if WhatsApp is paired in Vault (Phase 1 QR session)."""
+        """Returns True if WhatsApp is paired in Vault or running locally."""
         return VAULT_MGR.is_connected(self.app_id) or bool(VAULT_MGR.load_whatsapp_session())
 
     def get_account_email(self) -> str:
@@ -179,104 +211,184 @@ class WhatsAppDirectWorker(BaseDirectWorker):
             sess = VAULT_MGR.load_whatsapp_session()
             if sess:
                 acc = sess.get("account")
-        return acc or "WhatsApp Connected Device"
+        return acc or "Connected WhatsApp Device"
+
+    def _log_sent_message(self, entry: Dict[str, Any]):
+        """Persists dispatched message entry into audit history."""
+        try:
+            SENT_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+            sent_history = []
+            if SENT_LOG_FILE.exists():
+                try:
+                    with open(SENT_LOG_FILE, "r", encoding="utf-8") as f:
+                        sent_history = json.load(f)
+                except Exception:
+                    sent_history = []
+            sent_history.append(entry)
+            with open(SENT_LOG_FILE, "w", encoding="utf-8") as f:
+                json.dump(sent_history, f, indent=2)
+        except Exception as e:
+            print(f"[WHATSAPP DIRECT NOTICE] Could not save sent log: {e}")
 
     # =========================================================================
-    # Phase 5.1: Background Message Dispatcher (Zero Focus, Zero Typing Hijack)
+    # Phase 1.1: Direct Chat Search & Send (Zero Fake Numbers, Opens Real Chat)
     # =========================================================================
+
+    def open_chat_and_send(self, contact_name: str, message: str = "") -> Tuple[bool, str, Dict[str, Any]]:
+        """
+        Opens WhatsApp, uses universal shortcut to search for contact name directly,
+        opens the chat, and sends the message without requiring a phone number.
+        """
+        display_name = contact_name.strip().title()
+        clean_msg = message.strip()
+        if not display_name:
+            return False, "Sir, who would you like to message on WhatsApp?", {}
+
+        try:
+            from window_ops import WINDOW_MGR
+        except ImportError:
+            WINDOW_MGR = None
+
+        # 1. Focus WhatsApp window
+        focused = False
+        if WINDOW_MGR:
+            focused, _ = WINDOW_MGR.switch_to("whatsapp")
+
+        if not focused:
+            try:
+                os.startfile("whatsapp:")
+                time.sleep(1.2)
+                if WINDOW_MGR:
+                    focused, _ = WINDOW_MGR.switch_to("whatsapp")
+            except Exception:
+                pass
+
+        if not focused:
+            try:
+                import pyautogui
+                pyautogui.press("win")
+                time.sleep(0.3)
+                pyautogui.write("whatsapp", interval=0.02)
+                time.sleep(0.4)
+                pyautogui.press("enter")
+                time.sleep(1.5)
+                if WINDOW_MGR:
+                    focused, _ = WINDOW_MGR.switch_to("whatsapp")
+            except Exception:
+                pass
+
+        # 2. Search contact in WhatsApp
+        try:
+            import pyautogui
+            import pyperclip
+            pyautogui.FAILSAFE = False
+
+            time.sleep(0.4)
+
+            # Universal WhatsApp desktop shortcut to focus search / new chat (Ctrl+F)
+            pyautogui.hotkey("ctrl", "f")
+            time.sleep(0.2)
+
+            # Clear search box
+            pyautogui.hotkey("ctrl", "a")
+            time.sleep(0.05)
+            pyautogui.press("backspace")
+            time.sleep(0.1)
+
+            # Type contact name
+            pyautogui.write(contact_name, interval=0.03)
+            time.sleep(0.7)  # Let WhatsApp filter contacts
+
+            # Press Enter to open the top filtered chat
+            pyautogui.press("enter")
+            time.sleep(0.4)
+
+            entry = {
+                "id": f"wa_msg_{int(time.time() * 1000)}",
+                "timestamp": time.time(),
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "recipient_name": display_name,
+                "phone": "",
+                "message": clean_msg,
+                "method": "direct_chat_search",
+                "status": "SENT_VIA_CHAT" if clean_msg else "CHAT_OPENED"
+            }
+
+            if clean_msg:
+                # Use clipboard paste to handle spaces, unicode, punctuation and emojis safely
+                pyperclip.copy(clean_msg)
+                pyautogui.hotkey("ctrl", "v")
+                time.sleep(0.2)
+                pyautogui.press("enter")
+                time.sleep(0.2)
+
+                self._log_sent_message(entry)
+                speech = f"Sir, I have opened the chat with {display_name} on WhatsApp and sent your message."
+                return True, speech, entry
+            else:
+                speech = f"Sir, I have opened the chat with {display_name} on WhatsApp for you."
+                return True, speech, entry
+
+        except Exception as e:
+            return False, f"Sir, I encountered an error searching for {display_name} in WhatsApp: {e}", {}
 
     def send_message(self, contact_name_or_number: str, message: str) -> Tuple[bool, str, Dict[str, Any]]:
         """
-        Dispatches WhatsApp message in the background.
-        Voice feedback: "Sir, your message to {contact} has been dispatched on WhatsApp."
+        Dispatches WhatsApp message:
+        - If phone is verified and real: sends directly.
+        - If phone is not known: opens chat by contact name in WhatsApp and sends message.
         """
-        if not self.is_ready():
-            return (
-                False,
-                "WhatsApp is not paired in your Plugins Hub, sir. Please scan the dynamic QR code in the Plugins modal to connect.",
-                {}
-            )
-
         resolved_name, phone = _resolve_contact(contact_name_or_number)
         display_name = resolved_name if resolved_name else contact_name_or_number.strip().title()
         clean_msg = message.strip()
 
-        if not clean_msg:
-            return False, f"Sir, what message would you like me to send to {display_name}?", {}
-
-        # If phone is not known, ask user for the phone number
+        # If phone is not known / cannot access direct number:
+        # Fall back to opening chat by name directly on WhatsApp without using any dummy number
         if not phone:
-            try:
-                from disambiguation_manager import DISAMBIGUATION_MGR
-                if DISAMBIGUATION_MGR:
-                    ok_p, phone_ans = DISAMBIGUATION_MGR.ask_user(
-                        f"Sir, what is the phone number for {display_name}?",
-                        barrier_type="dynamic"
-                    )
-                    if ok_p and phone_ans.strip():
-                        phone = phone_ans.strip()
-                        _save_contact_phone(display_name, phone)
-            except Exception:
-                pass
+            return self.open_chat_and_send(display_name, clean_msg)
 
-        if not phone:
-            speech = f"Sir, I cannot send a WhatsApp message to {display_name} because no phone number was found or provided."
-            return False, speech, {}
-
-        t0 = time.perf_counter()
-        entry = {
-            "id": f"wa_msg_{int(time.time() * 1000)}",
-            "timestamp": time.time(),
-            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "recipient_name": display_name,
-            "phone": phone,
-            "message": clean_msg,
-            "status": "DISPATCHED"
-        }
-
-        # Dispatch native Windows desktop protocol
+        # If phone IS verified and real
+        clean_phone = re.sub(r'[^0-9+]', '', phone)
         try:
-            clean_phone = re.sub(r'[^0-9+]', '', phone)
-            encoded_msg = urllib.parse.quote(clean_msg)
+            encoded_msg = urllib.parse.quote(clean_msg) if clean_msg else ""
             uri = f"whatsapp://send?phone={clean_phone}&text={encoded_msg}"
             os.startfile(uri)
-            elapsed_ms = (time.perf_counter() - t0) * 1000
-            print(f"[WHATSAPP DIRECT] Dispatched message to '{display_name}' ({phone}) in {elapsed_ms:.2f} ms: '{clean_msg}'")
+            time.sleep(1.0)
+            if clean_msg:
+                try:
+                    import pyautogui
+                    time.sleep(0.4)
+                    pyautogui.press("enter")
+                except Exception:
+                    pass
 
-            # Record in sent audit log upon actual dispatch
-            try:
-                SENT_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-                sent_history = []
-                if SENT_LOG_FILE.exists():
-                    try:
-                        with open(SENT_LOG_FILE, "r", encoding="utf-8") as f:
-                            sent_history = json.load(f)
-                    except Exception:
-                        sent_history = []
-                sent_history.append(entry)
-                with open(SENT_LOG_FILE, "w", encoding="utf-8") as f:
-                    json.dump(sent_history, f, indent=2)
-            except Exception as e:
-                print(f"[WHATSAPP DIRECT NOTICE] Could not save sent log: {e}")
-
-            speech = f"Sir, I have opened WhatsApp to dispatch your message to {display_name}."
+            entry = {
+                "id": f"wa_msg_{int(time.time() * 1000)}",
+                "timestamp": time.time(),
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "recipient_name": display_name,
+                "phone": clean_phone,
+                "message": clean_msg,
+                "method": "verified_phone_protocol",
+                "status": "DISPATCHED"
+            }
+            self._log_sent_message(entry)
+            speech = f"Sir, I have dispatched your WhatsApp message to {display_name}."
             return True, speech, entry
-        except Exception as e:
-            return False, f"Failed to open WhatsApp desktop protocol: {e}", {}
+
+        except Exception:
+            # Fall back to opening chat by name
+            return self.open_chat_and_send(display_name, clean_msg)
 
     # =========================================================================
-    # Phase 5.2: Unread Messages & Notifications Monitoring
+    # Phase 1.1: Unread Messages & Notifications Monitoring
     # =========================================================================
 
     def get_unread_messages(self) -> Tuple[bool, str, List[Dict[str, Any]]]:
         """
         Retrieves unread incoming message summary from paired multi-device session.
-        Voice feedback: "Sir, you have 2 new messages from Ali on WhatsApp."
+        Voice feedback: "Sir, you have no unread messages on WhatsApp."
         """
-        if not self.is_ready():
-            return False, "WhatsApp is not paired in your Plugins Hub, sir.", []
-
-        # Check local unread queue
         unreads = []
         if UNREAD_CACHE_FILE.exists():
             try:
@@ -285,7 +397,7 @@ class WhatsAppDirectWorker(BaseDirectWorker):
             except Exception:
                 unreads = []
 
-        # Strictly honest: no fake simulated messages
+        # Strictly honest: zero mock/synthesized unread messages
         if not unreads:
             return True, "Sir, you have no unread messages on WhatsApp.", []
 
@@ -307,13 +419,22 @@ class WhatsAppDirectWorker(BaseDirectWorker):
         low = raw_query.lower().strip()
 
         # 1. Unread Check
-        if task_type == "unread" or any(w in low for w in ["unread", "check", "new message", "read message", "any message"]):
+        if task_type == "unread" or (any(w in low for w in ["unread", "check", "new message", "read message", "any message"]) and not any(w in low for w in ["send", "write", "text", "tell", "chat"])):
             ok, speech, items = self.get_unread_messages()
             return ok, speech, {"unread_messages": items, "count": len(items)}
 
-        # 2. Send Message
+        # 2. Open Chat Specifically
+        if task_type == "open_chat" or "open chat" in low:
+            m_chat = re.search(r'\bopen\s+chat\s+(?:with\s+)?([a-zA-Z0-9_+]+)', raw_query, re.IGNORECASE)
+            target = m_chat.group(1).strip() if m_chat else kwargs.get("contact", "")
+            if not target:
+                target, _ = parse_whatsapp_command(raw_query)
+            if target:
+                return self.open_chat_and_send(target, "")
+
+        # 3. Send Message
         target, body = parse_whatsapp_command(raw_query)
-        if not target and task_type == "send":
+        if not target and task_type in ["send", "send_message"]:
             m_target = re.search(r'\b(?:to|contact)\s+([a-zA-Z0-9_+]+)', raw_query, re.IGNORECASE)
             target = m_target.group(1).strip() if m_target else ""
 
@@ -322,7 +443,7 @@ class WhatsAppDirectWorker(BaseDirectWorker):
         except ImportError:
             DISAMBIGUATION_MGR = None
 
-        if task_type == "send" or any(w in low for w in ["send", "write", "text", "message", "msg", "tell"]):
+        if task_type in ["send", "send_message", "auto"] or any(w in low for w in ["send", "write", "text", "message", "msg", "tell"]):
             if not target and DISAMBIGUATION_MGR:
                 ok, c_ans = DISAMBIGUATION_MGR.ask_user(
                     "Sir, who would you like to message on WhatsApp?",
@@ -341,8 +462,9 @@ class WhatsAppDirectWorker(BaseDirectWorker):
                 )
                 body = b_ans.strip() if ok else ""
 
+            # If body is still not provided, open chat with the contact so user can type!
             if not body:
-                return False, f"WhatsApp message to {target} was cancelled because no message text was provided, sir.", {}
+                return self.open_chat_and_send(target, "")
 
             return self.send_message(target, body)
 
