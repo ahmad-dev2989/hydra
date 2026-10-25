@@ -2066,5 +2066,30 @@
     "verified_by": "nvidia/Nemotron-3.5-Super-VL",
     "success_count": 1,
     "last_verified_timestamp": 1792836174.2456732
+  },
+  "spotify:open_spotify_and_play_the_very_first_song_in_my_liked_song_playlist": {
+    "id": "spotify:open_spotify_and_play_the_very_first_song_in_my_liked_song_playlist",
+    "application": "spotify",
+    "intent": "OPEN SPOTIFY AND PLAY THE VERY FIRST SONG IN MY LIKED SONG PLAYLIST",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app('Spotify')",
+        "target": "Spotify",
+        "details": "Open and focus Spotify",
+        "observation": "Ensure Spotify is active"
+      },
+      {
+        "step": 2,
+        "action": "double_click(x=0.841, y=0.501)",
+        "target": "",
+        "details": "The next step is to play the very first song in the \"Liked Songs\" playlist. The first song in the playlist is visible, and the play button is next to it.",
+        "observation": "The Spotify application is open, and the \"Liked Songs\" playlist is visible on the right side of the screen.",
+        "visual_template": "visual_templates/spotify_open_spotify_and_play_the_very_first_song_in_my_liked_song_playlist/step_1_2120_689.png"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792915604.6252592
   }
 }

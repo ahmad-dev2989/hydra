@@ -2,107 +2,76 @@
     "canva": {
         "connected": true,
         "account": "ahmad@canva.com",
-        "authType": "oauth",
-        "data": {
-            "verified": true
-        },
         "accounts": [
             {
                 "account": "ahmad@canva.com",
-                "active": true,
                 "label": "Design Pro",
                 "authType": "oauth",
                 "data": {
                     "verified": true
-                }
+                },
+                "active": true
             }
-        ]
+        ],
+        "authType": "oauth",
+        "data": {
+            "verified": true
+        }
     },
     "discord": {
         "connected": true,
         "account": "Ahmad#1234",
-        "authType": "bot_token",
-        "data": {
-            "verified": true
-        },
         "accounts": [
             {
                 "account": "Ahmad#1234",
-                "active": true,
                 "label": "Primary",
                 "authType": "bot_token",
                 "data": {
                     "verified": true
-                }
+                },
+                "active": true
             }
-        ]
+        ],
+        "authType": "bot_token",
+        "data": {
+            "verified": true
+        }
     },
     "github": {
         "connected": true,
         "account": "ahmad-dev2989",
-        "authType": "pat",
-        "data": {
-            "verified": true
-        },
         "accounts": [
             {
                 "account": "ahmad-dev2989",
-                "active": true,
                 "label": "Personal Dev",
                 "authType": "pat",
                 "data": {
                     "verified": true
-                }
+                },
+                "active": true
             }
-        ]
+        ],
+        "authType": "pat",
+        "data": {
+            "verified": true
+        }
     },
     "linkedin": {
         "connected": true,
         "account": "ahmad-pro",
-        "authType": "oauth",
-        "data": {
-            "verified": true
-        },
         "accounts": [
             {
                 "account": "ahmad-pro",
-                "active": true,
                 "label": "Professional",
                 "authType": "oauth",
                 "data": {
                     "verified": true
-                }
-            }
-        ]
-    },
-    "google_classroom": {
-        "connected": true,
-        "account": "f240004@cfd.nu.edu.pk",
-        "accounts": [
-            {
-                "account": "f240004@cfd.nu.edu.pk",
-                "active": true,
-                "label": "University",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                }
-            },
-            {
-                "account": "ahmadfarooq29898@gmail.com",
-                "active": false,
-                "label": "Personal",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                }
+                },
+                "active": true
             }
         ],
-        "authType": "google_session",
+        "authType": "oauth",
         "data": {
-            "session_enc": "google_session.enc",
             "verified": true
         }
     },
@@ -112,23 +81,23 @@
         "accounts": [
             {
                 "account": "f240004@cfd.nu.edu.pk",
-                "active": true,
                 "label": "University",
                 "authType": "google_session",
                 "data": {
                     "session_enc": "google_session.enc",
                     "verified": true
-                }
+                },
+                "active": true
             },
             {
                 "account": "ahmadfarooq29898@gmail.com",
-                "active": false,
                 "label": "Personal",
                 "authType": "google_session",
                 "data": {
                     "session_enc": "google_session.enc",
                     "verified": true
-                }
+                },
+                "active": false
             }
         ],
         "authType": "google_session",
@@ -143,13 +112,13 @@
         "accounts": [
             {
                 "account": "ahmadfarooq29898@gmail.com",
-                "active": true,
                 "label": "Personal Premium",
                 "authType": "spotify_pkce",
                 "data": {
                     "session_enc": "spotify_session.enc",
                     "verified": true
-                }
+                },
+                "active": true
             }
         ],
         "authType": "spotify_pkce",
@@ -158,50 +127,19 @@
             "verified": true
         }
     },
-    "gmail": {
-        "connected": true,
-        "account": "f240004@cfd.nu.edu.pk",
-        "accounts": [
-            {
-                "account": "f240004@cfd.nu.edu.pk",
-                "active": true,
-                "label": "University",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                }
-            },
-            {
-                "account": "ahmadfarooq29898@gmail.com",
-                "active": false,
-                "label": "Personal",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                }
-            }
-        ],
-        "authType": "google_session",
-        "data": {
-            "session_enc": "google_session.enc",
-            "verified": true
-        }
-    },
     "whatsapp": {
         "connected": true,
-        "account": "Connected WhatsApp Device",
+        "account": "WhatsApp Linked Device",
         "accounts": [
             {
                 "account": "WhatsApp Linked Device",
-                "active": false,
                 "label": "Primary Phone",
                 "authType": "whatsapp_qr",
                 "data": {
                     "session_enc": "session.enc",
                     "verified": true
-                }
+                },
+                "active": true
             },
             {
                 "account": "Connected WhatsApp Device",
@@ -211,7 +149,7 @@
                     "session_enc": "session.enc",
                     "verified": true
                 },
-                "active": true
+                "active": false
             }
         ],
         "authType": "whatsapp_qr",
@@ -223,22 +161,64 @@
     "instagram": {
         "connected": true,
         "account": "_ahmad__farooq_",
-        "authType": "account",
-        "data": {
-            "extra": "",
-            "country": ""
-        },
         "accounts": [
             {
                 "account": "_ahmad__farooq_",
-                "active": true,
                 "label": "Personal Profile",
                 "authType": "account",
                 "data": {
                     "extra": "",
                     "country": ""
-                }
+                },
+                "active": true
             }
-        ]
+        ],
+        "authType": "account",
+        "data": {
+            "extra": "",
+            "country": ""
+        }
+    },
+    "google_classroom": {
+        "connected": true,
+        "account": "f240004@cfd.nu.edu.pk",
+        "accounts": [
+            {
+                "account": "f240004@cfd.nu.edu.pk",
+                "label": "Primary",
+                "authType": "google_session",
+                "data": {
+                    "session_enc": "google_session.enc",
+                    "verified": true
+                },
+                "active": true
+            }
+        ],
+        "authType": "google_session",
+        "data": {
+            "session_enc": "google_session.enc",
+            "verified": true
+        }
+    },
+    "gmail": {
+        "connected": true,
+        "account": "f240004@cfd.nu.edu.pk",
+        "accounts": [
+            {
+                "account": "f240004@cfd.nu.edu.pk",
+                "label": "Primary",
+                "authType": "google_session",
+                "data": {
+                    "session_enc": "google_session.enc",
+                    "verified": true
+                },
+                "active": true
+            }
+        ],
+        "authType": "google_session",
+        "data": {
+            "session_enc": "google_session.enc",
+            "verified": true
+        }
     }
 }
