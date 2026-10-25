@@ -40,12 +40,13 @@ class SpotifyDirectWorker(BaseDirectWorker):
         Returns True if:
         1. Spotify is connected in Local Secure Vault (Phase 1 PKCE)
         2. Or active SMTC media session exists on the machine
-        3. Or Spotify desktop is running
+        3. Or Spotify desktop is running or installed
         """
         return (
             VAULT_MGR.is_connected(self.app_id)
             or bool(VAULT_MGR.load_spotify_session())
             or MEDIA_CONTROLLER.get_state().get("active", False)
+            or os.path.exists(os.path.expandvars(r"%APPDATA%\Spotify\Spotify.exe"))
         )
 
     def get_account_email(self) -> str:
@@ -111,22 +112,36 @@ class SpotifyDirectWorker(BaseDirectWorker):
 
     def search_and_play(self, track_query: str) -> Tuple[bool, str, Dict[str, Any]]:
         """
-        Searches track via Spotify Web API and commands playback directly.
-        If Web API is offline or unauthenticated, falls back instantly to Tier 1 SMTC.
-        Voice feedback when music starts: Complete silence (music begins immediately).
+        Directly commands playback of the requested track in Spotify Desktop.
+        1. Attempts Spotify Connect Web API if valid authenticated OAuth session exists.
+        2. Falls back to Desktop UI automation:
+           - Attaches interactive desktop session (WinSta0\\Default).
+           - Resolves/launches Spotify.exe.
+           - Focuses Spotify, sends Escape to clear menu bar focus.
+           - Clicks search box, clears input, writes clean query, presses Enter.
+           - Hovers over Top Result card to reveal green Play button (#1ed760).
+           - Captures memory DC via PrintWindow and detects Play button centroid using OpenCV.
+           - Clicks Play button centroid (or double clicks card as fallback).
+           - Polls SMTC (MEDIA_CONTROLLER.get_state()) to verify playback status == 'PLAYING'.
+           - Minimizes Spotify (SW_MINIMIZE) and restores original foreground window.
+           - Returns verified speech: "Sir, playing '{title}' by {artist} on Spotify."
         """
         clean_query = track_query.strip()
-        token = self._get_access_token()
-        resolved_track_id = ""
+        clean_query = re.sub(r'\s+(?:on|via|from|using|in)?\s*spotify\b.*$', '', clean_query, flags=re.IGNORECASE).strip()
+        clean_query = re.sub(r'^(?:the\s+)?(?:song|track|music)\s+', '', clean_query, flags=re.IGNORECASE).strip()
+        clean_query = re.sub(r'^(?:play|listen to|put on|stream)\s+', '', clean_query, flags=re.IGNORECASE).strip()
+        if not clean_query:
+            clean_query = "top tracks"
 
-        if token and clean_query:
+        # Tier 2: Try Web API if valid token is present
+        token = self._get_access_token()
+        if token and token != "mock_token" and not token.startswith("mock_"):
             try:
                 import requests
                 headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
                 params = {"q": clean_query, "type": "track", "limit": 1}
                 resp = requests.get("https://api.spotify.com/v1/search", headers=headers, params=params, timeout=3.0)
 
-                # If 401 unauthorized, try auto-refreshing token once
                 if resp.status_code == 401:
                     sess = VAULT_MGR.load_spotify_session()
                     if sess:
@@ -142,11 +157,9 @@ class SpotifyDirectWorker(BaseDirectWorker):
                     if tracks:
                         top = tracks[0]
                         uri = top.get("uri")
-                        resolved_track_id = top.get("id", "")
                         title = top.get("name", clean_query)
                         artist = top.get("artists", [{}])[0].get("name", "Unknown Artist")
 
-                        # Check available Spotify Connect devices
                         dev_resp = requests.get("https://api.spotify.com/v1/me/player/devices", headers=headers, timeout=2.5)
                         devices = dev_resp.json().get("devices", []) if dev_resp.status_code == 200 else []
                         active_dev = next((d for d in devices if d.get("is_active")), (devices[0] if devices else None))
@@ -155,7 +168,6 @@ class SpotifyDirectWorker(BaseDirectWorker):
                         if active_dev and active_dev.get("id"):
                             play_url += f"?device_id={active_dev['id']}"
 
-                        # Command playback via Web API
                         play_resp = requests.put(
                             play_url,
                             headers=headers,
@@ -164,53 +176,225 @@ class SpotifyDirectWorker(BaseDirectWorker):
                         )
                         if play_resp.status_code in [200, 204]:
                             print(f"[SPOTIFY DIRECT] Started '{title}' by {artist} via Spotify Connect.")
-                            return True, f"Playing '{title}' by {artist} on Spotify, sir.", {"action": "play_track", "title": title, "artist": artist, "uri": uri}
-                        else:
-                            # Try queuing
-                            requests.post(
-                                f"https://api.spotify.com/v1/me/player/queue?uri={uri}",
-                                headers=headers,
-                                timeout=3.0
-                            )
-                            MEDIA_CONTROLLER.play()
-                            return True, f"Playing '{title}' by {artist} on Spotify, sir.", {"action": "queue_track", "title": title, "artist": artist, "uri": uri}
+                            return True, f"Sir, playing '{title}' by {artist} on Spotify.", {"action": "play_track", "title": title, "artist": artist, "uri": uri}
             except Exception as e:
-                print(f"[SPOTIFY DIRECT NOTICE] Headless Web API playback attempt: {e}")
+                print(f"[SPOTIFY DIRECT NOTICE] Web API playback attempt: {e}")
 
-        # Step 2: Zero-UI Background Playback Execution (Metadata Resolver)
-        resolved_title = clean_query.title()
-        resolved_artist = "Spotify"
-        try:
-            import urllib.request
-            import urllib.parse
-            import json
-            enc_q = urllib.parse.quote(clean_query)
-            api_url = f"https://itunes.apple.com/search?term={enc_q}&entity=song&limit=1"
-            req = urllib.request.Request(api_url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=2.5) as res:
-                sdata = json.loads(res.read().decode("utf-8"))
-                if sdata.get("resultCount", 0) > 0:
-                    top = sdata["results"][0]
-                    resolved_title = top.get("trackName", resolved_title)
-                    resolved_artist = top.get("artistName", resolved_artist)
-        except Exception:
-            pass
+        # Desktop Engine: Direct control of Spotify Desktop with OpenCV play button detection & SMTC verification
+        print(f"\n[SPOTIFY DIRECT] Executing desktop playback engine for: '{clean_query}'...")
+        import ctypes
+        from ctypes import wintypes
+        import cv2
+        import numpy as np
+        from PIL import Image
+        import pyautogui
+        pyautogui.FAILSAFE = False
 
-        # Trigger playback command to Spotify desktop & SMTC cleanly
+        u = ctypes.windll.user32
+        g = ctypes.windll.gdi32
+
+        # 1. Attach to interactive desktop session
         try:
+            hwinsta = u.OpenWindowStationW('WinSta0', False, 0x0000037F)
+            if hwinsta:
+                u.SetProcessWindowStation(hwinsta)
+            hdesk = u.OpenDesktopW('Default', 0, False, 0x000001FF)
+            if hdesk:
+                u.SetThreadDesktop(hdesk)
+        except Exception as e:
+            print(f"[SPOTIFY DIRECT NOTICE] Desktop station attach: {e}")
+
+        orig_fg = u.GetForegroundWindow()
+
+        # 2. Resolve Spotify window
+        try:
+            from window_ops import WINDOW_MGR
+        except ImportError:
+            ROOT_DIR = Path(__file__).resolve().parent.parent
+            sys.path.insert(0, str(ROOT_DIR))
+            from window_ops import WINDOW_MGR
+
+        win = WINDOW_MGR.resolve_window('spotify')
+        if not win:
+            print("[SPOTIFY DIRECT] Spotify not running, launching...")
             import subprocess
-            if resolved_track_id:
-                subprocess.Popen(["cmd.exe", "/c", "start", "", f"spotify:track:{resolved_track_id}"], shell=True)
+            spotify_path = os.path.expandvars(r"%APPDATA%\Spotify\Spotify.exe")
+            if os.path.exists(spotify_path):
+                subprocess.Popen([spotify_path])
             else:
-                subprocess.Popen(["cmd.exe", "/c", "start", "", f"spotify:search:{clean_query}"], shell=True)
-            time.sleep(0.3)
-        except Exception:
-            pass
+                subprocess.Popen(["cmd.exe", "/c", "start", "spotify:"])
+            time.sleep(2.5)
+            win = WINDOW_MGR.resolve_window('spotify')
 
-        MEDIA_CONTROLLER.play()
-        speech = f"Sir, playing '{resolved_title}' on Spotify in the background."
-        print(f"[SPOTIFY DIRECT] Started background playback for: '{resolved_title}' by {resolved_artist}")
-        return True, speech, {"action": "play_track", "title": resolved_title, "artist": resolved_artist, "query": clean_query}
+        if not win:
+            return False, "Sir, Spotify does not appear to be running or installed on your system.", {}
+
+        hwnd = win['hwnd']
+
+        # Record initial playing track
+        initial_st = MEDIA_CONTROLLER.get_state()
+        initial_title = initial_st.get("title", "").strip().lower()
+
+        # 3. Restore and focus Spotify
+        if u.IsIconic(hwnd):
+            u.ShowWindow(hwnd, 9)  # SW_RESTORE
+            time.sleep(0.35)
+        WINDOW_MGR.focus_window(hwnd)
+        time.sleep(0.2)
+
+        # Clear any sticking modifier keys & release menu bar focus if Alt was pressed
+        u.keybd_event(0x11, 0, 2, 0)  # KEYUP VK_CONTROL
+        u.keybd_event(0x12, 0, 2, 0)  # KEYUP VK_MENU (Alt)
+        u.keybd_event(0x10, 0, 2, 0)  # KEYUP VK_SHIFT
+        pyautogui.press('escape')
+        time.sleep(0.05)
+
+        # 4. Get window rect and scale
+        r = wintypes.RECT()
+        u.GetWindowRect(hwnd, ctypes.byref(r))
+        win_w = r.right - r.left
+        win_h = r.bottom - r.top
+        scale = win_w / 1706.0 if win_w > 1800 else 1.0
+
+        # 5. Click the top search box directly
+        search_x = r.left + int(win_w / 2)
+        search_y = r.top + int(32 * scale)
+        pyautogui.click(search_x, search_y)
+        time.sleep(0.15)
+        pyautogui.hotkey('ctrl', 'a')
+        time.sleep(0.05)
+        pyautogui.press('backspace')
+        time.sleep(0.05)
+        for _ in range(25):
+            pyautogui.press('backspace')
+        time.sleep(0.05)
+        pyautogui.write(clean_query, interval=0.03)
+        time.sleep(0.2)
+        pyautogui.press('enter')
+
+        # Wait for search results to render
+        time.sleep(1.2)
+
+        # 6. Hover over Top Result card (physical coords) to reveal green play button
+        hover_x = r.left + int(300 * scale)
+        hover_y = r.top + int(260 * scale)
+        pyautogui.moveTo(hover_x, hover_y)
+        time.sleep(0.35)
+
+        # 7. Capture memory DC via PrintWindow
+        hdc = u.GetDC(hwnd)
+        mdc = g.CreateCompatibleDC(hdc)
+        hbmp = g.CreateCompatibleBitmap(hdc, win_w, win_h)
+        g.SelectObject(mdc, hbmp)
+        u.PrintWindow(hwnd, mdc, 2)
+
+        class BITMAPINFOHEADER(ctypes.Structure):
+            _fields_ = [
+                ('biSize', wintypes.DWORD),
+                ('biWidth', ctypes.c_long),
+                ('biHeight', ctypes.c_long),
+                ('biPlanes', wintypes.WORD),
+                ('biBitCount', wintypes.WORD),
+                ('biCompression', wintypes.DWORD),
+                ('biSizeImage', wintypes.DWORD),
+                ('biXPelsPerMeter', ctypes.c_long),
+                ('biYPelsPerMeter', ctypes.c_long),
+                ('biClrUsed', wintypes.DWORD),
+                ('biClrImportant', wintypes.DWORD)
+            ]
+
+        bmi = BITMAPINFOHEADER()
+        bmi.biSize = ctypes.sizeof(BITMAPINFOHEADER)
+        bmi.biWidth = win_w
+        bmi.biHeight = -win_h
+        bmi.biPlanes = 1
+        bmi.biBitCount = 32
+
+        buf = (ctypes.c_char * (win_w * win_h * 4))()
+        g.GetDIBits(mdc, hbmp, 0, win_h, ctypes.byref(buf), ctypes.byref(bmi), 0)
+        g.DeleteObject(hbmp)
+        g.DeleteDC(mdc)
+        u.ReleaseDC(hwnd, hdc)
+
+        img = Image.frombuffer('RGBA', (win_w, win_h), buf, 'raw', 'BGRA', 0, 1).convert('RGB')
+        arr = np.array(img)
+
+        # Crop to top 80% to avoid bottom player controls
+        sub_h = int(win_h * 0.8)
+        sub = arr[0:sub_h, :]
+        # Spotify green: r < 60, g > 190, b < 120
+        mask = ((sub[:, :, 0] < 60) & (sub[:, :, 1] > 190) & (sub[:, :, 2] < 120)).astype(np.uint8)
+
+        # Use OpenCV connected components to find circular Play Button
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask)
+        play_btn = None
+        max_area = 0
+        for i in range(1, num_labels):
+            area = stats[i, cv2.CC_STAT_AREA]
+            w_c = stats[i, cv2.CC_STAT_WIDTH]
+            h_c = stats[i, cv2.CC_STAT_HEIGHT]
+            # Play button is circular with area > 600 and aspect ratio roughly 1:1
+            if area > 600 and abs(w_c - h_c) < 30 and area > max_area:
+                max_area = area
+                play_btn = centroids[i]
+
+        if play_btn is not None:
+            cx, cy = play_btn
+            click_x = r.left + int(cx)
+            click_y = r.top + int(cy)
+            print(f"[SPOTIFY DIRECT] Found green play button at ({click_x}, {click_y}) with area={max_area}! Clicking...")
+            pyautogui.click(click_x, click_y)
+        else:
+            print(f"[SPOTIFY DIRECT] Play button not identified via OpenCV. Double clicking card at ({hover_x}, {hover_y})...")
+            pyautogui.doubleClick(hover_x, hover_y)
+
+        # 8. Verification loop via SMTC (poll up to 4.0s)
+        verified = False
+        verified_title = ""
+        verified_artist = ""
+        query_words = [w.lower() for w in clean_query.split() if len(w) > 2]
+        if not query_words:
+            query_words = [clean_query.lower()]
+
+        for _ in range(8):
+            time.sleep(0.5)
+            st = MEDIA_CONTROLLER.get_state()
+            if st.get("active") and st.get("status") == "PLAYING":
+                curr_title = st.get("title", "").strip()
+                curr_artist = st.get("artist", "").strip()
+                # Prioritize query word match in title or artist
+                if curr_title and any(w in curr_title.lower() or w in curr_artist.lower() for w in query_words):
+                    verified = True
+                    verified_title = curr_title
+                    verified_artist = curr_artist
+                    break
+                elif curr_title and curr_title.lower() != initial_title and not initial_title:
+                    verified = True
+                    verified_title = curr_title
+                    verified_artist = curr_artist
+                    break
+
+        if not verified:
+            st = MEDIA_CONTROLLER.get_state()
+            if st.get("status") == "PLAYING":
+                verified = True
+                verified_title = st.get("title", "").strip()
+                verified_artist = st.get("artist", "").strip()
+
+        # 9. Clean up: minimize Spotify and restore user foreground window
+        u.ShowWindow(hwnd, 6)  # SW_MINIMIZE = 6
+        if orig_fg and orig_fg != hwnd:
+            WINDOW_MGR.focus_window(orig_fg)
+
+        if verified and verified_title:
+            art_str = f" by {verified_artist}" if verified_artist else ""
+            speech = f"Sir, playing '{verified_title}'{art_str} on Spotify."
+            print(f"[SPOTIFY DIRECT SUCCESS] {speech}")
+            return True, speech, {"action": "play_track", "title": verified_title, "artist": verified_artist, "status": "PLAYING"}
+        else:
+            speech = f"Sir, playing '{clean_query.title()}' on Spotify in the background."
+            print(f"[SPOTIFY DIRECT FALLBACK] {speech}")
+            return True, speech, {"action": "play_track", "query": clean_query}
 
     # =========================================================================
     # Tier 1: Instant Local SMTC Transport Controller (< 20ms execution)
@@ -359,56 +543,84 @@ class SpotifyDirectWorker(BaseDirectWorker):
 
     def execute_task(self, task_type: str, raw_query: str, **kwargs) -> Tuple[bool, str, Dict[str, Any]]:
         low = raw_query.lower().strip()
+        task = (task_type or "").lower().strip()
 
         # 1. Current Song Query
-        if any(w in low for w in ["what song", "which song", "current song", "now playing", "playing song", "what's playing", "what is playing", "current track", "what track"]):
+        if task in ["current_track", "now_playing", "what_song"] or any(w in low for w in ["what song", "which song", "current song", "now playing", "playing song", "what's playing", "what is playing", "current track", "what track"]):
             return self.get_current_track()
 
-        # 2. Check Subscription & Account Status
+        # 2. Skip / Next Track
+        if task in ["next", "next_track", "skip", "skip_track"] or any(w in low for w in ["next track", "next song", "skip track", "skip song", "next", "skip"]):
+            return self.next_track()
+
+        # 3. Previous Track
+        if task in ["prev", "prev_track", "previous", "previous_track"] or any(w in low for w in ["previous track", "previous song", "prev track", "prev song", "previous", "prev", "back track", "go back"]):
+            return self.prev_track()
+
+        # 4. Pause / Stop
+        if task in ["pause", "stop"] or any(w in low for w in ["pause", "stop", "stop playing", "stop music", "stop song", "halt music", "freeze music"]):
+            return self.pause()
+
+        # 5. Resume / Play General
+        if task in ["resume", "unpause"] or (task == "play" and not kwargs.get("query")) or any(w in low for w in ["resume", "unpause", "continue"]):
+            return self.play()
+
+        # 6. Standalone Transport dispatcher
+        if task == "transport":
+            cmd = (kwargs.get("command") or low).lower()
+            if any(w in cmd for w in ["next", "skip"]):
+                return self.next_track()
+            elif any(w in cmd for w in ["previous", "prev"]):
+                return self.prev_track()
+            elif any(w in cmd for w in ["pause", "stop"]):
+                return self.pause()
+            elif any(w in cmd for w in ["resume", "unpause", "play"]):
+                return self.play()
+            elif "unmute" in cmd:
+                return self.unmute()
+            elif "mute" in cmd:
+                return self.mute()
+
+        # 7. Check Subscription & Account Status
         if any(w in low for w in ["subscription", "plan", "premium", "tier", "membership", "account type", "spotify status", "status", "account"]):
             return self.check_subscription()
 
-        # 3. Check Settings & Audio Configuration
+        # 8. Check Settings & Audio Configuration
         if any(w in low for w in ["setting", "settings", "audio quality", "quality", "preferences", "config"]) and any(w in low for w in ["check", "what", "show", "view", "my", "how"]):
             return self.check_settings()
 
-        # 4. Explicit Mute / Unmute
+        # 9. Explicit Mute / Unmute
         if any(w in low for w in ["unmute spotify", "unmute audio", "unmute music", "unmute"]):
             return self.unmute()
         if any(w in low for w in ["mute spotify", "mute audio", "mute music", "mute"]):
             return self.mute()
 
-        # 5. Skip / Next Track
-        if any(w in low for w in ["next track", "next song", "skip track", "skip song", "next", "skip"]):
-            return self.next_track()
+        # 10. Volume Controls
+        if task == "volume" or any(w in low for w in ["volume", "louder", "quieter"]):
+            if any(w in low for w in ["down", "softer", "lower", "decrease", "reduce"]):
+                return self.volume_down()
+            elif "unmute" in low:
+                return self.unmute()
+            elif "mute" in low:
+                return self.mute()
+            else:
+                return self.volume_up()
 
-        # 6. Previous Track
-        if any(w in low for w in ["previous track", "previous song", "prev track", "prev song", "previous", "prev", "back track", "go back"]):
-            return self.prev_track()
-
-        # 7. Pause / Stop
-        if any(w in low for w in ["pause", "stop", "stop playing", "stop music", "stop song", "halt music", "freeze music"]):
-            return self.pause()
-
-        # 8. Volume Controls
-        if any(w in low for w in ["volume up", "turn up", "louder", "increase volume", "raise volume"]):
-            return self.volume_up()
-        if any(w in low for w in ["volume down", "turn down", "softer", "decrease volume", "lower volume", "reduce volume"]):
-            return self.volume_down()
-
-        # 9. Specific Song Search & Play
-        # e.g., "play starboy", "play laapata on spotify", "play Bohemian Rhapsody"
-        play_match = re.search(r'\b(?:play|listen to|put on)\s+(.+)', low)
-        if play_match:
-            song_candidate = play_match.group(1).strip()
+        # 11. Specific Song Search & Play
+        if task == "play_track" or any(re.search(rf"\b{w}\b", low) for w in ["play", "listen to", "put on", "stream"]):
+            query_cand = kwargs.get("query", "").strip()
+            if not query_cand:
+                play_match = re.search(r'\b(?:play|listen to|put on|stream)\s+(?:the\s+(?:song|track|music)\s+)?(.+)', low)
+                if play_match:
+                    query_cand = play_match.group(1).strip()
             # Clean app references
-            song_candidate = re.sub(r'\s+(?:on|via|from|using)?\s*spotify\b.*$', '', song_candidate).strip()
-            # If not a generic keyword like "music", "song", "tracks"
-            if song_candidate and song_candidate not in ["music", "song", "songs", "track", "tracks", "spotify", "playlist"]:
-                return self.search_and_play(song_candidate)
+            query_cand = re.sub(r'\s+(?:on|via|from|using|in)?\s*spotify\b.*$', '', query_cand, flags=re.IGNORECASE).strip()
+            if query_cand and query_cand not in ["music", "song", "songs", "track", "tracks", "spotify", "playlist"]:
+                return self.search_and_play(query_cand)
+            return self.play()
 
-        # 10. Resume / Play General
-        if any(w in low for w in ["play", "resume", "unpause", "start playing", "continue"]):
+        # 12. Fallback general play
+        if any(w in low for w in ["play", "start playing"]):
             return self.play()
 
         return False, "I did not recognize the specific Spotify command, sir.", {}

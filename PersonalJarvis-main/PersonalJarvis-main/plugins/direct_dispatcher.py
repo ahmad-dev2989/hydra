@@ -65,9 +65,9 @@ class DirectBackgroundDispatcher:
             params = classified.parameters or {}
 
             # Standalone Transport
-            if action == "transport" or low in ["pause", "resume", "stop", "next", "skip", "previous", "prev", "unpause", "mute", "unmute"]:
-                print(f"[DIRECT DISPATCHER] Routing standalone transport '{low}' to Spotify Direct Background Worker...")
-                ok, speech, _ = SPOTIFY_WORKER.execute_task("transport", cmd_clean, **params)
+            if action in ["transport", "next_track", "prev_track", "pause", "resume"] or low in ["pause", "resume", "stop", "next", "skip", "previous", "prev", "unpause", "mute", "unmute"]:
+                print(f"[DIRECT DISPATCHER] Routing transport '{action}' ({low}) to Spotify Direct Background Worker...")
+                ok, speech, _ = SPOTIFY_WORKER.execute_task(action, cmd_clean, **params)
                 return ok, speech
 
             # Route through Transparent Fallback Engine

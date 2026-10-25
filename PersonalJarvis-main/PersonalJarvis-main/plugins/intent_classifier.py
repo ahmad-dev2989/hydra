@@ -250,6 +250,10 @@ def is_foreground_command(text: str) -> bool:
     if any(re.search(rf"\b{w}\b", low) for w in ["call", "calls", "calling", "videocall"]):
         return False
 
+    # Do NOT treat playback requests (e.g. "open spotify and play laapata") as generic foreground app launches
+    if any(w in low for w in ["play", "stream", "listen to"]) and any(a in low for a in ["spotify", "music", "song", "track"]):
+        return False
+
     # Check UI manipulation patterns
     for pat in UI_MANIPULATION_PATTERNS:
         if re.search(pat, low):
@@ -353,14 +357,26 @@ def classify_command(raw_text: str) -> IntentResult:
         )
 
     # 5. Headless Background Task Execution
-    # Media Standalone Quick Controls
-    if low in ["pause", "resume", "stop", "next", "skip", "previous", "prev", "unpause", "mute", "unmute"]:
+    # Media Standalone Quick Controls & Transport Commands
+    transport_match = re.search(r"^(?:pause|resume|stop|next|skip|previous|prev|unpause|mute|unmute)(?:\s+(?:the\s+)?(?:song|track|music|audio|playback|spotify))?$", low)
+    if transport_match or low in ["pause", "resume", "stop", "next", "skip", "previous", "prev", "unpause", "mute", "unmute"]:
+        cmd_action = "transport"
+        if any(w in low for w in ["next", "skip"]):
+            cmd_action = "next_track"
+        elif any(w in low for w in ["previous", "prev"]):
+            cmd_action = "prev_track"
+        elif any(w in low for w in ["pause", "stop"]):
+            cmd_action = "pause"
+        elif any(w in low for w in ["resume", "unpause"]):
+            cmd_action = "resume"
+        elif any(w in low for w in ["mute", "unmute"]):
+            cmd_action = "volume"
         return IntentResult(
             intent_type=IntentType.HEADLESS_BACKGROUND,
             target_app="spotify",
-            action="transport",
+            action=cmd_action,
             parameters={"command": low},
-            reasoning="Standalone audio transport command"
+            reasoning=f"Standalone audio transport command: '{low}'"
         )
 
     # Detect service from context
@@ -399,6 +415,7 @@ def classify_command(raw_text: str) -> IntentResult:
             # Extract track name
             m = re.search(r"\b(?:play|listen to|put on|stream)\s+(?:the\s+(?:song|track|music)\s+)?(.+?)(?:\s+(?:on|in|via)\s+spotify|$)", low)
             track_name = m.group(1).strip() if m else ""
+            track_name = re.sub(r'\s+(?:on|via|from|in)\s+spotify\b.*$', '', track_name, flags=re.IGNORECASE).strip()
             return IntentResult(
                 intent_type=IntentType.HEADLESS_BACKGROUND,
                 target_app="spotify",
@@ -406,7 +423,35 @@ def classify_command(raw_text: str) -> IntentResult:
                 parameters={"query": track_name},
                 reasoning=f"Spotify background playback for '{track_name}'"
             )
-        elif any(w in low for w in ["what song", "which song", "current song", "now playing"]):
+        elif any(re.search(rf"\b{w}\b", low) for w in ["next", "skip"]):
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="spotify",
+                action="next_track",
+                reasoning="Spotify skip/next track command"
+            )
+        elif any(re.search(rf"\b{w}\b", low) for w in ["previous", "prev", "back track"]):
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="spotify",
+                action="prev_track",
+                reasoning="Spotify previous track command"
+            )
+        elif any(re.search(rf"\b{w}\b", low) for w in ["pause", "stop", "halt"]):
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="spotify",
+                action="pause",
+                reasoning="Spotify pause command"
+            )
+        elif any(re.search(rf"\b{w}\b", low) for w in ["resume", "unpause", "continue"]):
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="spotify",
+                action="resume",
+                reasoning="Spotify resume command"
+            )
+        elif any(w in low for w in ["what song", "which song", "current song", "now playing", "playing song"]):
             return IntentResult(
                 intent_type=IntentType.HEADLESS_BACKGROUND,
                 target_app="spotify",
