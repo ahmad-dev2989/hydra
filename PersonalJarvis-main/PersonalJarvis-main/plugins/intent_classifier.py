@@ -263,7 +263,7 @@ def classify_command(raw_text: str) -> IntentResult:
         return IntentResult(intent_type=IntentType.CONVERSATIONAL, reasoning="Empty input")
 
     # 1. Built-in HUD System Directives
-    if any(w in low for w in ["close info", "close panel", "hide info", "go back"]):
+    if re.search(r"\b(?:close|hide)\s+(?:the\s+)?(?:info|panel|drawer|sidebar)\b", low) or "go back" in low:
         return IntentResult(
             intent_type=IntentType.BUILTIN_UI,
             action="close_panel",
@@ -342,7 +342,12 @@ def classify_command(raw_text: str) -> IntentResult:
     target_app = detect_target_app(clean_text)
 
     # 5.1 Google Classroom Actions
-    if target_app == "google_classroom" or any(w in low for w in ["assignment", "assignments", "coursework", "classwork"]):
+    classroom_triggers = [
+        "assignment", "assignments", "coursework", "classwork",
+        "how many classes", "how many courses", "enrolled classes", "enrolled courses",
+        "my classes", "my courses", "classes i am", "classes am i", "enrolled in"
+    ]
+    if target_app == "google_classroom" or any(w in low for w in classroom_triggers):
         action = "check_assignments"
         if any(w in low for w in [
             "how many classes", "how many courses", "enrolled classes", "enrolled courses",

@@ -191,11 +191,11 @@
     },
     "whatsapp": {
         "connected": true,
-        "account": "WhatsApp Linked Device",
+        "account": "Connected WhatsApp Device",
         "accounts": [
             {
                 "account": "WhatsApp Linked Device",
-                "active": true,
+                "active": false,
                 "label": "Primary Phone",
                 "authType": "whatsapp_qr",
                 "data": {
@@ -211,7 +211,7 @@
                     "session_enc": "session.enc",
                     "verified": true
                 },
-                "active": false
+                "active": true
             }
         ],
         "authType": "whatsapp_qr",
