@@ -25,6 +25,8 @@ CURRENT_DIR = Path(__file__).resolve().parent
 ROOT_DIR = CURRENT_DIR.parent
 SENT_LOG_FILE = ROOT_DIR / "data" / "vault" / "whatsapp_sent.json"
 UNREAD_CACHE_FILE = ROOT_DIR / "data" / "vault" / "whatsapp_unread.json"
+CALLS_LOG_FILE = ROOT_DIR / "data" / "vault" / "whatsapp_calls.json"
+TEMPLATES_DIR = ROOT_DIR / "visual_templates"
 
 CONTACTS_CANDIDATES = [
     ROOT_DIR / "contacts.json",
@@ -441,6 +443,144 @@ class WhatsAppDirectWorker(BaseDirectWorker):
             return self.open_chat_and_send(display_name, clean_msg)
 
     # =========================================================================
+    # Phase 1.3: Direct Voice & Video Calling
+    # =========================================================================
+
+    def make_call(self, contact_name: str, call_type: str = "voice") -> Tuple[bool, str, Dict[str, Any]]:
+        """
+        Initiates a voice or video call to a contact on WhatsApp Desktop.
+        Brings WhatsApp into focus, opens the contact's chat conversation,
+        and triggers the Voice Call or Video Call action.
+        """
+        display_name = contact_name.strip().title()
+        if not display_name:
+            return False, "Sir, who would you like to call on WhatsApp?", {}
+
+        try:
+            from window_ops import WINDOW_MGR
+        except ImportError:
+            WINDOW_MGR = None
+
+        # 1. Focus WhatsApp window
+        focused = False
+        if WINDOW_MGR:
+            focused, _ = WINDOW_MGR.switch_to("whatsapp")
+
+        if not focused:
+            try:
+                os.startfile("whatsapp:")
+                time.sleep(1.2)
+                if WINDOW_MGR:
+                    focused, _ = WINDOW_MGR.switch_to("whatsapp")
+            except Exception:
+                pass
+
+        if not focused:
+            try:
+                import pyautogui
+                pyautogui.FAILSAFE = False
+                pyautogui.press("win")
+                time.sleep(0.3)
+                pyautogui.write("whatsapp", interval=0.02)
+                time.sleep(0.4)
+                pyautogui.press("enter")
+                time.sleep(1.5)
+                if WINDOW_MGR:
+                    focused, _ = WINDOW_MGR.switch_to("whatsapp")
+            except Exception:
+                pass
+
+        # 2. Open chat with contact
+        try:
+            import pyautogui
+            pyautogui.FAILSAFE = False
+            time.sleep(0.4)
+
+            # Universal WhatsApp desktop shortcut to focus search (Ctrl+F)
+            pyautogui.hotkey("ctrl", "f")
+            time.sleep(0.2)
+            pyautogui.hotkey("ctrl", "a")
+            time.sleep(0.05)
+            pyautogui.press("backspace")
+            time.sleep(0.1)
+            pyautogui.write(contact_name, interval=0.03)
+            time.sleep(0.7)  # Let WhatsApp filter contacts
+            pyautogui.press("enter")
+            time.sleep(0.6)  # Let chat header load
+
+            # 3. Locate Call Button (Video vs Voice)
+            clicked = False
+            win = WINDOW_MGR.resolve_window("whatsapp") if WINDOW_MGR else None
+            if win and win.get("rect"):
+                r_left, r_top, r_right, r_bottom = win["rect"]
+                if r_right > 0 and r_bottom > 0:
+                    # In WhatsApp Desktop WinUI 3 chat header:
+                    # Video Call is ~210px from the right border
+                    # Voice Call is ~160px from the right border
+                    # Header vertical center is ~74px from the top border
+                    offset_x = 210 if call_type.lower() == "video" else 160
+                    click_x = r_right - offset_x
+                    click_y = r_top + 74
+                    pyautogui.click(click_x, click_y)
+                    clicked = True
+
+            # Fallback to visual template match if coordinate click was unavailable
+            if not clicked:
+                try:
+                    import cv2
+                    import numpy as np
+                    template_name = "whatsapp_video_call.png" if call_type.lower() == "video" else "whatsapp_voice_call.png"
+                    template_path = TEMPLATES_DIR / template_name
+                    if template_path.exists():
+                        from visual_verifier import capture_screen_gdi
+                        scr_img = capture_screen_gdi()
+                        scr_cv = cv2.cvtColor(np.array(scr_img), cv2.COLOR_RGB2BGR)
+                        tmpl_cv = cv2.imread(str(template_path))
+                        res = cv2.matchTemplate(scr_cv, tmpl_cv, cv2.TM_CCOEFF_NORMED)
+                        _, max_v, _, max_l = cv2.minMaxLoc(res)
+                        if max_v >= 0.70:
+                            th, tw = tmpl_cv.shape[:2]
+                            pyautogui.click(max_l[0] + tw // 2, max_l[1] + th // 2)
+                            clicked = True
+                except Exception as t_err:
+                    print(f"[WHATSAPP CALL NOTICE] Template matching: {t_err}")
+
+            # 4. Log Call Action
+            call_entry = {
+                "id": f"wa_call_{int(time.time() * 1000)}",
+                "timestamp": time.time(),
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "contact": display_name,
+                "call_type": call_type.lower(),
+                "status": "CALL_INITIATED"
+            }
+            try:
+                CALLS_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+                history = []
+                if CALLS_LOG_FILE.exists():
+                    try:
+                        with open(CALLS_LOG_FILE, "r", encoding="utf-8") as f:
+                            history = json.load(f)
+                    except Exception:
+                        history = []
+                history.append(call_entry)
+                with open(CALLS_LOG_FILE, "w", encoding="utf-8") as f:
+                    json.dump(history, f, indent=2)
+            except Exception:
+                pass
+
+            if call_type.lower() == "video":
+                speech = f"Sir, starting a video call with {display_name} on WhatsApp."
+            else:
+                speech = f"Sir, calling {display_name} on WhatsApp."
+
+            return True, speech, call_entry
+
+        except Exception as e:
+            print(f"[WHATSAPP CALL ERROR] {e}")
+            return False, f"Sir, I encountered an issue initiating the WhatsApp call to {display_name}.", {}
+
+    # =========================================================================
     # Phase 1.2: Real-Time Incoming Notifications & Unread Messages Monitoring
     # =========================================================================
 
@@ -650,6 +790,27 @@ class WhatsAppDirectWorker(BaseDirectWorker):
             c_name, c_num = m_save.group(1).strip().rstrip("'s").rstrip("s"), m_save.group(2).strip()
             _save_contact_phone(c_name, c_num)
             return True, f"Sir, I have saved the phone number for {c_name.title()} as {c_num}.", {"name": c_name, "phone": c_num}
+
+        # 0.5 Voice & Video Calling (Phase 1.3)
+        is_call_cmd = task_type in ["start_call", "start_video_call", "call", "video_call"] or (
+            any(re.search(rf"\b{w}\b", low) for w in ["call", "calling", "ring", "dial", "videocall"])
+            and not any(w in low for w in ["send", "write", "text", "message", "msg"])
+        )
+        if is_call_cmd:
+            c_type = kwargs.get("call_type") or ("video" if "video" in low or task_type == "start_video_call" else "voice")
+            c_target = kwargs.get("contact") or kwargs.get("sender") or ""
+            if not c_target:
+                m_c = re.search(r'\b(?:call|calling|dial|ring)\s+(?:with\s+|to\s+)?([a-zA-Z0-9_+\s]+?)(?:\s+(?:on|in|via)\s+whatsapp|\s*$)', raw_query, re.IGNORECASE)
+                if m_c:
+                    tokens = [w for w in m_c.group(1).split() if w.lower() not in COMMON_WHATSAPP_TOKENS and w.lower() not in ['call', 'video', 'voice', 'with', 'to']]
+                    if tokens:
+                        c_target = " ".join(tokens)
+                if not c_target:
+                    clean_q = re.sub(r'[^\w\s]', ' ', low)
+                    tokens = [w for w in clean_q.split() if w not in COMMON_WHATSAPP_TOKENS and w not in ['call', 'video', 'voice', 'with', 'to'] and not w.isdigit()]
+                    if tokens:
+                        c_target = " ".join(tokens)
+            return self.make_call(c_target, c_type)
 
         # 1. Unread / Notification Inquiry Check
         unread_triggers = [

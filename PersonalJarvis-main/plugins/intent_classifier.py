@@ -184,7 +184,8 @@ def is_conversational_inquiry(text: str) -> bool:
                 r"\bmessages?\b", r"\bemails?\b", r"\bnotifications?\b",
                 r"\bassignments?\b", r"\bclasses\b",
                 r"\bsay\b", r"\bsays\b", r"\bsaid\b", r"\bsaying\b",
-                r"\bsent\b", r"\bwrote\b", r"\bwritten\b"
+                r"\bsent\b", r"\bwrote\b", r"\bwritten\b",
+                r"\bcall\b", r"\bcalls\b", r"\bcalling\b", r"\bring\b", r"\bdial\b"
             ]
             if not any(re.search(act, low) for act in action_exceptions):
                 return True
@@ -245,6 +246,9 @@ def is_foreground_command(text: str) -> bool:
         - "open chrome and search AI"
     """
     low = text.lower().strip()
+    # Do NOT treat call requests as generic app launches
+    if any(re.search(rf"\b{w}\b", low) for w in ["call", "calls", "calling", "videocall"]):
+        return False
 
     # Check UI manipulation patterns
     for pat in UI_MANIPULATION_PATTERNS:
@@ -450,8 +454,60 @@ def classify_command(raw_text: str) -> IntentResult:
         r"\btext\s+[a-zA-Z0-9_+]+",
         r"\bmessage\s+[a-zA-Z0-9_+]+"
     ])
-    if target_app == "whatsapp" or (is_msg_intent and not any(w in low for w in ["email", "emails", "mail", "gmail", "inbox"])):
+    is_call_intent = any(re.search(pat, low) for pat in [
+        r"\bcall\b", r"\bcalls\b", r"\bcalling\b",
+        r"\bvideo\s*call\b", r"\bvoice\s*call\b",
+        r"\bring\b", r"\bdial\b"
+    ]) and ("whatsapp" in low or target_app == "whatsapp")
+
+    if target_app == "whatsapp" or is_call_intent or (is_msg_intent and not any(w in low for w in ["email", "emails", "mail", "gmail", "inbox"])):
         target_app = "whatsapp"
+
+        # Check if call command (voice call or video call)
+        is_video_call = any(re.search(pat, low) for pat in [
+            r"\bvideo\s*call\b",
+            r"\bvideo\s+calling\b",
+            r"\bmake\s+(?:a\s+)?video\s+call\b",
+            r"\bstart\s+(?:a\s+)?video\s+call\b"
+        ])
+        is_voice_call = not is_video_call and any(re.search(pat, low) for pat in [
+            r"\bcall\b",
+            r"\bcalls\b",
+            r"\bcalling\b",
+            r"\bvoice\s*call\b",
+            r"\bphone\s*call\b",
+            r"\bring\b",
+            r"\bdial\b",
+            r"\bmake\s+(?:a\s+)?call\b"
+        ])
+        if is_video_call or is_voice_call:
+            call_type = "video" if is_video_call else "voice"
+            stop_call_tokens = {
+                'call', 'calls', 'calling', 'videocall', 'video', 'voice', 'phone', 'ring', 'dial',
+                'make', 'start', 'place', 'do', 'whatsapp', 'whatsap', 'watsapp', 'watsp',
+                'app', 'to', 'on', 'in', 'via', 'please', 'sir', 'can', 'you', 'could', 'me', 'with'
+            }
+            contact = ""
+            m_call = re.search(r'\b(?:video\s*call|videocall|voice\s*call|call|calling|dial|ring)\s+(?:with\s+|to\s+)?([a-zA-Z0-9_+\s]+?)(?:\s+(?:on|in|via)\s+whatsapp|\s*$)', clean_text, re.IGNORECASE)
+            if m_call:
+                c_words = [w for w in m_call.group(1).split() if w.lower() not in stop_call_tokens]
+                if c_words:
+                    contact = " ".join(c_words)
+
+            if not contact:
+                clean_q = re.sub(r'[^\w\s]', ' ', clean_text.lower())
+                cands = [w for w in clean_q.split() if w not in stop_call_tokens and not w.isdigit()]
+                if cands:
+                    contact = " ".join(cands)
+
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="whatsapp",
+                action="start_video_call" if is_video_call else "start_call",
+                parameters={"contact": contact, "call_type": call_type},
+                reasoning=f"WhatsApp {call_type} call to '{contact}'"
+            )
+
         # Check if inquiry first (if user is asking to check, read, or know what someone said)
         is_inquiry_start = any(re.search(rf"\b{w}\b", low) for w in ["check", "read", "what", "who", "any", "unread", "latest", "recent", "tell me"])
 
