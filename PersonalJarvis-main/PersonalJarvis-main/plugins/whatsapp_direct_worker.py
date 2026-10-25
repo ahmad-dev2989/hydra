@@ -213,33 +213,41 @@ COMMON_WHATSAPP_TOKENS = {
 def extract_sender_from_query(raw_query: str) -> str:
     """
     Extracts contact/sender name from a WhatsApp message or notification query.
-    Handles all forms of communication verbs and question patterns.
+    Handles multi-word contact names, communication verbs, and question patterns.
     """
     q = raw_query.strip()
     low = q.lower()
 
     # 1. Structural patterns
-    m = re.search(r'\b(?:from|by|of)\s+([a-zA-Z0-9_+]+)', q, re.IGNORECASE)
-    if m and m.group(1).lower() not in COMMON_WHATSAPP_TOKENS:
-        return m.group(1).strip()
+    m = re.search(r'\b(?:from|by|of)\s+([a-zA-Z0-9_+\s]+?)(?:\s+(?:on|in|via)\s+whatsapp|\s*$)', q, re.IGNORECASE)
+    if m:
+        w_list = [w for w in m.group(1).split() if w.lower() not in COMMON_WHATSAPP_TOKENS]
+        if w_list:
+            return " ".join(w_list)
 
-    m = re.search(r'\bwhat\s+(?:did\s+|is\s+|was\s+|does\s+)?([a-zA-Z0-9_+]+)\s+(?:say|says|said|saying|is\s+saying|was\s+saying|send|sends|sent|sending|write|writes|wrote|writing|text|texts|texted)\b', q, re.IGNORECASE)
-    if m and m.group(1).lower() not in COMMON_WHATSAPP_TOKENS:
-        return m.group(1).strip()
+    m = re.search(r'\bwhat\s+(?:did\s+|is\s+|was\s+|does\s+)?([a-zA-Z0-9_+\s]+?)\s+(?:say|says|said|saying|is\s+saying|was\s+saying|send|sends|sent|sending|write|writes|wrote|writing|text|texts|texted)\b', q, re.IGNORECASE)
+    if m:
+        w_list = [w for w in m.group(1).split() if w.lower() not in COMMON_WHATSAPP_TOKENS]
+        if w_list:
+            return " ".join(w_list)
 
-    m = re.search(r'\b(?:message|messages|msg|msgs|text|texts)\s+(?:that\s+|which\s+)?([a-zA-Z0-9_+]+)\s+(?:said|sent|wrote|texted|saying|says|sends)\b', q, re.IGNORECASE)
-    if m and m.group(1).lower() not in COMMON_WHATSAPP_TOKENS:
-        return m.group(1).strip()
+    m = re.search(r'\b(?:message|messages|msg|msgs|text|texts)\s+(?:that\s+|which\s+)?([a-zA-Z0-9_+\s]+?)\s+(?:said|sent|wrote|texted|saying|says|sends)\b', q, re.IGNORECASE)
+    if m:
+        w_list = [w for w in m.group(1).split() if w.lower() not in COMMON_WHATSAPP_TOKENS]
+        if w_list:
+            return " ".join(w_list)
 
-    m = re.search(r'\b([a-zA-Z0-9_+]+)(?:\x27s|\x27)?\s+(?:message|messages|msg|msgs|text|texts|chat)\b', q, re.IGNORECASE)
-    if m and m.group(1).lower() not in COMMON_WHATSAPP_TOKENS:
-        return m.group(1).strip()
+    m = re.search(r'\b([a-zA-Z0-9_+\s]+?)(?:\x27s|\x27)?\s+(?:message|messages|msg|msgs|text|texts|chat)\b', q, re.IGNORECASE)
+    if m:
+        w_list = [w for w in m.group(1).split() if w.lower() not in COMMON_WHATSAPP_TOKENS]
+        if w_list:
+            return " ".join(w_list)
 
     # 2. Token subtraction fallback
     clean = re.sub(r'[^\w\s]', ' ', low)
     candidates = [w for w in clean.split() if w not in COMMON_WHATSAPP_TOKENS and not w.isdigit()]
     if candidates:
-        return candidates[0]
+        return " ".join(candidates)
 
     return ""
 
@@ -459,6 +467,13 @@ class WhatsAppDirectWorker(BaseDirectWorker):
 
         try:
             shutil.copy2(db_path, temp_db)
+            wal_src = db_path.parent / (db_path.name + '-wal')
+            if wal_src.exists():
+                shutil.copy2(wal_src, temp_db.parent / (temp_db.name + '-wal'))
+            shm_src = db_path.parent / (db_path.name + '-shm')
+            if shm_src.exists():
+                shutil.copy2(shm_src, temp_db.parent / (temp_db.name + '-shm'))
+
             conn = sqlite3.connect(str(temp_db))
             cursor = conn.cursor()
 
@@ -524,6 +539,31 @@ class WhatsAppDirectWorker(BaseDirectWorker):
         except Exception as e:
             print(f"[WHATSAPP NOTIFICATIONS] Read notice: {e}")
 
+        # Persist and merge fetched real notifications into local cache
+        if messages:
+            try:
+                UNREAD_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+                cached_msgs = []
+                if UNREAD_CACHE_FILE.exists():
+                    try:
+                        with open(UNREAD_CACHE_FILE, "r", encoding="utf-8") as f:
+                            cached_msgs = json.load(f).get("unread", [])
+                    except Exception:
+                        cached_msgs = []
+
+                merged = []
+                seen_pairs = set()
+                for m in messages + cached_msgs:
+                    p_key = (m.get("sender", "").strip().lower(), m.get("message", "").strip())
+                    if p_key not in seen_pairs:
+                        seen_pairs.add(p_key)
+                        merged.append(m)
+
+                with open(UNREAD_CACHE_FILE, "w", encoding="utf-8") as f:
+                    json.dump({"unread": merged[:50], "updated_at": datetime.now().isoformat()}, f, indent=2)
+            except Exception as ce:
+                print(f"[WHATSAPP CACHE NOTICE] Could not save unread cache: {ce}")
+
         return messages
 
     def get_unread_messages(self, filter_sender: str = "") -> Tuple[bool, str, List[Dict[str, Any]]]:
@@ -531,29 +571,40 @@ class WhatsAppDirectWorker(BaseDirectWorker):
         Retrieves real incoming WhatsApp message notifications directly from Windows Notification Store.
         Zero window opening, zero screen stealing, strictly genuine messages.
         """
-        notifications = self._fetch_real_notifications(max_count=10)
+        fresh = self._fetch_real_notifications(max_count=20)
 
-        # Filter by specific sender if requested (e.g. "what ismail said on whatsapp")
-        if filter_sender:
-            low_f = filter_sender.lower().strip()
-            notifications = [
-                m for m in notifications 
-                if low_f in m.get("sender", "").lower() or low_f in m.get("message", "").lower().split(":")[0]
-            ]
-
-        # Fallback to local cache if DB was empty
-        if not notifications and UNREAD_CACHE_FILE.exists():
+        # Merge fresh notifications with cached notifications (so recently dismissed toasts remain readable)
+        cached_msgs = []
+        if UNREAD_CACHE_FILE.exists():
             try:
                 with open(UNREAD_CACHE_FILE, "r", encoding="utf-8") as f:
-                    notifications = json.load(f).get("unread", [])
-                if filter_sender:
-                    low_f = filter_sender.lower().strip()
-                    notifications = [
-                        m for m in notifications 
-                        if low_f in m.get("sender", "").lower() or low_f in m.get("message", "").lower().split(":")[0]
-                    ]
+                    cached_msgs = json.load(f).get("unread", [])
             except Exception:
-                notifications = []
+                cached_msgs = []
+
+        all_pool = []
+        seen_keys = set()
+        for m in fresh + cached_msgs:
+            k = (m.get("sender", "").strip().lower(), m.get("message", "").strip())
+            if k not in seen_keys:
+                seen_keys.add(k)
+                all_pool.append(m)
+
+        # Filter by specific sender if requested (e.g. "what ahmad jind said on whatsapp")
+        if filter_sender:
+            low_f = filter_sender.lower().strip()
+            tokens = [t for t in low_f.split() if len(t) > 1]
+            matched = []
+            for m in all_pool:
+                s_name = m.get("sender", "").lower()
+                m_body_prefix = m.get("message", "").lower().split(":")[0]
+                if low_f in s_name or low_f in m_body_prefix or s_name in low_f:
+                    matched.append(m)
+                elif tokens and all(t in s_name or t in m_body_prefix for t in tokens):
+                    matched.append(m)
+            notifications = matched
+        else:
+            notifications = all_pool[:10]
 
         if not notifications:
             if filter_sender:
