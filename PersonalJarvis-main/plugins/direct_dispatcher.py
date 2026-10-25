@@ -70,61 +70,43 @@ class DirectBackgroundDispatcher:
                 ok, speech, _ = SPOTIFY_WORKER.execute_task("transport", cmd_clean, **params)
                 return ok, speech
 
-            # Google Classroom
-            if target_app == "google_classroom":
-                print(f"[DIRECT DISPATCHER] Routing to Google Classroom Direct Background Worker ({action})...")
-                ok, speech, _ = CLASSROOM_WORKER.execute_task(action, cmd_clean, **params)
-                return ok, speech
-
-            # Spotify
-            if target_app == "spotify":
-                print(f"[DIRECT DISPATCHER] Routing to Spotify Direct Background Worker ({action})...")
-                ok, speech, _ = SPOTIFY_WORKER.execute_task(action, cmd_clean, **params)
-                return ok, speech
-
-            # Gmail
-            if target_app == "gmail":
-                print(f"[DIRECT DISPATCHER] Routing to Gmail Direct Background Worker ({action})...")
-                ok, speech, _ = GMAIL_WORKER.execute_task(action, cmd_clean, **params)
-                return ok, speech
-
-            # WhatsApp
-            if target_app == "whatsapp":
-                print(f"[DIRECT DISPATCHER] Routing to WhatsApp Direct Background Worker ({action})...")
-                ok, speech, _ = WHATSAPP_WORKER.execute_task(action, cmd_clean, **params)
-                return ok, speech
-
-            # GitHub
-            if target_app == "github":
-                print(f"[DIRECT DISPATCHER] Routing to GitHub Direct Background Worker ({action})...")
-                ok, speech, _ = GITHUB_WORKER.execute_task(action, cmd_clean, **params)
-                return ok, speech
-
-            # YouTube
-            if target_app == "youtube":
-                print(f"[DIRECT DISPATCHER] Routing to YouTube Direct Background Worker ({action})...")
-                ok, speech, _ = YOUTUBE_WORKER.execute_task(action, cmd_clean, **params)
-                return ok, speech
-
-            # Canva
-            if target_app == "canva":
-                print(f"[DIRECT DISPATCHER] Routing to Canva Direct Background Worker ({action})...")
-                ok, speech, _ = CANVA_WORKER.execute_task(action, cmd_clean, **params)
-                return ok, speech
-
-            # Discord
-            if target_app == "discord":
-                print(f"[DIRECT DISPATCHER] Routing to Discord Direct Background Worker ({action})...")
-                ok, speech, _ = DISCORD_WORKER.execute_task(action, cmd_clean, **params)
-                return ok, speech
-
-            # LinkedIn
-            if target_app == "linkedin":
-                print(f"[DIRECT DISPATCHER] Routing to LinkedIn Direct Background Worker ({action})...")
-                ok, speech, _ = LINKEDIN_WORKER.execute_task(action, cmd_clean, **params)
-                return ok, speech
+            # Route through Transparent Fallback Engine
+            if target_app and target_app in self.workers:
+                worker = self.workers[target_app]
+                print(f"[DIRECT DISPATCHER] Routing to {worker.app_name} Direct Background Worker ({action})...")
+                return self._dispatch_with_fallback(target_app, action, cmd_clean, worker, params)
 
         return None
+
+    def _dispatch_with_fallback(self, target_app: str, action: str, cmd_clean: str, worker, params: dict) -> Tuple[bool, str]:
+        """
+        Executes headless worker and transparently applies foreground fallback if needed.
+        """
+        try:
+            from .fallback_engine import FALLBACK_ENGINE
+        except ImportError:
+            from fallback_engine import FALLBACK_ENGINE
+
+        # 1. If user explicitly demanded visual display on screen/browser upfront
+        if FALLBACK_ENGINE.is_visual_request(cmd_clean):
+            print(f"[DIRECT DISPATCHER] User explicitly requested visual display for '{target_app}'. Triggering immediate foreground fallback...")
+            ok_f, speech_f, _ = FALLBACK_ENGINE.handle_fallback(target_app, cmd_clean, auto_launch=True)
+            return ok_f, speech_f
+
+        # 2. Execute headless worker
+        ok, speech, meta = worker.execute_task(action, cmd_clean, **params)
+
+        # 3. If worker succeeded, return clean headless result
+        if ok:
+            return ok, speech
+
+        # 4. If worker failed, evaluate if transparent foreground fallback is appropriate
+        if FALLBACK_ENGINE.should_trigger_fallback(target_app, action, cmd_clean, (ok, speech, meta)):
+            print(f"[DIRECT DISPATCHER] Headless {target_app} returned unauthenticated/permission blocker. Offering foreground fallback...")
+            ok_f, speech_f, meta_f = FALLBACK_ENGINE.handle_fallback(target_app, cmd_clean, reason=speech, worker_speech=speech)
+            return ok_f, speech_f
+
+        return ok, speech
 
     def _handle_account_management(self, cmd_clean: str, low: str, target_app: Optional[str]) -> Tuple[bool, str]:
         """Handles explicit account listing and switching."""
