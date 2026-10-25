@@ -450,11 +450,14 @@ def classify_command(raw_text: str) -> IntentResult:
     ])
     if target_app == "whatsapp" or (is_msg_intent and not any(w in low for w in ["email", "emails", "mail", "gmail", "inbox"])):
         target_app = "whatsapp"
-        # Check if explicit send command first
-        is_explicit_send = any(re.search(pat, low) for pat in [
+        # Check if inquiry first (if user is asking to check, read, or know what someone said)
+        is_inquiry_start = any(re.search(rf"\b{w}\b", low) for w in ["check", "read", "what", "who", "any", "unread", "latest", "recent", "tell me"])
+
+        # Check if explicit send command
+        is_explicit_send = not is_inquiry_start and any(re.search(pat, low) for pat in [
             r"\bsend\s+(?:a\s+)?(?:message|msg|text)\b",
             r"\btext\s+[a-zA-Z0-9_+]+",
-            r"\bmessage\s+[a-zA-Z0-9_+]+",
+            r"\bmessage\s+(?!that\b|which\b|from\b|of\b|on\b|to\b)[a-zA-Z0-9_+]+",
             r"\bwrite\s+(?:a\s+)?(?:message|msg|text)\b",
             r"\btell\s+[a-zA-Z0-9_+]+\s+(?:that|to|saying)\b"
         ])
@@ -467,27 +470,31 @@ def classify_command(raw_text: str) -> IntentResult:
             )
 
         # Check if inquiry about incoming/unread messages
-        is_unread_inquiry = any(re.search(pat, low) for pat in [
+        is_unread_inquiry = is_inquiry_start or any(re.search(pat, low) for pat in [
             r"\btell\s+me\s+about\s+(?:the\s+)?messages\b",
             r"\bcheck\s+(?:my\s+)?(?:unread\s+|new\s+)?messages\b",
             r"\b(?:what|any)\s+(?:new\s+)?messages\b",
-            r"\bwhat\s+(?:did\s+)?[a-zA-Z0-9_+]+(?:\s+|\s+\w+\s+)?(?:say|said|send|sent|write|wrote|text|texted)\b",
+            r"\bwhat\s+(?:did\s+|is\s+|was\s+)?[a-zA-Z0-9_+]+(?:\s+|\s+\w+\s+)?(?:say|said|saying|send|sent|sending|write|wrote|text|texted)\b",
             r"\bread\s+(?:my\s+)?messages\b",
             r"\bunread\b",
             r"\bwho\s+(?:sent|messaged)\b",
-            r"\b(?:message|messages|chat)\s+(?:from|by)\s+[a-zA-Z0-9_+]+\b",
+            r"\b(?:message|messages|chat)\s+(?:from|by|that|which)\s+[a-zA-Z0-9_+]+\b",
             r"\b(?!send\b|write\b|text\b)[a-zA-Z0-9_+]+(?:\x27s|\x27)?\s+(?:message|messages|text|texts|chat)\b"
         ])
         if is_unread_inquiry:
-            # Extract sender if inquiry specifies a contact (e.g. 'what ismail said on whatsapp')
+            # Extract sender using comprehensive patterns
             sender = ""
-            m_from = re.search(r'\b(?:from|by)\s+([a-zA-Z0-9_+]+)', clean_text, re.IGNORECASE)
-            if m_from and m_from.group(1).lower() not in ['whatsapp', 'me', 'the', 'my', 'him', 'her', 'them']:
+            m_from = re.search(r'\b(?:from|by|of)\s+([a-zA-Z0-9_+]+)', clean_text, re.IGNORECASE)
+            if m_from and m_from.group(1).lower() not in ['whatsapp', 'me', 'the', 'my', 'him', 'her', 'them', 'that', 'which']:
                 sender = m_from.group(1).strip()
             if not sender:
-                m_said = re.search(r'\bwhat\s+(?:did\s+)?([a-zA-Z0-9_+]+)\s+(?:say|said|send|sent|write|wrote|text|texted)\b', clean_text, re.IGNORECASE)
-                if m_said and m_said.group(1).lower() not in ['whatsapp', 'he', 'she', 'they', 'you', 'i', 'we']:
+                m_said = re.search(r'\bwhat\s+(?:did\s+|is\s+|was\s+)?([a-zA-Z0-9_+]+)\s+(?:say|said|saying|is\s+saying|was\s+saying|send|sent|sending|write|wrote|writing|text|texted)\b', clean_text, re.IGNORECASE)
+                if m_said and m_said.group(1).lower() not in ['whatsapp', 'he', 'she', 'they', 'you', 'i', 'we', 'the']:
                     sender = m_said.group(1).strip()
+            if not sender:
+                m_that = re.search(r'\b(?:message|messages|msg|msgs|text|texts)\s+(?:that\s+|which\s+)?([a-zA-Z0-9_+]+)\s+(?:said|sent|wrote|texted|saying)\b', clean_text, re.IGNORECASE)
+                if m_that and m_that.group(1).lower() not in ['whatsapp', 'he', 'she', 'they', 'you', 'i', 'we', 'the']:
+                    sender = m_that.group(1).strip()
             if not sender:
                 m_msg = re.search(r'\b(?!send\b|write\b|text\b)([a-zA-Z0-9_+]+)(?:\x27s|\x27)?\s+(?:message|messages|msg|msgs|text|texts|chat)\b', clean_text, re.IGNORECASE)
                 if m_msg and m_msg.group(1).lower() not in ['what', 'any', 'new', 'unread', 'the', 'all', 'recent', 'latest', 'whatsapp', 'last', 'read', 'check', 'my']:

@@ -192,48 +192,66 @@ def parse_whatsapp_command(raw_text: str) -> Tuple[str, str]:
     return "", ""
 
 
+WA_STOP_WORDS = {
+    'whatsapp', 'me', 'the', 'my', 'him', 'her', 'them', 'he', 'she', 'they', 
+    'you', 'i', 'we', 'what', 'any', 'new', 'unread', 'all', 'recent', 'latest',
+    'last', 'read', 'check', 'message', 'messages', 'msg', 'msgs', 'chat', 'say',
+    'said', 'saying', 'send', 'sent', 'sending', 'that', 'which', 'this', 'a', 'an'
+}
+
+
 def extract_sender_from_query(raw_query: str) -> str:
     """
     Extracts contact/sender name from a WhatsApp message or notification query.
     Handles:
+      - 'check what qaseem is saying on whatsapp'
+      - 'check the latest message that qaseem said on whatsapp'
+      - 'what is qaseem saying on whatsapp'
+      - 'what did qaseem say on whatsapp'
       - 'what ismail said on whatsapp'
-      - 'what did ismail say on whatsapp'
-      - 'what did ismail send / write / text'
-      - 'what ismail sent / wrote / texted'
-      - 'ismail's message on whatsapp' / 'ismail message on whatsapp'
-      - 'messages from ismail' / 'message from ismail'
-      - 'did ismail message / send anything'
+      - 'what was ismail saying'
       - 'check message from ismail'
+      - 'the message that qaseem sent on whatsapp'
+      - 'latest message of qaseem on whatsapp'
+      - 'ismail message on whatsapp' / 'ismail\'s message on whatsapp'
+      - 'messages from ismail'
     """
     q = raw_query.strip()
 
-    # 1. 'from <name>' or 'by <name>'
-    m = re.search(r'\b(?:from|by)\s+([a-zA-Z0-9_+]+)', q, re.IGNORECASE)
+    # 1. 'from <name>' or 'by <name>' or 'of <name>'
+    m = re.search(r'\b(?:from|by|of)\s+([a-zA-Z0-9_+]+)', q, re.IGNORECASE)
     if m:
-        candidate = m.group(1).strip()
-        if candidate.lower() not in ['whatsapp', 'me', 'the', 'my', 'him', 'her', 'them']:
-            return candidate
+        c = m.group(1).strip()
+        if c.lower() not in WA_STOP_WORDS:
+            return c
 
-    # 2. 'what (did) <name> (say|said|send|sent|write|wrote|text|texted)'
-    m = re.search(r'\bwhat\s+(?:did\s+)?([a-zA-Z0-9_+]+)\s+(?:say|said|send|sent|write|wrote|text|texted)\b', q, re.IGNORECASE)
+    # 2. 'what (did|is|was) <name> (say|said|saying|send|sent|sending|write|wrote|text)'
+    m = re.search(r'\bwhat\s+(?:did\s+|is\s+|was\s+)?([a-zA-Z0-9_+]+)\s+(?:say|said|saying|is\s+saying|was\s+saying|send|sent|sending|write|wrote|writing|text|texted)\b', q, re.IGNORECASE)
     if m:
-        candidate = m.group(1).strip()
-        if candidate.lower() not in ['whatsapp', 'he', 'she', 'they', 'you', 'i', 'we']:
-            return candidate
+        c = m.group(1).strip()
+        if c.lower() not in WA_STOP_WORDS:
+            return c
 
-    # 3. 'did <name> (say|send|message|text|write)'
+    # 3. 'message (that|which)? <name> (said|sent|wrote|texted|saying)'
+    m = re.search(r'\b(?:message|messages|msg|msgs|text|texts)\s+(?:that\s+|which\s+)?([a-zA-Z0-9_+]+)\s+(?:said|sent|wrote|texted|saying)\b', q, re.IGNORECASE)
+    if m:
+        c = m.group(1).strip()
+        if c.lower() not in WA_STOP_WORDS:
+            return c
+
+    # 4. 'did <name> (say|send|message|text|write)'
     m = re.search(r'\bdid\s+([a-zA-Z0-9_+]+)\s+(?:say|said|send|sent|message|text|write)\b', q, re.IGNORECASE)
     if m:
-        candidate = m.group(1).strip()
-        if candidate.lower() not in ['whatsapp', 'you', 'he', 'she', 'they']:
-            return candidate
+        c = m.group(1).strip()
+        if c.lower() not in WA_STOP_WORDS:
+            return c
 
-    # 4. '<name>('s)? (message|text|chat)'
+    # 5. '<name>('s)? (message|text|chat)'
     m = re.search(r'\b([a-zA-Z0-9_+]+)(?:\x27s|\x27)?\s+(?:message|messages|msg|msgs|text|texts|chat)\b', q, re.IGNORECASE)
     if m:
-        candidate = m.group(1).strip()
-        if candidate.lower() not in ['what', 'any', 'new', 'unread', 'the', 'all', 'recent', 'latest', 'whatsapp', 'last', 'read', 'check', 'my']:
-            return candidate
+        c = m.group(1).strip()
+        if c.lower() not in WA_STOP_WORDS:
+            return c
 
     return ""
 
@@ -481,6 +499,12 @@ class WhatsAppDirectWorker(BaseDirectWorker):
                             sender = "WhatsApp"
                             body = texts[0].strip()
                         else:
+                            continue
+
+                        # Filter out system unread count notifications from contacts messages
+                        if sender.lower() in ["whatsapp", "whatsapp desktop"]:
+                            continue
+                        if re.search(r'^\d+\s+new\s+messages?', body, re.IGNORECASE):
                             continue
 
                         # Dedup consecutive duplicate notifications
