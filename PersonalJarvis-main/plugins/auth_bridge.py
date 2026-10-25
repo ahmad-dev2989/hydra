@@ -18,7 +18,7 @@ from .vault_manager import VAULT_MGR, VAULT_DIR
 
 try:
     from PyQt6.QtCore import QUrl, pyqtSignal, QObject, Qt, QTimer
-    from PyQt6.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QLabel
+    from PyQt6.QtWidgets import QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel
     from PyQt6.QtWebEngineWidgets import QWebEngineView
     from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 except ImportError:
@@ -34,29 +34,68 @@ class GoogleAuthWindow(QMainWindow):
     No developer console, no client secrets.
     """
 
-    def __init__(self, on_success_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None):
+    def __init__(self, on_success_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None, target_app: str = "google"):
         super().__init__()
         self.on_success = on_success_callback
+        self.target_app = target_app
         self.account_captured = False
         self.typed_email = ""
 
-        self.setWindowTitle("HYDRA — Sign in with Google")
-        self.resize(560, 720)
-        self.setMinimumSize(480, 600)
+        self.setWindowTitle("Sign in – Google Accounts")
+        self.resize(520, 680)
+        self.setMinimumSize(460, 580)
 
-        # Apply clean dark-themed container styling
-        self.setStyleSheet("background-color: #0b0f19; color: #f3f4f6;")
+        # Clean matte dark background matching Google dark theme
+        self.setStyleSheet("QMainWindow { background-color: #202124; }")
 
         central = QWidget()
+        central.setStyleSheet("background-color: #202124;")
         layout = QVBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Header Notice
-        header = QLabel("  HYDRA SECURE NEURAL LINK • Sign in to your Google Account")
-        header.setFixedHeight(38)
-        header.setStyleSheet("background: #0f172a; color: #38bdf8; font-family: 'Segoe UI', sans-serif; font-size: 12px; font-weight: bold; border-bottom: 1px solid #1e293b; padding-left: 10px;")
-        layout.addWidget(header)
+        # Minimalist Navigation / Security Header
+        header_widget = QWidget()
+        header_widget.setFixedHeight(44)
+        header_widget.setStyleSheet("""
+            QWidget {
+                background-color: #1e1f23;
+                border-bottom: 1px solid #2d2e34;
+            }
+        """)
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(14, 0, 14, 0)
+        header_layout.setSpacing(10)
+
+        # Security Address Chip (Clean, understated, zero glow)
+        chip = QLabel("🔒  accounts.google.com")
+        chip.setStyleSheet("""
+            QLabel {
+                background-color: #28292e;
+                color: #e3e3e3;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 12px;
+                font-weight: 500;
+                padding: 4px 12px;
+                border-radius: 12px;
+                border: 1px solid #36373e;
+            }
+        """)
+        header_layout.addWidget(chip)
+        header_layout.addStretch()
+
+        sec_label = QLabel("Encrypted Session")
+        sec_label.setStyleSheet("""
+            QLabel {
+                color: #9aa0a6;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 11px;
+                font-weight: 400;
+            }
+        """)
+        header_layout.addWidget(sec_label)
+
+        layout.addWidget(header_widget)
 
         # Isolated WebEngine Profile (retains cookies for zero-retry sessions)
         self.profile = QWebEngineProfile("HydraGoogleAuthProfile", self)
@@ -76,13 +115,34 @@ class GoogleAuthWindow(QMainWindow):
         self.web = QWebEngineView()
         self.page = QWebEnginePage(self.profile, self.web)
         self.web.setPage(self.page)
+        self.web.setStyleSheet("background-color: #202124;")
         layout.addWidget(self.web, 1)
 
-        # Status / Footer Bar
-        self.footer = QLabel("  Status: Please sign in with your Google account...")
-        self.footer.setFixedHeight(30)
-        self.footer.setStyleSheet("background: #0f172a; color: #94a3b8; font-family: 'Segoe UI', monospace; font-size: 11px; border-top: 1px solid #1e293b; padding-left: 10px;")
-        layout.addWidget(self.footer)
+        # Status / Footer Bar (Minimal, professional, understated)
+        footer_widget = QWidget()
+        footer_widget.setFixedHeight(34)
+        footer_widget.setStyleSheet("""
+            QWidget {
+                background-color: #1a1b1e;
+                border-top: 1px solid #2d2e34;
+            }
+        """)
+        footer_layout = QHBoxLayout(footer_widget)
+        footer_layout.setContentsMargins(14, 0, 14, 0)
+        footer_layout.setSpacing(8)
+
+        self.footer = QLabel("Sign in with your Google Account to connect services")
+        self.footer.setStyleSheet("""
+            QLabel {
+                color: #9aa0a6;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 11.5px;
+            }
+        """)
+        footer_layout.addWidget(self.footer)
+        footer_layout.addStretch()
+
+        layout.addWidget(footer_widget)
 
         self.setCentralWidget(central)
 
@@ -99,18 +159,16 @@ class GoogleAuthWindow(QMainWindow):
             return
 
         host = url.host().lower()
-        # If user is on accounts.google.com, they are actively signing in (entering email, password, 2FA)
         if host == "accounts.google.com":
-            self.footer.setText("  Status: Signing in with Google...")
+            self.footer.setText("Signing in to Google...")
             self._sniff_input_email()
             return
 
-        # Arrival at mail.google.com, myaccount.google.com, or classroom.google.com indicates successful sign-in
         if host in ["mail.google.com", "myaccount.google.com", "classroom.google.com"]:
-            self.footer.setText("  Status: Sign-in detected! Verifying account...")
+            self.footer.setText("Sign-in detected. Verifying credentials...")
             self._attempt_session_extraction()
         elif host.endswith(".google.com") and not host.startswith("accounts."):
-            self.footer.setText("  Status: Google authenticated! Finalizing...")
+            self.footer.setText("Google authenticated. Finalizing session...")
             self._attempt_session_extraction()
 
     def _on_page_loaded(self, ok: bool):
@@ -185,12 +243,13 @@ class GoogleAuthWindow(QMainWindow):
                 if self.typed_email and "@" in self.typed_email:
                     account_ident = self.typed_email
                 else:
-                    self.footer.setText("  Status: Establishing session credentials...")
+                    self.footer.setText("Establishing session credentials...")
                     QTimer.singleShot(1500, self._retry_extraction)
                     return
 
             self.account_captured = True
-            self.footer.setText(f"  ✓ Connected: {account_ident}!")
+            self.footer.setText(f"✓ Connected: {account_ident}")
+            self.footer.setStyleSheet("color: #81c995; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11.5px; font-weight: 500;")
 
             session_data = {
                 "account": account_ident,
@@ -203,7 +262,7 @@ class GoogleAuthWindow(QMainWindow):
             print(f"[HYDRA 1-CLICK AUTH] Google authentication verified for: {account_ident}")
 
             if self.on_success:
-                self.on_success("google", account_ident)
+                self.on_success(self.target_app, account_ident)
 
             # Close auth window smoothly after user sees connection confirmation
             QTimer.singleShot(1200, self.close)
@@ -245,21 +304,58 @@ class SpotifyAuthWindow(QMainWindow):
         self.account_captured = False
         self.typed_ident = ""
 
-        self.setWindowTitle("HYDRA — Sign in to Spotify (Google / Email)")
-        self.resize(580, 760)
-        self.setMinimumSize(480, 600)
-        self.setStyleSheet("background-color: #0b0f19; color: #f3f4f6;")
+        self.setWindowTitle("Sign in – Spotify")
+        self.resize(520, 700)
+        self.setMinimumSize(460, 580)
+        self.setStyleSheet("QMainWindow { background-color: #121212; }")
 
         central = QWidget()
+        central.setStyleSheet("background-color: #121212;")
         layout = QVBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Header with Spotify Green accent
-        header = QLabel("  HYDRA SECURE NEURAL LINK • Sign in to Spotify (Google / Email)")
-        header.setFixedHeight(38)
-        header.setStyleSheet("background: #0f172a; color: #10b981; font-family: 'Segoe UI', sans-serif; font-size: 12px; font-weight: bold; border-bottom: 1px solid #1e293b; padding-left: 10px;")
-        layout.addWidget(header)
+        # Minimalist Navigation Header
+        header_widget = QWidget()
+        header_widget.setFixedHeight(44)
+        header_widget.setStyleSheet("""
+            QWidget {
+                background-color: #181818;
+                border-bottom: 1px solid #282828;
+            }
+        """)
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(14, 0, 14, 0)
+        header_layout.setSpacing(10)
+
+        chip = QLabel("🔒  accounts.spotify.com")
+        chip.setStyleSheet("""
+            QLabel {
+                background-color: #242424;
+                color: #e3e3e3;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 12px;
+                font-weight: 500;
+                padding: 4px 12px;
+                border-radius: 12px;
+                border: 1px solid #333333;
+            }
+        """)
+        header_layout.addWidget(chip)
+        header_layout.addStretch()
+
+        sec_label = QLabel("Encrypted Session")
+        sec_label.setStyleSheet("""
+            QLabel {
+                color: #a7a7a7;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 11px;
+                font-weight: 400;
+            }
+        """)
+        header_layout.addWidget(sec_label)
+
+        layout.addWidget(header_widget)
 
         # Isolated WebEngine Profile
         self.profile = QWebEngineProfile("HydraSpotifyProfile", self)
@@ -278,13 +374,34 @@ class SpotifyAuthWindow(QMainWindow):
         self.web = QWebEngineView()
         self.page = SpotifyAuthPage(self.profile, self.web)
         self.web.setPage(self.page)
+        self.web.setStyleSheet("background-color: #121212;")
         layout.addWidget(self.web, 1)
 
-        # Footer Status
-        self.footer = QLabel("  Status: Please sign in with Google or Spotify credentials...")
-        self.footer.setFixedHeight(30)
-        self.footer.setStyleSheet("background: #0f172a; color: #94a3b8; font-family: 'Segoe UI', monospace; font-size: 11px; border-top: 1px solid #1e293b; padding-left: 10px;")
-        layout.addWidget(self.footer)
+        # Minimal Status Footer
+        footer_widget = QWidget()
+        footer_widget.setFixedHeight(34)
+        footer_widget.setStyleSheet("""
+            QWidget {
+                background-color: #181818;
+                border-top: 1px solid #282828;
+            }
+        """)
+        footer_layout = QHBoxLayout(footer_widget)
+        footer_layout.setContentsMargins(14, 0, 14, 0)
+        footer_layout.setSpacing(8)
+
+        self.footer = QLabel("Sign in with Google or Spotify credentials to connect")
+        self.footer.setStyleSheet("""
+            QLabel {
+                color: #a7a7a7;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 11.5px;
+            }
+        """)
+        footer_layout.addWidget(self.footer)
+        footer_layout.addStretch()
+
+        layout.addWidget(footer_widget)
 
         self.setCentralWidget(central)
 
@@ -442,7 +559,7 @@ class SpotifyAuthWindow(QMainWindow):
             return
 
         if "open.spotify.com" in host or ("spotify.com" in host and "login" not in path):
-            self.footer.setText("  Status: Login verified! Establishing neural link...")
+            self.footer.setText("Login verified. Connecting account...")
             self._attempt_session_extraction()
 
     def _on_page_loaded(self, ok: bool):
@@ -551,26 +668,72 @@ class WhatsAppAuthWindow(QMainWindow):
         self.on_success = on_success_callback
         self.account_captured = False
 
-        self.setWindowTitle("HYDRA — Connect WhatsApp (Dynamic QR Pairing)")
-        self.resize(640, 840)
-        self.setMinimumSize(500, 640)
-        self.setStyleSheet("background-color: #0b0f19; color: #f3f4f6;")
+        self.setWindowTitle("Link Device – WhatsApp")
+        self.resize(560, 760)
+        self.setMinimumSize(480, 600)
+        self.setStyleSheet("QMainWindow { background-color: #111b21; }")
 
         central = QWidget()
+        central.setStyleSheet("background-color: #111b21;")
         layout = QVBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Header with WhatsApp Green accent (#25D366)
-        header = QLabel("  HYDRA SECURE NEURAL LINK • WhatsApp Dynamic QR Pairing")
-        header.setFixedHeight(38)
-        header.setStyleSheet("background: #0f172a; color: #25D366; font-family: 'Segoe UI', sans-serif; font-size: 12px; font-weight: bold; border-bottom: 1px solid #1e293b; padding-left: 10px;")
-        layout.addWidget(header)
+        # Minimalist Navigation Header
+        header_widget = QWidget()
+        header_widget.setFixedHeight(44)
+        header_widget.setStyleSheet("""
+            QWidget {
+                background-color: #202c33;
+                border-bottom: 1px solid #2a3942;
+            }
+        """)
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(14, 0, 14, 0)
+        header_layout.setSpacing(10)
 
-        # Instructions banner
-        instructions = QLabel("  📱 1. Open WhatsApp on phone  •  2. Linked Devices -> Link a Device  •  3. Scan the QR code below")
-        instructions.setFixedHeight(30)
-        instructions.setStyleSheet("background: #111827; color: #38bdf8; font-family: 'Segoe UI', sans-serif; font-size: 11px; border-bottom: 1px solid #1e293b; padding-left: 10px;")
+        chip = QLabel("🔒  web.whatsapp.com")
+        chip.setStyleSheet("""
+            QLabel {
+                background-color: #111b21;
+                color: #e9edef;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 12px;
+                font-weight: 500;
+                padding: 4px 12px;
+                border-radius: 12px;
+                border: 1px solid #2a3942;
+            }
+        """)
+        header_layout.addWidget(chip)
+        header_layout.addStretch()
+
+        sec_label = QLabel("End-to-End Encrypted")
+        sec_label.setStyleSheet("""
+            QLabel {
+                color: #8696a0;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 11px;
+                font-weight: 400;
+            }
+        """)
+        header_layout.addWidget(sec_label)
+
+        layout.addWidget(header_widget)
+
+        # Instructions banner (clean, minimal)
+        instructions = QLabel("Scan this QR code with WhatsApp on your phone (Linked Devices)")
+        instructions.setFixedHeight(32)
+        instructions.setStyleSheet("""
+            QLabel {
+                background-color: #182229;
+                color: #8696a0;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 11.5px;
+                border-bottom: 1px solid #222e35;
+                padding-left: 14px;
+            }
+        """)
         layout.addWidget(instructions)
 
         # Isolated WebEngine Profile (retains session so user remains linked permanently)
@@ -589,13 +752,34 @@ class WhatsAppAuthWindow(QMainWindow):
         self.web = QWebEngineView()
         self.page = QWebEnginePage(self.profile, self.web)
         self.web.setPage(self.page)
+        self.web.setStyleSheet("background-color: #111b21;")
         layout.addWidget(self.web, 1)
 
         # Footer Status Bar
-        self.footer = QLabel("  Status: Initializing WhatsApp Web dynamic QR pairing session...")
-        self.footer.setFixedHeight(30)
-        self.footer.setStyleSheet("background: #0f172a; color: #94a3b8; font-family: 'Segoe UI', monospace; font-size: 11px; border-top: 1px solid #1e293b; padding-left: 10px;")
-        layout.addWidget(self.footer)
+        footer_widget = QWidget()
+        footer_widget.setFixedHeight(34)
+        footer_widget.setStyleSheet("""
+            QWidget {
+                background-color: #202c33;
+                border-top: 1px solid #2a3942;
+            }
+        """)
+        footer_layout = QHBoxLayout(footer_widget)
+        footer_layout.setContentsMargins(14, 0, 14, 0)
+        footer_layout.setSpacing(8)
+
+        self.footer = QLabel("Waiting for device pairing...")
+        self.footer.setStyleSheet("""
+            QLabel {
+                color: #8696a0;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 11.5px;
+            }
+        """)
+        footer_layout.addWidget(self.footer)
+        footer_layout.addStretch()
+
+        layout.addWidget(footer_widget)
 
         self.setCentralWidget(central)
 
@@ -643,7 +827,7 @@ class WhatsAppAuthWindow(QMainWindow):
                 ident = raw_name or "WhatsApp Linked Device"
                 self._finalize_connection(ident)
             elif res.get("hasCanvas"):
-                self.footer.setText("  Status: Dynamic QR code ready. Scan with WhatsApp on your phone...")
+                self.footer.setText("Dynamic QR code ready. Scan with WhatsApp on your phone...")
 
         self.page.runJavaScript(js, on_js_result)
 
@@ -652,7 +836,8 @@ class WhatsAppAuthWindow(QMainWindow):
             return
         self.account_captured = True
         display_name = account_ident or "WhatsApp Linked Device"
-        self.footer.setText(f"  ✓ Connected: {display_name} Active!")
+        self.footer.setText(f"✓ Connected: {display_name}")
+        self.footer.setStyleSheet("color: #25d366; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11.5px; font-weight: 500;")
 
         session_data = {
             "account": display_name,
@@ -696,19 +881,20 @@ class AuthBridge:
         cb = on_success or self.ui_callback
 
         if clean_id in ["google", "gmail", "google_classroom", "youtube"]:
-            self.start_google_login(cb)
+            self.start_google_login(cb, target_app=clean_id)
         elif clean_id == "spotify":
             self.start_spotify_login(cb)
         elif clean_id == "whatsapp":
             self.start_whatsapp_qr(cb)
         else:
-            print(f"[AUTH BRIDGE] Generic app '{clean_id}' uses direct credential vault entry.")
+            # Also allow Google login for any application
+            self.start_google_login(cb, target_app=clean_id)
 
-    def start_google_login(self, callback: Optional[Callable[[str, str], None]] = None):
+    def start_google_login(self, callback: Optional[Callable[[str, str], None]] = None, target_app: str = "google"):
         """Launches isolated Google login window."""
-        print("[AUTH BRIDGE] Initiating 1-Click Google Sign-In Window...")
+        print(f"[AUTH BRIDGE] Initiating Google Sign-In Window for {target_app}...")
         try:
-            self.active_auth_window = GoogleAuthWindow(on_success_callback=callback)
+            self.active_auth_window = GoogleAuthWindow(on_success_callback=callback, target_app=target_app)
             self.active_auth_window.show()
         except Exception as e:
             print(f"[AUTH BRIDGE ERROR] Could not open Google auth window: {e}")

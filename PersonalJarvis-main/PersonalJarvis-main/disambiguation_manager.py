@@ -105,21 +105,23 @@ class DisambiguationManager:
         and waits synchronously for user response via voice or HUD text input.
         Returns: (success: bool, user_response: str)
         """
-        # 1. Check if preference already exists for this barrier
-        b_key = barrier_type.lower().strip() if barrier_type else self._infer_barrier_key(question)
+        # 1. Check if preference already exists for this barrier (only for persistent barriers like browser_profile)
+        is_dynamic = (barrier_type in ["dynamic", "no_cache", "param", "content"]) or any(w in question.lower() for w in ["message", "body", "name", "subject", "recipient", "public or private"])
+        b_key = barrier_type.lower().strip() if (barrier_type and not is_dynamic) else ("" if is_dynamic else self._infer_barrier_key(question))
         candidate_keys = [b_key] if b_key else []
-        if b_key and "profile" in b_key and "browser_profile" not in candidate_keys:
-            candidate_keys.append("browser_profile")
-        elif not b_key and "profile" in question.lower():
-            candidate_keys.append("browser_profile")
+        if not is_dynamic:
+            if b_key and "profile" in b_key and "browser_profile" not in candidate_keys:
+                candidate_keys.append("browser_profile")
+            elif not b_key and "profile" in question.lower():
+                candidate_keys.append("browser_profile")
 
-        for k in candidate_keys:
-            if k and k in self._preferences:
-                cached_val = self._preferences[k]
-                # If options given, verify cached value is present
-                if not options or any(cached_val.lower() in opt.lower() for opt in options):
-                    print(f"\n[DISAMBIGUATION] Auto-resolved via cached preference '{k}': '{cached_val}'")
-                    return True, cached_val
+            for k in candidate_keys:
+                if k and k in self._preferences:
+                    cached_val = self._preferences[k]
+                    # If options given, verify cached value is present
+                    if not options or any(cached_val.lower() in opt.lower() for opt in options):
+                        print(f"\n[DISAMBIGUATION] Auto-resolved via cached preference '{k}': '{cached_val}'")
+                        return True, cached_val
 
         # 2. Setup disambiguation state
         with self._lock:
@@ -137,21 +139,36 @@ class DisambiguationManager:
             print(f"  Options : {', '.join(self._current_options)}", flush=True)
         print("=" * 65 + "\n", flush=True)
 
-        # 3. Notify UI HUD
+        # 3. Resolve callbacks if not provided
+        if hud_callback is None:
+            try:
+                from main import safe_emit_js
+                hud_callback = lambda q, opts: safe_emit_js(f"showDisambiguationPrompt({json.dumps(q)}, {json.dumps(opts)});")
+            except Exception:
+                pass
+
+        if voice_callback is None:
+            try:
+                from main import speak_voice
+                voice_callback = speak_voice
+            except Exception:
+                pass
+
+        # 4. Notify UI HUD
         if hud_callback:
             try:
                 hud_callback(self._current_question, self._current_options)
             except Exception as e:
                 print(f"[HUD ERROR] {e}")
 
-        # 4. Speak Voice Prompt
+        # 5. Speak Voice Prompt
         if voice_callback:
             try:
                 voice_callback(self._current_question)
             except Exception as e:
                 print(f"[VOICE ERROR] {e}")
 
-        # 5. Wait for user input (event signaled by provide_answer)
+        # 6. Wait for user input (event signaled by provide_answer)
         signaled = self._event.wait(timeout=timeout)
 
         with self._lock:

@@ -115,9 +115,14 @@ class VaultManager:
                 vault = self._load_raw_vault()
                 updated = False
                 for k, v in pdata.items():
-                    if k not in vault and isinstance(v, dict) and v.get("connected"):
-                        vault[k] = v
-                        updated = True
+                    if isinstance(v, dict) and v.get("connected"):
+                        if k not in vault:
+                            vault[k] = v
+                            updated = True
+                        elif "accounts" in v and v.get("accounts") != vault[k].get("accounts"):
+                            vault[k]["accounts"] = v["accounts"]
+                            vault[k]["account"] = v.get("account", vault[k].get("account"))
+                            updated = True
                 if updated:
                     self._save_raw_vault(vault)
             except Exception:
@@ -314,21 +319,211 @@ class VaultManager:
             return data.get("account")
         return None
 
+    def get_token(self, app_id: str) -> Optional[str]:
+        """Retrieves access token or API key for connected app if present."""
+        data = self.get_plugin_data(app_id) or {}
+        return (
+            data.get("token")
+            or data.get("access_token")
+            or data.get("data", {}).get("token")
+            or data.get("data", {}).get("access_token")
+            or data.get("extra_data", {}).get("token")
+            or data.get("extra_data", {}).get("access_token")
+        )
+
     def is_connected(self, app_id: str) -> bool:
         data = self.get_plugin_data(app_id)
         return bool(data and data.get("connected") and data.get("account"))
 
-    def set_plugin_credential(self, app_id: str, account: str, auth_type: str = "account", extra_data: Optional[Dict[str, Any]] = None):
-        """Stores or updates credentials for an app."""
+    def get_all_accounts(self, app_id: str) -> List[Dict[str, Any]]:
+        """Returns all configured accounts for an application (Problem 4)."""
         app_key = app_id.lower().replace(" ", "_")
         vault = self._load_raw_vault()
+        entry = vault.get(app_key)
+        if not entry and CONNECTED_PLUGINS_FILE.exists():
+            try:
+                with open(CONNECTED_PLUGINS_FILE, "r", encoding="utf-8") as f:
+                    pdata = json.load(f)
+                entry = pdata.get(app_key)
+            except Exception:
+                pass
+
+        if not entry or not isinstance(entry, dict):
+            return []
+
+        accounts = entry.get("accounts", [])
+        if not accounts and entry.get("account"):
+            # Synthesize accounts array from legacy single account
+            accounts = [{
+                "account": entry.get("account"),
+                "active": True,
+                "label": "Primary",
+                "authType": entry.get("authType", "account"),
+                "data": entry.get("data", {})
+            }]
+        return accounts
+
+    def set_plugin_credential(self, app_id: str, account: str, auth_type: str = "account", label: str = "", extra_data: Optional[Dict[str, Any]] = None, make_active: bool = True):
+        """Stores or updates credentials for an app, preserving multiple accounts (Problem 4)."""
+        app_key = app_id.lower().replace(" ", "_")
+        vault = self._load_raw_vault()
+        entry = vault.get(app_key, {})
+        accounts = list(entry.get("accounts", []))
+
+        clean_acc = account.strip()
+        if not clean_acc:
+            return
+
+        # Check if legacy single account needs to be converted into accounts array
+        if not accounts and entry.get("account"):
+            old_acc = entry.get("account")
+            if old_acc.lower() != clean_acc.lower():
+                accounts.append({
+                    "account": old_acc,
+                    "label": entry.get("label", "Primary"),
+                    "authType": entry.get("authType", "account"),
+                    "data": entry.get("data", {}),
+                    "active": False
+                })
+
+        # Check if this account already exists in accounts list
+        existing_idx = -1
+        for i, a in enumerate(accounts):
+            if a.get("account", "").lower() == clean_acc.lower():
+                existing_idx = i
+                break
+
+        acc_obj = {
+            "account": clean_acc,
+            "label": label or (accounts[existing_idx].get("label") if existing_idx >= 0 else ("Primary" if not accounts else f"Account {len(accounts)+1}")),
+            "authType": auth_type,
+            "data": extra_data or (accounts[existing_idx].get("data") if existing_idx >= 0 else {}),
+            "active": make_active
+        }
+
+        if existing_idx >= 0:
+            accounts[existing_idx] = acc_obj
+        else:
+            accounts.append(acc_obj)
+
+        if make_active:
+            for a in accounts:
+                a["active"] = (a.get("account", "").lower() == clean_acc.lower())
+            active_account = clean_acc
+            active_auth = auth_type
+            active_data = extra_data or {}
+        else:
+            active_account = entry.get("account", clean_acc)
+            active_auth = entry.get("authType", auth_type)
+            active_data = entry.get("data", extra_data or {})
+
         vault[app_key] = {
             "connected": True,
-            "account": account,
-            "authType": auth_type,
-            "data": extra_data or {}
+            "account": active_account,
+            "accounts": accounts,
+            "authType": active_auth,
+            "data": active_data
         }
         self._save_raw_vault(vault)
+        print(f"[VAULT] App '{app_key}' now has {len(accounts)} registered account(s). Active: '{active_account}'")
+
+    def switch_active_account(self, app_id: str, target_account: str) -> bool:
+        """Switches the active account for an app (Problem 4)."""
+        app_key = app_id.lower().replace(" ", "_")
+        if app_key == "google":
+            res = True
+            for g_app in ["gmail", "google_classroom", "youtube"]:
+                res = self.switch_active_account(g_app, target_account) and res
+            return res
+
+        vault = self._load_raw_vault()
+        entry = vault.get(app_key)
+        if not entry and CONNECTED_PLUGINS_FILE.exists():
+            try:
+                with open(CONNECTED_PLUGINS_FILE, "r", encoding="utf-8") as f:
+                    pdata = json.load(f)
+                entry = pdata.get(app_key)
+            except Exception:
+                pass
+
+        if not entry or not isinstance(entry, dict):
+            return False
+
+        accounts = entry.get("accounts", [])
+        if not accounts and entry.get("account"):
+            accounts = [{
+                "account": entry.get("account"),
+                "active": True,
+                "label": "Primary",
+                "authType": entry.get("authType", "account"),
+                "data": entry.get("data", {})
+            }]
+
+        clean_target = target_account.strip().lower()
+
+        found = False
+        target_obj = None
+        for a in accounts:
+            if a.get("account", "").lower() == clean_target or clean_target in a.get("label", "").lower():
+                a["active"] = True
+                target_obj = a
+                found = True
+            else:
+                a["active"] = False
+
+        if not found:
+            print(f"[VAULT] Account '{target_account}' not found under '{app_key}'.")
+            return False
+
+        entry["account"] = target_obj["account"]
+        entry["authType"] = target_obj.get("authType", entry.get("authType"))
+        if target_obj.get("data"):
+            entry["data"] = target_obj["data"]
+        entry["accounts"] = accounts
+        vault[app_key] = entry
+        self._save_raw_vault(vault)
+        print(f"[VAULT] Switched '{app_key}' active account -> '{target_obj['account']}'")
+        return True
+
+    def remove_plugin_account(self, app_id: str, target_account: str) -> bool:
+        """Removes a specific account from an app without deleting the entire plugin (Problem 4)."""
+        app_key = app_id.lower().replace(" ", "_")
+        if app_key == "google":
+            res = True
+            for g_app in ["gmail", "google_classroom", "youtube"]:
+                res = self.remove_plugin_account(g_app, target_account) and res
+            return res
+
+        vault = self._load_raw_vault()
+        entry = vault.get(app_key)
+        if not entry or not isinstance(entry, dict):
+            return False
+
+        accounts = entry.get("accounts", [])
+        clean_target = target_account.strip().lower()
+        new_accounts = [a for a in accounts if a.get("account", "").lower() != clean_target]
+
+        if len(new_accounts) == len(accounts):
+            return False
+
+        if not new_accounts:
+            # No accounts remain, disconnect the app
+            self.disconnect_app(app_id)
+            return True
+
+        # If the removed account was active, make the first remaining account active
+        has_active = any(a.get("active") for a in new_accounts)
+        if not has_active:
+            new_accounts[0]["active"] = True
+
+        active_acc = next(a for a in new_accounts if a.get("active"))
+        entry["account"] = active_acc["account"]
+        entry["authType"] = active_acc.get("authType", entry.get("authType"))
+        entry["accounts"] = new_accounts
+        vault[app_key] = entry
+        self._save_raw_vault(vault)
+        print(f"[VAULT] Removed '{clean_target}' from '{app_key}'. Remaining: {len(new_accounts)} account(s).")
+        return True
 
     def disconnect_app(self, app_id: str):
         """Disconnects an app and deletes its encrypted session files."""

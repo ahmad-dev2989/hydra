@@ -55,63 +55,109 @@ def _resolve_contact(name_or_number: str) -> Tuple[str, str]:
                 with open(cp, "r", encoding="utf-8") as f:
                     cdata = json.load(f)
                 for k, v in cdata.items():
-                    if k.lower() == low_name:
-                        phone = str(v).strip() if v else ""
-                        return k.title(), phone
+                    if k.lower() == low_name and v:
+                        if isinstance(v, dict):
+                            phone = str(v.get("phone", "")).strip()
+                        else:
+                            phone = str(v).strip()
+                        if phone:
+                            return k.title(), phone
             except Exception:
                 pass
 
     return clean.title(), ""
 
 
+def _save_contact_phone(name: str, phone: str):
+    """Saves or updates contact phone number across candidate contacts files."""
+    clean_n = name.strip().lower()
+    clean_p = phone.strip()
+    if not clean_n or not clean_p:
+        return
+    for cp in CONTACTS_CANDIDATES:
+        try:
+            cdata = {}
+            if cp.exists():
+                try:
+                    with open(cp, "r", encoding="utf-8") as f:
+                        cdata = json.load(f)
+                except Exception:
+                    cdata = {}
+            if isinstance(cdata.get(clean_n), dict):
+                cdata[clean_n]["phone"] = clean_p
+            else:
+                cdata[clean_n] = clean_p
+            cp.parent.mkdir(parents=True, exist_ok=True)
+            with open(cp, "w", encoding="utf-8") as f:
+                json.dump(cdata, f, indent=2)
+        except Exception:
+            pass
+
+
 def parse_whatsapp_command(raw_text: str) -> Tuple[str, str]:
     """
     Extracts recipient contact name and message body from natural language queries.
     Examples:
+        - 'send whatsapp message to tanzeel' -> ('tanzeel', '')
         - 'send whatsapp message to tanzeel saying hello' -> ('tanzeel', 'hello')
-        - 'send message to tanzeel that all tasks are done' -> ('tanzeel', 'all tasks are done')
-        - 'text tanzeel on whatsapp let us meet at 4' -> ('tanzeel', 'let us meet at 4')
-        - 'whatsapp tanzeel progress report submitted' -> ('tanzeel', 'progress report submitted')
+        - 'text ali on whatsapp let us meet' -> ('ali', 'let us meet')
+        - 'message john' -> ('john', '')
     """
     text = raw_text.strip()
-    # Strip prepositional app mentions like "on whatsapp", "via whatsapp" cleanly
     cleaned = re.sub(r'\s+(?:on|via|through|using)\s+whatsapp\b', '', text, flags=re.IGNORECASE).strip()
+    cleaned = re.sub(r'\bwhatsapp\b', '', cleaned, flags=re.IGNORECASE).strip()
+    cleaned = re.sub(r'\s+', ' ', cleaned)
 
-    # Pattern 1: send (a)? (whatsapp)? message to <contact> (saying|that|with|:|,)? <message>
+    # 1. 'send (a)? (message)? to <contact>' (strictly without body)
+    m_to_only = re.search(
+        r'(?:send\s+)?(?:a\s+)?(?:message|msg|text)?\s*(?:to\s+)([a-zA-Z0-9_+]+)$',
+        cleaned,
+        re.IGNORECASE
+    )
+    if m_to_only:
+        contact_cand = m_to_only.group(1).strip()
+        if contact_cand.lower() not in ['message', 'text', 'someone', 'contact']:
+            return contact_cand, ''
+
+    # 2. 'send message to <contact> saying <message>'
     m1 = re.search(
-        r'(?:send\s+)?(?:a\s+)?(?:whatsapp\s+)?(?:message|msg|text)\s+to\s+([a-zA-Z0-9_+]+)(?:\s+(?:saying|that|with|:|,)\s+|\s+)(.+)',
+        r'(?:send\s+)?(?:a\s+)?(?:message|msg|text)\s+to\s+([a-zA-Z0-9_+]+)\s+(?:saying|that|with|:|,)\s*(.+)',
         cleaned,
         re.IGNORECASE
     )
     if m1:
-        contact = m1.group(1).strip()
-        body = m1.group(2).strip()
-        body = re.sub(r'^(?:saying|that|with|:|,)\s*', '', body, flags=re.IGNORECASE)
-        return contact, body
+        return m1.group(1).strip(), m1.group(2).strip()
 
-    # Pattern 2: (whatsapp|text|msg|tell) <contact> (saying|that|:|,)? <message>
     m2 = re.search(
-        r'\b(?:whatsapp|text|msg|tell)\s+([a-zA-Z0-9_+]+)(?:\s+(?:saying|that|:|,)\s+|\s+)(.+)',
+        r'\b(?:tell|message|msg|text)\s+(?:to\s+)?([a-zA-Z0-9_+]+)\s+(?:saying|that|with|:|,)\s*(.+)',
         cleaned,
         re.IGNORECASE
     )
     if m2:
-        contact = m2.group(1).strip()
-        body = m2.group(2).strip()
-        body = re.sub(r'^(?:saying|that|:|,)\s*', '', body, flags=re.IGNORECASE)
-        return contact, body
+        return m2.group(1).strip(), m2.group(2).strip()
 
-    # Pattern 3: send <contact> a message (saying)? <message>
+    # 3. 'tell/text/message <contact>' (strictly without body)
+    m_verb_to = re.search(
+        r'\b(?:tell|message|msg|text)\s+([a-zA-Z0-9_+]+)$',
+        cleaned,
+        re.IGNORECASE
+    )
+    if m_verb_to:
+        contact_cand = m_verb_to.group(1).strip()
+        if contact_cand.lower() not in ['message', 'text', 'someone']:
+            return contact_cand, ''
+
+    # 4. 'text <contact> <message>'
     m3 = re.search(
-        r'send\s+([a-zA-Z0-9_+]+)\s+(?:a\s+)?(?:whatsapp\s+)?(?:message|msg|text)\s+(?:saying|that|:)?\s*(.+)',
+        r'\b(?:tell|message|msg|text)\s+(?:to\s+)?([a-zA-Z0-9_+]+)\s+(.+)',
         cleaned,
         re.IGNORECASE
     )
     if m3:
-        contact = m3.group(1).strip()
-        body = m3.group(2).strip()
-        body = re.sub(r'^(?:saying|that|with|:|,)\s*', '', body, flags=re.IGNORECASE)
-        return contact, body
+        cand_c = m3.group(1).strip()
+        cand_b = m3.group(2).strip()
+        if cand_c.lower() not in ['a', 'the', 'message', 'msg', 'text', 'to']:
+            return cand_c, cand_b
 
     return "", ""
 
@@ -158,9 +204,26 @@ class WhatsAppDirectWorker(BaseDirectWorker):
         if not clean_msg:
             return False, f"Sir, what message would you like me to send to {display_name}?", {}
 
-        t0 = time.perf_counter()
+        # If phone is not known, ask user for the phone number
+        if not phone:
+            try:
+                from disambiguation_manager import DISAMBIGUATION_MGR
+                if DISAMBIGUATION_MGR:
+                    ok_p, phone_ans = DISAMBIGUATION_MGR.ask_user(
+                        f"Sir, what is the phone number for {display_name}?",
+                        barrier_type="dynamic"
+                    )
+                    if ok_p and phone_ans.strip():
+                        phone = phone_ans.strip()
+                        _save_contact_phone(display_name, phone)
+            except Exception:
+                pass
 
-        # Record in sent audit log
+        if not phone:
+            speech = f"Sir, I cannot send a WhatsApp message to {display_name} because no phone number was found or provided."
+            return False, speech, {}
+
+        t0 = time.perf_counter()
         entry = {
             "id": f"wa_msg_{int(time.time() * 1000)}",
             "timestamp": time.time(),
@@ -171,36 +234,35 @@ class WhatsAppDirectWorker(BaseDirectWorker):
             "status": "DISPATCHED"
         }
 
+        # Dispatch native Windows desktop protocol
         try:
-            SENT_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-            sent_history = []
-            if SENT_LOG_FILE.exists():
-                try:
-                    with open(SENT_LOG_FILE, "r", encoding="utf-8") as f:
-                        sent_history = json.load(f)
-                except Exception:
-                    sent_history = []
-            sent_history.append(entry)
-            with open(SENT_LOG_FILE, "w", encoding="utf-8") as f:
-                json.dump(sent_history, f, indent=2)
-        except Exception as e:
-            print(f"[WHATSAPP DIRECT NOTICE] Could not save sent log: {e}")
+            clean_phone = re.sub(r'[^0-9+]', '', phone)
+            encoded_msg = urllib.parse.quote(clean_msg)
+            uri = f"whatsapp://send?phone={clean_phone}&text={encoded_msg}"
+            os.startfile(uri)
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+            print(f"[WHATSAPP DIRECT] Dispatched message to '{display_name}' ({phone}) in {elapsed_ms:.2f} ms: '{clean_msg}'")
 
-        # If phone is known and native protocol can be dispatched
-        if phone:
+            # Record in sent audit log upon actual dispatch
             try:
-                clean_phone = re.sub(r'[^0-9+]', '', phone)
-                encoded_msg = urllib.parse.quote(clean_msg)
-                uri = f"whatsapp://send?phone={clean_phone}&text={encoded_msg}"
-                # In headless background execution, we invoke protocol without showing window
-            except Exception:
-                pass
+                SENT_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+                sent_history = []
+                if SENT_LOG_FILE.exists():
+                    try:
+                        with open(SENT_LOG_FILE, "r", encoding="utf-8") as f:
+                            sent_history = json.load(f)
+                    except Exception:
+                        sent_history = []
+                sent_history.append(entry)
+                with open(SENT_LOG_FILE, "w", encoding="utf-8") as f:
+                    json.dump(sent_history, f, indent=2)
+            except Exception as e:
+                print(f"[WHATSAPP DIRECT NOTICE] Could not save sent log: {e}")
 
-        elapsed_ms = (time.perf_counter() - t0) * 1000
-        print(f"[WHATSAPP DIRECT] Dispatched message to '{display_name}' in {elapsed_ms:.2f} ms: '{clean_msg}'")
-
-        speech = f"Sir, your message to {display_name} has been dispatched on WhatsApp."
-        return True, speech, entry
+            speech = f"Sir, I have opened WhatsApp to dispatch your message to {display_name}."
+            return True, speech, entry
+        except Exception as e:
+            return False, f"Failed to open WhatsApp desktop protocol: {e}", {}
 
     # =========================================================================
     # Phase 5.2: Unread Messages & Notifications Monitoring
@@ -223,21 +285,7 @@ class WhatsAppDirectWorker(BaseDirectWorker):
             except Exception:
                 unreads = []
 
-        if not unreads:
-            # Default realistic peer unread message for connected user
-            unreads = [
-                {
-                    "sender": "Tanzeel",
-                    "message": "Hey Ahmad, let me know when the project repository is updated.",
-                    "time": "10:15 AM"
-                },
-                {
-                    "sender": "Tanzeel",
-                    "message": "Also let me know if we are testing the new background engine today.",
-                    "time": "10:16 AM"
-                }
-            ]
-
+        # Strictly honest: no fake simulated messages
         if not unreads:
             return True, "Sir, you have no unread messages on WhatsApp.", []
 
@@ -265,18 +313,38 @@ class WhatsAppDirectWorker(BaseDirectWorker):
 
         # 2. Send Message
         target, body = parse_whatsapp_command(raw_query)
-        if target and body:
-            return self.send_message(target, body)
+        if not target and task_type == "send":
+            m_target = re.search(r'\b(?:to|contact)\s+([a-zA-Z0-9_+]+)', raw_query, re.IGNORECASE)
+            target = m_target.group(1).strip() if m_target else ""
 
-        # Fallback heuristic if task_type is send but regex missed
-        if task_type == "send":
-            # Extract target e.g. "tanzeel"
-            m = re.search(r'\b(?:to|contact)\s+([a-zA-Z0-9_+]+)', raw_query, re.IGNORECASE)
-            target_candidate = m.group(1) if m else "Tanzeel"
-            msg_body = re.sub(r'^.*?\b(?:saying|that|with|:|,)\s*', '', raw_query, flags=re.IGNORECASE).strip()
-            if not msg_body or msg_body == raw_query:
-                msg_body = "Hello from HYDRA background engine."
-            return self.send_message(target_candidate, msg_body)
+        try:
+            from disambiguation_manager import DISAMBIGUATION_MGR
+        except ImportError:
+            DISAMBIGUATION_MGR = None
+
+        if task_type == "send" or any(w in low for w in ["send", "write", "text", "message", "msg", "tell"]):
+            if not target and DISAMBIGUATION_MGR:
+                ok, c_ans = DISAMBIGUATION_MGR.ask_user(
+                    "Sir, who would you like to message on WhatsApp?",
+                    barrier_type="dynamic"
+                )
+                target = c_ans.strip() if ok else ""
+
+            if not target:
+                return False, "WhatsApp message was cancelled because no recipient contact was provided, sir.", {}
+
+            if not body and DISAMBIGUATION_MGR:
+                ok, b_ans = DISAMBIGUATION_MGR.ask_user(
+                    f"Sir, what message would you like to send to {target} on WhatsApp?",
+                    options=["I'll be there soon.", "Can we talk?", "All tasks are completed."],
+                    barrier_type="dynamic"
+                )
+                body = b_ans.strip() if ok else ""
+
+            if not body:
+                return False, f"WhatsApp message to {target} was cancelled because no message text was provided, sir.", {}
+
+            return self.send_message(target, body)
 
         # Default fallback: check unread
         ok, speech, items = self.get_unread_messages()

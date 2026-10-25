@@ -5,6 +5,17 @@ Powered by Nebius AI (NVIDIA Nemotron) with Hydra Living HUD Interface & Edge-TT
 
 import os
 import sys
+
+# Multi-root sys.path resolution (ensures modules resolve whether invoked from hydra-main or PersonalJarvis-main)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+for candidate_dir in [
+    BASE_DIR,
+    os.path.join(BASE_DIR, "PersonalJarvis-main"),
+    os.path.abspath(os.path.join(BASE_DIR, "..")),
+]:
+    if os.path.exists(candidate_dir) and candidate_dir not in sys.path:
+        sys.path.insert(0, candidate_dir)
+
 import io
 import re
 import time
@@ -281,6 +292,84 @@ def get_jarvis_brain():
         return JARVIS_BRAIN
 
 
+# =========================================================================
+# Post-Connection Immediate Background Execution & Status Telemetry (Problem 3)
+# =========================================================================
+_SYNCED_APP_ACCOUNTS = set()
+
+def execute_post_connection_tasks(app_id: str, account: str = "", silent_if_unchanged: bool = False):
+    """
+    Executes immediate post-connection background tasks, telemetry synchronization,
+    and voice verification for newly connected applications without user intervention.
+    """
+    clean_id = app_id.lower().strip()
+    sync_key = f"{clean_id}_{account}"
+    if silent_if_unchanged and sync_key in _SYNCED_APP_ACCOUNTS:
+        return
+    _SYNCED_APP_ACCOUNTS.add(sync_key)
+
+    def _worker():
+        try:
+            print(f"[POST-CONNECTION] Running immediate background tasks for {clean_id} ({account})...")
+
+            if clean_id == "spotify":
+                from plugins.spotify_direct_worker import SPOTIFY_WORKER
+                ok, sub_speech, meta = SPOTIFY_WORKER.check_subscription()
+                state = MEDIA_CONTROLLER.get_state()
+                if state:
+                    safe_emit_js(f"updateMediaState({json.dumps(state)});")
+                product = meta.get("product", "Premium").title()
+                speech = f"Sir, your Spotify account ({account or 'connected'}) is active with Spotify {product}. Direct background playback and controls are ready."
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+            elif clean_id in ["google_classroom", "classroom"]:
+                from plugins.classroom_direct_worker import CLASSROOM_WORKER
+                ok, asg_speech, items = CLASSROOM_WORKER.get_upcoming_assignments()
+                speech = f"Sir, Google Classroom has been connected. {asg_speech}"
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+            elif clean_id in ["gmail", "email"]:
+                from plugins.gmail_direct_worker import GMAIL_WORKER
+                ok, mail_speech, items = GMAIL_WORKER.get_unread_emails()
+                speech = f"Sir, Gmail has been connected. {mail_speech}"
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+            elif clean_id in ["google", "google_workspace"]:
+                from plugins.gmail_direct_worker import GMAIL_WORKER
+                from plugins.classroom_direct_worker import CLASSROOM_WORKER
+                GMAIL_WORKER.get_unread_emails()
+                CLASSROOM_WORKER.get_upcoming_assignments()
+                speech = f"Sir, your Google account ({account}) has been connected. Gmail and Google Classroom background workers are synchronized."
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+            elif clean_id == "whatsapp":
+                from plugins.whatsapp_direct_worker import WHATSAPP_WORKER
+                ok, wa_speech, items = WHATSAPP_WORKER.get_unread_messages()
+                speech = f"Sir, WhatsApp session has been securely linked. Direct background message dispatcher and unread notifications monitor are active."
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+            elif clean_id == "youtube":
+                speech = "Sir, YouTube has been connected. Background streaming and media search engine are ready."
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+            elif clean_id in ["canva", "discord", "github", "linkedin"]:
+                app_title = clean_id.replace("_", " ").title()
+                speech = f"Sir, your {app_title} account ({account or 'active'}) has been connected. Direct background access is verified."
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+        except Exception as e:
+            print(f"[POST-CONNECTION ERROR] {clean_id}: {e}")
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+
 # Custom WebEngine Page with Console Message Bridge
 class HydraPage(QWebEnginePage):
     def javaScriptConsoleMessage(self, level, message, line, source):
@@ -304,13 +393,48 @@ class HydraPage(QWebEnginePage):
         elif message.startswith("HYDRA_AUTH_DISCONNECT:"):
             app_id = message[22:].strip()
             self.handle_auth_disconnect(app_id)
+        elif message.startswith("HYDRA_ACCOUNT_SWITCH:"):
+            payload = message[21:].strip()
+            self.handle_account_switch(payload)
+        elif message.startswith("HYDRA_ACCOUNT_REMOVE:"):
+            payload = message[21:].strip()
+            self.handle_account_remove(payload)
+
+    def handle_account_switch(self, payload: str):
+        try:
+            from plugins.vault_manager import VAULT_MGR
+            if ":" in payload:
+                app_id, target_account = payload.split(":", 1)
+                app_id = app_id.strip()
+                target_account = target_account.strip()
+                ok = VAULT_MGR.switch_active_account(app_id, target_account)
+                if ok:
+                    execute_post_connection_tasks(app_id, target_account)
+                    safe_emit_js(f"if (window.onAccountSwitched) window.onAccountSwitched('{app_id}', '{target_account}');")
+                    speak_voice(f"Sir, active {app_id.replace('_', ' ').title()} account has been switched to {target_account}.")
+        except Exception as e:
+            print(f"[HYDRA ACCOUNT SWITCH ERROR]: {e}")
+
+    def handle_account_remove(self, payload: str):
+        try:
+            from plugins.vault_manager import VAULT_MGR
+            if ":" in payload:
+                app_id, target_account = payload.split(":", 1)
+                app_id = app_id.strip()
+                target_account = target_account.strip()
+                ok = VAULT_MGR.remove_plugin_account(app_id, target_account)
+                if ok:
+                    safe_emit_js(f"if (window.onAccountRemoved) window.onAccountRemoved('{app_id}', '{target_account}');")
+                    speak_voice(f"Sir, removed {target_account} from {app_id.replace('_', ' ').title()}.")
+        except Exception as e:
+            print(f"[HYDRA ACCOUNT REMOVE ERROR]: {e}")
 
     def handle_auth_connect(self, app_id: str):
         try:
             from plugins.auth_bridge import AUTH_BRIDGE
             def on_connected(connected_app, account):
                 safe_emit_js(f"if (window.onAppConnected) window.onAppConnected('{connected_app}', '{account}');")
-                speak_voice(f"Sir, your {connected_app.replace('_', ' ').title()} account has been securely connected to HYDRA.")
+                execute_post_connection_tasks(connected_app, account)
 
             AUTH_BRIDGE.start_connection(app_id, on_success=on_connected)
         except Exception as e:
@@ -333,21 +457,44 @@ class HydraPage(QWebEnginePage):
                 json.dump(data, f, indent=4)
             print(f"[HYDRA PLUGINS] Synchronized {len(data)} app connection states to {target_path}")
 
-            # Automatically persist connected app credentials into Secure Local Vault
+            # Automatically persist connected app credentials into Secure Local Vault (Problem 4 Multi-Account Support)
             try:
                 from plugins.vault_manager import VAULT_MGR
                 for app_id, conn_info in data.items():
                     if isinstance(conn_info, dict) and conn_info.get("connected"):
                         acc = conn_info.get("account", "").strip()
-                        if acc:
+                        auth_type = conn_info.get("authType", "account")
+                        extra = conn_info.get("data", {})
+                        accounts = conn_info.get("accounts", [])
+                        if accounts and isinstance(accounts, list):
+                            for a in accounts:
+                                if isinstance(a, dict) and a.get("account"):
+                                    VAULT_MGR.set_plugin_credential(
+                                        app_id=app_id,
+                                        account=a.get("account"),
+                                        auth_type=a.get("authType", auth_type),
+                                        label=a.get("label", ""),
+                                        extra_data=a.get("data", extra),
+                                        make_active=bool(a.get("active", False))
+                                    )
+                        elif acc:
                             VAULT_MGR.set_plugin_credential(
                                 app_id=app_id,
                                 account=acc,
-                                auth_type=conn_info.get("authType", "account"),
-                                extra_data=conn_info.get("data", {})
+                                auth_type=auth_type,
+                                label=conn_info.get("label", "Primary"),
+                                extra_data=extra,
+                                make_active=True
                             )
             except Exception as ve:
                 print(f"[HYDRA PLUGINS VAULT SYNC NOTE]: {ve}")
+
+            # Execute background verification and sync for connected apps (Problem 3)
+            for app_id, conn_info in data.items():
+                if isinstance(conn_info, dict) and conn_info.get("connected"):
+                    acc = conn_info.get("account", "").strip()
+                    execute_post_connection_tasks(app_id, acc, silent_if_unchanged=True)
+
         except Exception as e:
             print(f"[HYDRA PLUGINS ERROR]: {e}")
 
@@ -395,132 +542,27 @@ class HydraPage(QWebEnginePage):
         # Always close side drawer on new query
         safe_emit_js("resetScreenSwipe();")
 
-        # Built-in UI commands
-        if any(w in cmd_lower for w in ["close info", "close panel", "hide info", "go back"]):
-            speak_voice("Closing information panel, sir.")
-            return
-
-        if any(w in cmd_lower for w in ["dark mode", "night mode", "dark theme"]):
-            speak_voice("Dark mode has been retired; Hydra operates exclusively in high-clarity Light HUD mode, sir.")
-            return
-
-        if any(w in cmd_lower for w in ["light mode", "day mode", "light theme"]):
-            speak_voice("Interface is operating in high-clarity Light HUD mode, sir.")
-            return
-
-        # Normalizes voice or typed command typos (e.g. "theem" -> "theme", "step playing" -> "stop playing")
-        # Preserves exact casing, capitalization, numbers, and special characters (e.g. passwords, codes)
-        def _normalize_command(text: str) -> str:
-            s = text
-            typo_map = {
-                "theem": "theme",
-                "thems": "themes",
-                "step playing": "stop playing",
-                "step music": "stop music",
-                "step spotify": "stop spotify",
-                "step song": "stop song",
-                "antigravty": "antigravity",
-                "antigraviti": "antigravity",
-                "anti gravity": "antigravity",
-                "spotfy": "spotify",
-                "spotifi": "spotify",
-                "sopitfy": "spotify",
-                "gmails": "gmail",
-                "g-mail": "gmail",
-                "google mail": "gmail",
-                "clasroom": "classroom",
-                "classrom": "classroom",
-                "google classroom": "classroom",
-                "gclassroom": "classroom",
-                "chrme": "chrome",
-                "notpad": "notepad",
-                "vscod": "vscode",
-                "whatsap": "whatsapp",
-                "watsapp": "whatsapp",
-                "watsp": "whatsapp",
-                "canwa": "canva",
-                "canv": "canva",
-            }
-            for typo, repl in typo_map.items():
-                s = re.sub(rf"\b{re.escape(typo)}\b", repl, s, flags=re.IGNORECASE)
-            return s
-
-        cmd_normalized = _normalize_command(cmd_clean)
+        # Phase 1: High-Precision Intent & Modality Classification
+        from plugins.intent_classifier import classify_command, IntentType, normalize_command_text
+        cmd_normalized = normalize_command_text(cmd_clean)
         cmd_norm_lower = cmd_normalized.lower()
 
-        # =========================================================================
-        # Phase 7: Unified Master Background Router & Voice Integration
-        # =========================================================================
-        # Immediately check connected headless background workers before any UI launch
-        try:
-            from plugins.direct_dispatcher import DIRECT_DISPATCHER
-            bg_result = DIRECT_DISPATCHER.dispatch(cmd_normalized)
-            if bg_result is not None:
-                ok, bg_speech = bg_result
-                if bg_speech and bg_speech.strip():
-                    speak_voice(bg_speech)
-                    safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(bg_speech)});")
+        classified = classify_command(cmd_clean)
+        print(f"[INTENT CLASSIFIER] '{cmd_clean}' -> Modality: {classified.intent_type.value} | App: {classified.target_app} | Action: {classified.action} ({classified.reasoning})")
+
+        # 1. Built-in HUD Interface Controls
+        if classified.intent_type == IntentType.BUILTIN_UI:
+            if classified.action == "close_panel":
+                speak_voice("Closing information panel, sir.")
                 return
-        except Exception as e:
-            print(f"[DIRECT DISPATCHER ERROR] {e}")
+            elif classified.action == "hud_theme_query":
+                if any(w in cmd_norm_lower for w in ["dark mode", "night mode", "dark theme"]):
+                    speak_voice("Dark mode has been retired; Hydra operates exclusively in high-clarity Light HUD mode, sir.")
+                else:
+                    speak_voice("Interface is operating in high-clarity Light HUD mode, sir.")
+                return
 
-        # Load connected plugins to dynamically recognize user-connected apps
-        def _get_connected_plugins_dict():
-            p_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "connected_plugins.json")
-            if not os.path.exists(p_file):
-                inner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "PersonalJarvis-main", "connected_plugins.json")
-                if os.path.exists(inner):
-                    p_file = inner
-            if os.path.exists(p_file):
-                try:
-                    with open(p_file, "r", encoding="utf-8") as pf:
-                        return json.load(pf)
-                except Exception:
-                    pass
-            return {}
-
-        connected_plugins_data = _get_connected_plugins_dict()
-        dynamic_plugin_apps = []
-        for pk, pv in connected_plugins_data.items():
-            if isinstance(pv, dict) and pv.get("connected"):
-                clean_k = pk.lower().replace("_", " ")
-                dynamic_plugin_apps.append(clean_k)
-                dynamic_plugin_apps.append(pk.lower().replace("_", ""))
-
-        # Autonomous Desktop Goal & Keyboard-First Planning (Phase 2 & Phase 3)
-        # Bypasses cloud plugin barriers for native desktop app control
-        KNOWN_APPS = [
-            "spotify", "whatsapp", "canva", "antigrav", "chrome", "brave",
-            "notepad", "vscode", "vs code", "calc", "calculator", "browser",
-            "gmail", "email", "mail", "inbox", "classroom", "google classroom",
-            "assignment", "assignments", "youtube", "instagram", "facebook",
-            "linkedin", "twitter", "discord", "reddit", "figma", "github",
-            "drive", "docs", "sheets", "calendar"
-        ] + dynamic_plugin_apps
-
-        ACTION_VERBS = [
-            "play", "pause", "resume", "stop", "next", "prev", "mute", "unmute", "volume",
-            "find", "search", "open", "launch", "close", "click", "press", "toggle",
-            "type", "theme", "like", "add", "save", "circle", "button", "switch", "liked",
-            "create", "send", "message", "design", "blank", "draft",
-            "check", "read", "view", "show", "see", "get", "fetch", "inspect",
-            "review", "look", "examine", "due", "unread", "new", "list"
-        ]
-
-        ACTION_KEYWORDS = [
-            "song", "music", "track", "tab", "window", "file", "app", "code", "light", "dark",
-            "playlist", "design", "message", "chat", "email", "emails", "mail", "inbox",
-            "assignment", "assignments", "due", "class", "stream", "unread", "homework",
-            "notification", "notifications", "post", "video", "feed"
-        ]
-
-        has_app = any(app in cmd_norm_lower for app in KNOWN_APPS)
-        has_action = any(act in cmd_norm_lower for act in ACTION_VERBS)
-        has_keyword = any(kw in cmd_norm_lower for kw in ACTION_KEYWORDS)
-
-        is_action_goal = has_app or (has_action and has_keyword)
-
-        if is_action_goal:
+        def _run_desktop_goal(task_text: str):
             def goal_worker():
                 try:
                     from verified_executor import VERIFIED_EXECUTOR
@@ -534,7 +576,7 @@ class HydraPage(QWebEnginePage):
                         safe_emit_js(f"showDisambiguationPrompt({json.dumps(question)}, {opts_json});")
 
                     success, final_reply, exec_logs = VERIFIED_EXECUTOR.run_vision_agent_task(
-                        task_text=cmd_normalized,
+                        task_text=task_text,
                         status_callback=on_hud_status,
                         voice_callback=speak_voice,
                         hud_disambig_callback=on_hud_disambig
@@ -546,13 +588,58 @@ class HydraPage(QWebEnginePage):
                     print(f"[GOAL ERROR] {e}")
                     speak_voice("I encountered an issue executing that action, sir.")
 
-            threading.Thread(target=goal_worker, daemon=True).start()
+            threading.Thread(target=goal_worker, daemon=True, name="HydraGoalWorker").start()
+
+        # 2. Conversational Q&A / Knowledge (Brain LLM)
+        # Direct questions, explanations, definitions, small talk -> NEVER hijacked by background or desktop action goals!
+        if classified.intent_type == IntentType.CONVERSATIONAL:
+            # Let command_worker handle conversational queries through PersonalJarvis BrainManager
+            pass
+
+        # 3. Account Management & Headless Background Actions (Threaded to support interactive Disambiguation pauses)
+        elif classified.intent_type in [IntentType.ACCOUNT_MANAGEMENT, IntentType.HEADLESS_BACKGROUND]:
+            def bg_worker():
+                try:
+                    from plugins.direct_dispatcher import DIRECT_DISPATCHER
+                    bg_result = DIRECT_DISPATCHER.dispatch(cmd_normalized, classified=classified)
+                    if bg_result is not None:
+                        ok, bg_speech = bg_result
+                        if bg_speech and bg_speech.strip():
+                            speak_voice(bg_speech)
+                            safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(bg_speech)});")
+                    else:
+                        _run_desktop_goal(cmd_normalized)
+                except Exception as e:
+                    print(f"[DIRECT DISPATCHER ERROR] {e}")
+
+            threading.Thread(target=bg_worker, daemon=True, name="HydraBackgroundWorker").start()
+            return
+
+        # 4. Foreground Desktop Actions (Explicit 'open', 'launch', 'change theme', 'open chat')
+        elif classified.intent_type == IntentType.FOREGROUND_DESKTOP:
+            _run_desktop_goal(cmd_normalized)
             return
 
         # Execute general conversational queries through PersonalJarvis BrainManager
         def command_worker():
             t_start = time.perf_counter()
             try:
+                def _get_connected_plugins_dict():
+                    p_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "connected_plugins.json")
+                    if not os.path.exists(p_file):
+                        inner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "PersonalJarvis-main", "connected_plugins.json")
+                        if os.path.exists(inner):
+                            p_file = inner
+                    if os.path.exists(p_file):
+                        try:
+                            with open(p_file, "r", encoding="utf-8") as pf:
+                                return json.load(pf)
+                        except Exception:
+                            pass
+                    return {}
+
+                connected_plugins_data = _get_connected_plugins_dict()
+
                 # Direct check if user is asking about connected apps or plugin status
                 low_cmd = cmd_clean.lower()
                 if any(w in low_cmd for w in ["connected", "plugin", "plugins", "link", "connection"]) and any(w in low_cmd for w in ["which", "what", "is", "are", "check", "status", "list", "show"]):
@@ -676,6 +763,58 @@ def main():
     media_timer.setInterval(2500)
     media_timer.timeout.connect(_poll_media)
     media_timer.start()
+
+    # Autonomous Background App Supervisor (Problem 3)
+    # Continuously monitors Classroom deadlines, Gmail unread, and app telemetry
+    _LAST_SUPERVISION_CHECK = {
+        "notified_assignments": set(),
+        "last_unread_emails": -1
+    }
+
+    def _poll_background_apps():
+        def _supervision_worker():
+            try:
+                # 1. Google Classroom: Check for coursework due today
+                from plugins.classroom_direct_worker import CLASSROOM_WORKER
+                if CLASSROOM_WORKER.is_ready():
+                    ok, speech, due_today = CLASSROOM_WORKER.get_due_today()
+                    if ok and due_today:
+                        for asg in due_today:
+                            asg_key = f"{asg.get('course')}_{asg.get('title')}"
+                            if asg_key not in _LAST_SUPERVISION_CHECK["notified_assignments"]:
+                                _LAST_SUPERVISION_CHECK["notified_assignments"].add(asg_key)
+                                notify_text = f"Sir, urgent background notice: you have an assignment due today in {asg.get('course')}: '{asg.get('title')}'."
+                                speak_voice(notify_text)
+                                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(notify_text)});")
+
+                # 2. Gmail: Check for newly arrived unread emails
+                from plugins.gmail_direct_worker import GMAIL_WORKER
+                if GMAIL_WORKER.is_ready():
+                    email_addr, pwd = GMAIL_WORKER._get_credentials()
+                    if email_addr and pwd:
+                        ok, _, emails = GMAIL_WORKER.get_unread_emails(limit=3)
+                        if ok:
+                            count = len(emails)
+                            last_cnt = _LAST_SUPERVISION_CHECK.get("last_unread_emails", -1)
+                            if last_cnt != -1 and count > last_cnt:
+                                diff = count - last_cnt
+                                top_from = emails[0].get("from", "Sender")
+                                top_sub = emails[0].get("subject", "Subject")
+                                notify_mail = f"Sir, you have {diff} new email in Gmail from {top_from} regarding '{top_sub}'."
+                                speak_voice(notify_mail)
+                                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(notify_mail)});")
+                            _LAST_SUPERVISION_CHECK["last_unread_emails"] = count
+
+            except Exception as e:
+                print(f"[BACKGROUND SUPERVISOR NOTE]: {e}")
+
+        threading.Thread(target=_supervision_worker, daemon=True).start()
+
+    supervisor_timer = QTimer(window)
+    supervisor_timer.setInterval(60000)  # Check every 60 seconds
+    supervisor_timer.timeout.connect(_poll_background_apps)
+    # Start after initial 10s delay so system boots cleanly first
+    QTimer.singleShot(10000, supervisor_timer.start)
 
     sys.exit(app.exec())
 

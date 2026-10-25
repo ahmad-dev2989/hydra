@@ -56,12 +56,50 @@ class SpotifyDirectWorker(BaseDirectWorker):
                 acc = sess.get("account")
         return acc or "Spotify User"
 
+    def _refresh_access_token(self, sess: Dict[str, Any]) -> Optional[str]:
+        """Exchanges refresh_token for a fresh access_token via Spotify Accounts API."""
+        try:
+            token_data = sess.get("token_data", {})
+            refresh_token = token_data.get("refresh_token")
+            if not refresh_token:
+                return None
+
+            client_id = os.environ.get("SPOTIFY_CLIENT_ID", "48df08477bb34d5d9c22e4c278c2e646")
+            import requests
+            url = "https://accounts.spotify.com/api/token"
+            payload = {
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": client_id
+            }
+            resp = requests.post(url, data=payload, headers={"Content-Type": "application/x-www-form-urlencoded"}, timeout=4.0)
+            if resp.status_code == 200:
+                new_data = resp.json()
+                access_token = new_data.get("access_token")
+                if access_token:
+                    token_data["access_token"] = access_token
+                    if "refresh_token" in new_data:
+                        token_data["refresh_token"] = new_data["refresh_token"]
+                    token_data["expires_at"] = time.time() + new_data.get("expires_in", 3600) - 60
+                    sess["token_data"] = token_data
+                    VAULT_MGR.store_spotify_session(sess.get("account", "Spotify User"), token_data)
+                    print(f"[SPOTIFY DIRECT] Auto-refreshed OAuth access token successfully.")
+                    return access_token
+        except Exception as e:
+            print(f"[SPOTIFY DIRECT NOTICE] Token auto-refresh failed: {e}")
+        return None
+
     def _get_access_token(self) -> Optional[str]:
-        """Retrieves active OAuth bearer token from encrypted vault."""
+        """Retrieves active OAuth bearer token from encrypted vault, auto-refreshing if expired."""
         sess = VAULT_MGR.load_spotify_session()
         if sess and "token_data" in sess:
             token_data = sess["token_data"]
             if isinstance(token_data, dict):
+                expires_at = token_data.get("expires_at", 0)
+                if expires_at and time.time() > expires_at:
+                    refreshed = self._refresh_access_token(sess)
+                    if refreshed:
+                        return refreshed
                 return token_data.get("access_token")
             elif isinstance(token_data, str):
                 return token_data
@@ -79,6 +117,7 @@ class SpotifyDirectWorker(BaseDirectWorker):
         """
         clean_query = track_query.strip()
         token = self._get_access_token()
+        resolved_track_id = ""
 
         if token and clean_query:
             try:
@@ -86,18 +125,39 @@ class SpotifyDirectWorker(BaseDirectWorker):
                 headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
                 params = {"q": clean_query, "type": "track", "limit": 1}
                 resp = requests.get("https://api.spotify.com/v1/search", headers=headers, params=params, timeout=3.0)
+
+                # If 401 unauthorized, try auto-refreshing token once
+                if resp.status_code == 401:
+                    sess = VAULT_MGR.load_spotify_session()
+                    if sess:
+                        new_token = self._refresh_access_token(sess)
+                        if new_token:
+                            token = new_token
+                            headers["Authorization"] = f"Bearer {token}"
+                            resp = requests.get("https://api.spotify.com/v1/search", headers=headers, params=params, timeout=3.0)
+
                 if resp.status_code == 200:
                     data = resp.json()
                     tracks = data.get("tracks", {}).get("items", [])
                     if tracks:
                         top = tracks[0]
                         uri = top.get("uri")
+                        resolved_track_id = top.get("id", "")
                         title = top.get("name", clean_query)
                         artist = top.get("artists", [{}])[0].get("name", "Unknown Artist")
 
+                        # Check available Spotify Connect devices
+                        dev_resp = requests.get("https://api.spotify.com/v1/me/player/devices", headers=headers, timeout=2.5)
+                        devices = dev_resp.json().get("devices", []) if dev_resp.status_code == 200 else []
+                        active_dev = next((d for d in devices if d.get("is_active")), (devices[0] if devices else None))
+
+                        play_url = "https://api.spotify.com/v1/me/player/play"
+                        if active_dev and active_dev.get("id"):
+                            play_url += f"?device_id={active_dev['id']}"
+
                         # Command playback via Web API
                         play_resp = requests.put(
-                            "https://api.spotify.com/v1/me/player/play",
+                            play_url,
                             headers=headers,
                             json={"uris": [uri]},
                             timeout=3.0
@@ -113,11 +173,11 @@ class SpotifyDirectWorker(BaseDirectWorker):
                                 timeout=3.0
                             )
                             MEDIA_CONTROLLER.play()
-                            return True, f"Queued '{title}' by {artist} on Spotify, sir.", {"action": "queue_track", "title": title, "artist": artist}
+                            return True, f"Playing '{title}' by {artist} on Spotify, sir.", {"action": "queue_track", "title": title, "artist": artist, "uri": uri}
             except Exception as e:
-                print(f"[SPOTIFY DIRECT NOTICE] Headless search fallback: {e}")
+                print(f"[SPOTIFY DIRECT NOTICE] Headless Web API playback attempt: {e}")
 
-        # Step 2: Zero-UI Background Playback Execution
+        # Step 2: Zero-UI Background Playback Execution (Metadata Resolver)
         resolved_title = clean_query.title()
         resolved_artist = "Spotify"
         try:
@@ -136,12 +196,14 @@ class SpotifyDirectWorker(BaseDirectWorker):
         except Exception:
             pass
 
-        # Trigger playback command to Spotify desktop & SMTC
+        # Trigger playback command to Spotify desktop & SMTC cleanly
         try:
             import subprocess
-            subprocess.Popen(["cmd.exe", "/c", "start", "", f"spotify:search:{clean_query}"], shell=True)
-            time.sleep(0.4)
-            MEDIA_CONTROLLER.play()
+            if resolved_track_id:
+                subprocess.Popen(["cmd.exe", "/c", "start", "", f"spotify:track:{resolved_track_id}"], shell=True)
+            else:
+                subprocess.Popen(["cmd.exe", "/c", "start", "", f"spotify:search:{clean_query}"], shell=True)
+            time.sleep(0.3)
         except Exception:
             pass
 
@@ -206,13 +268,16 @@ class SpotifyDirectWorker(BaseDirectWorker):
 
     def check_subscription(self) -> Tuple[bool, str, Dict[str, Any]]:
         """Queries subscription tier and account status headlessly."""
-        acc = self.get_account_email()
         sess = VAULT_MGR.load_spotify_session()
-        product = "Premium"
-        if sess and isinstance(sess.get("token_data"), dict):
-            product = sess["token_data"].get("product", "Premium")
-
         token = self._get_access_token()
+        if not sess and not token and not VAULT_MGR.is_connected(self.app_id):
+            return False, "Sir, Spotify is not connected in your Plugins Hub. Please connect your account to view subscription details.", {}
+
+        acc = self.get_account_email()
+        product = "Free"
+        if sess and isinstance(sess.get("token_data"), dict):
+            product = sess["token_data"].get("product", "Free")
+
         if token:
             try:
                 import requests
@@ -230,15 +295,18 @@ class SpotifyDirectWorker(BaseDirectWorker):
 
     def check_settings(self) -> Tuple[bool, str, Dict[str, Any]]:
         """Queries audio quality and background streaming settings headlessly."""
-        acc = self.get_account_email()
         sess = VAULT_MGR.load_spotify_session()
+        token = self._get_access_token()
+        if not sess and not token and not VAULT_MGR.is_connected(self.app_id):
+            return False, "Sir, Spotify is not connected in your Plugins Hub.", {}
+
+        acc = self.get_account_email()
         country = ""
         if sess and isinstance(sess.get("token_data"), dict):
             country = sess["token_data"].get("country", "")
         country_str = f" in region {country}" if country else ""
         speech = (
-            f"Sir, your Spotify account ({acc}) is configured for high-fidelity audio streaming{country_str}. "
-            f"Background playback is active with zero window interruptions."
+            f"Sir, your Spotify account ({acc}) is configured for audio streaming{country_str}."
         )
         return True, speech, {"account": acc, "country": country, "status": "active"}
 
@@ -297,7 +365,7 @@ class SpotifyDirectWorker(BaseDirectWorker):
             return self.get_current_track()
 
         # 2. Check Subscription & Account Status
-        if any(w in low for w in ["subscription", "plan", "premium", "tier", "membership", "account type"]) and any(w in low for w in ["check", "what", "which", "my", "status", "have", "show", "is"]):
+        if any(w in low for w in ["subscription", "plan", "premium", "tier", "membership", "account type", "spotify status", "status", "account"]):
             return self.check_subscription()
 
         # 3. Check Settings & Audio Configuration
@@ -319,7 +387,7 @@ class SpotifyDirectWorker(BaseDirectWorker):
             return self.prev_track()
 
         # 7. Pause / Stop
-        if any(w in low for w in ["pause", "stop playing", "stop music", "stop song", "halt music", "freeze music"]):
+        if any(w in low for w in ["pause", "stop", "stop playing", "stop music", "stop song", "halt music", "freeze music"]):
             return self.pause()
 
         # 8. Volume Controls

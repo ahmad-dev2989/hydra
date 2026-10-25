@@ -206,7 +206,7 @@ class MediaController:
 
     def toggle_play_pause(self):
         """Toggles play/pause on current session or falls back to hardware media key."""
-        res = self._run_coroutine(self._async_toggle_play_pause(), timeout=1.5)
+        res = self._run_coroutine(self._async_toggle_play_pause(), timeout=0.4)
         if not res:
             _send_media_key(VK_MEDIA_PLAY_PAUSE)
         return True
@@ -237,7 +237,7 @@ class MediaController:
 
     def next_track(self):
         """Skips to next track."""
-        res = self._run_coroutine(self._async_next(), timeout=1.5)
+        res = self._run_coroutine(self._async_next(), timeout=0.4)
         if not res:
             _send_media_key(VK_MEDIA_NEXT_TRACK)
         return True
@@ -254,7 +254,7 @@ class MediaController:
 
     def prev_track(self):
         """Skips to previous track."""
-        res = self._run_coroutine(self._async_prev(), timeout=1.5)
+        res = self._run_coroutine(self._async_prev(), timeout=0.4)
         if not res:
             _send_media_key(VK_MEDIA_PREV_TRACK)
         return True
@@ -271,7 +271,7 @@ class MediaController:
 
     def seek(self, target_seconds):
         """Seeks to playback position in seconds."""
-        res = self._run_coroutine(self._async_seek(target_seconds), timeout=1.5)
+        res = self._run_coroutine(self._async_seek(target_seconds), timeout=0.5)
         return bool(res)
 
     def volume_up(self, steps=2):

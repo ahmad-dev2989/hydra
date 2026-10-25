@@ -587,53 +587,67 @@
         /* =========================================================================
            PLUGINS & CONNECTED APPS ECOSYSTEM MODAL (PHASE 16)
            ========================================================================= */
+        body.plugins-hub-open .hud-viewport {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            visibility: hidden !important;
+            transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s;
+        }
+
+        body.plugins-hub-open #layerLight {
+            background-color: #061020 !important;
+            background-image: radial-gradient(circle at 50% 50%, #0a192f 0%, #030712 100%) !important;
+        }
+
         .plugins-overlay {
             position: fixed;
             inset: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(6, 16, 32, 0.78);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            background: rgba(4, 10, 22, 0.90);
             z-index: 99998;
-            display: flex;
+            display: none;
             justify-content: center;
             align-items: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .plugins-overlay.active {
-            opacity: 1;
-            pointer-events: auto;
+            display: flex !important;
         }
 
         .plugins-modal-card {
-            width: min(940px, 94vw);
-            height: min(660px, 88vh);
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(28px);
-            -webkit-backdrop-filter: blur(28px);
-            border: 1px solid #e2e8f0;
+            width: min(960px, 94vw);
+            height: min(670px, 88vh);
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
             border-radius: 18px;
-            box-shadow: 0 20px 48px rgba(15, 23, 42, 0.12);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
             display: flex;
             flex-direction: column;
             overflow: hidden;
             position: relative;
-            transform: scale(0.95) translateY(12px);
-            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .plugins-overlay.active .plugins-modal-card {
             transform: scale(1) translateY(0);
         }
 
+        .plugins-overlay.active .plugins-modal-card {
+            animation: modalScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes modalScaleIn {
+            0% {
+                transform: scale(0.96) translateY(12px);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+
         .theme-dark .plugins-modal-card {
-            background: rgba(11, 19, 36, 0.98);
+            background: #0b1324;
             border-color: #1e293b;
-            box-shadow: 0 24px 56px rgba(0, 0, 0, 0.55);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75);
         }
 
         /* Top Header */
@@ -1157,19 +1171,20 @@
             display: none;
         }
 
-        /* Dedicated Connection Panel / Slide-Over */
+        /* ======================================================== */
+        /* DEDICATED CONNECTION PANEL (Minimal, Executive, No Glow) */
+        /* ======================================================== */
         .plugin-connect-panel {
             position: absolute;
             inset: 0;
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(28px);
-            -webkit-backdrop-filter: blur(28px);
+            background: #ffffff;
             z-index: 10;
             display: flex;
             flex-direction: column;
             transform: translateX(100%);
-            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
             overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Helvetica, Arial, sans-serif;
         }
 
         .plugin-connect-panel.open {
@@ -1177,145 +1192,334 @@
         }
 
         .theme-dark .plugin-connect-panel {
-            background: rgba(10, 22, 40, 0.98);
+            background: #0f1219;
+            color: #f8fafc;
         }
 
+        /* Header */
         .connect-panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 16px 28px;
-            border-bottom: 1px solid rgba(0, 180, 240, 0.2);
-            background: rgba(0, 180, 240, 0.04);
+            padding: 14px 28px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+            background: #ffffff;
             flex-shrink: 0;
         }
 
         .theme-dark .connect-panel-header {
-            border-bottom-color: rgba(0, 229, 255, 0.2);
-            background: rgba(0, 229, 255, 0.04);
+            border-bottom-color: rgba(255, 255, 255, 0.08);
+            background: #0f1219;
         }
 
         .panel-back-btn {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            background: rgba(0, 180, 240, 0.08);
-            border: 1px solid rgba(0, 180, 240, 0.3);
+            gap: 8px;
+            background: transparent;
+            border: 1px solid rgba(0, 0, 0, 0.12);
             border-radius: 8px;
-            padding: 6px 12px;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 11px;
-            color: #0f2757;
+            padding: 6px 14px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            color: #475569;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
             outline: none;
-            font-weight: 600;
         }
 
         .panel-back-btn:hover {
-            background: rgba(0, 180, 240, 0.18);
-            border-color: #00b4d8;
-            transform: translateX(-2px);
+            background: rgba(0, 0, 0, 0.04);
+            border-color: rgba(0, 0, 0, 0.2);
+            color: #0f172a;
         }
 
         .theme-dark .panel-back-btn {
-            background: rgba(0, 229, 255, 0.1);
-            border-color: rgba(0, 229, 255, 0.35);
-            color: #e0f7fa;
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.12);
+            color: #cbd5e1;
         }
 
         .theme-dark .panel-back-btn:hover {
-            border-color: #00e5ff;
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.22);
+            color: #ffffff;
+        }
+
+        .panel-sys-tag {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            color: #64748b;
+            background: rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .theme-dark .panel-sys-tag {
+            color: #94a3b8;
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.08);
         }
 
         /* Connect Panel Body */
         .connect-panel-body {
             flex: 1;
             overflow-y: auto;
-            padding: 24px 32px;
+            padding: 24px 32px 36px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            max-width: 680px;
+            gap: 16px;
+            max-width: 560px;
             margin: 0 auto;
             width: 100%;
         }
 
         .connect-panel-body::-webkit-scrollbar {
-            width: 6px;
+            width: 5px;
         }
 
         .connect-panel-body::-webkit-scrollbar-thumb {
-            background: rgba(0, 180, 240, 0.3);
-            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 3px;
         }
 
+        /* App Hero Card */
         .connect-app-hero {
             display: flex;
             align-items: center;
-            gap: 18px;
-            padding: 16px 20px;
-            background: rgba(0, 180, 240, 0.05);
-            border: 1px solid rgba(0, 180, 240, 0.25);
-            border-radius: 16px;
+            gap: 16px;
+            padding: 18px 20px;
+            background: rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 12px;
         }
 
         .theme-dark .connect-app-hero {
-            background: rgba(0, 229, 255, 0.06);
-            border-color: rgba(0, 229, 255, 0.25);
+            background: rgba(255, 255, 255, 0.025);
+            border-color: rgba(255, 255, 255, 0.08);
         }
 
         .hero-logo-box {
-            width: 58px;
-            height: 58px;
-            border-radius: 14px;
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
             background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
             flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
         .theme-dark .hero-logo-box {
-            background: rgba(8, 16, 30, 0.95);
-            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: none;
         }
 
         .hero-logo-box svg {
-            width: 38px;
-            height: 38px;
+            width: 28px;
+            height: 28px;
         }
 
         .hero-meta h3 {
-            font-family: 'Rajdhani', sans-serif;
-            font-size: 20px;
-            font-weight: 700;
-            color: #0f2757;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: #0f172a;
             margin: 0;
-            line-height: 1.2;
+            letter-spacing: -0.2px;
         }
 
         .theme-dark .hero-meta h3 {
-            color: #e0f7fa;
+            color: #f8fafc;
         }
 
         .hero-meta p {
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 11px;
-            color: #475569;
-            margin: 4px 0 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 12.5px;
+            color: #64748b;
+            margin: 3px 0 0;
+            line-height: 1.45;
         }
 
         .theme-dark .hero-meta p {
             color: #94a3b8;
         }
 
-        /* Form Inputs */
-        .connect-form-section {
+        /* Minimal 1-Click Authentication Card */
+        .auth-card-minimal {
             display: flex;
             flex-direction: column;
             gap: 14px;
+        }
+
+        .auth-action-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 22px 20px;
+            background: rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .theme-dark .auth-action-box {
+            background: rgba(255, 255, 255, 0.025);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .auth-subtext {
+            font-size: 12px;
+            color: #64748b;
+            margin: 12px 0 0;
+            line-height: 1.45;
+            max-width: 440px;
+        }
+
+        .theme-dark .auth-subtext {
+            color: #94a3b8;
+        }
+
+        /* Google Continue Button (Official, Minimal, Zero Glow) */
+        .btn-google-auth {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            background: #ffffff;
+            color: #1f2937;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 11px 18px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 13.5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            outline: none;
+        }
+
+        .btn-google-auth:hover {
+            background: #f9fafb;
+            border-color: #9ca3af;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.07);
+        }
+
+        .btn-google-auth:active {
+            background: #f3f4f6;
+            transform: translateY(1px);
+        }
+
+        /* Spotify Continue Button */
+        .btn-spotify-auth {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            background: #1ed760;
+            color: #000000;
+            border: none;
+            border-radius: 8px;
+            padding: 11px 18px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease, transform 0.1s ease;
+            outline: none;
+        }
+
+        .btn-spotify-auth:hover {
+            background: #1fdf64;
+        }
+
+        .btn-spotify-auth:active {
+            transform: translateY(1px);
+        }
+
+        /* WhatsApp Pairing Button */
+        .btn-whatsapp-auth {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            background: #25d366;
+            color: #000000;
+            border: none;
+            border-radius: 8px;
+            padding: 11px 18px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease, transform 0.1s ease;
+            outline: none;
+        }
+
+        .btn-whatsapp-auth:hover {
+            background: #22c55e;
+        }
+
+        .btn-whatsapp-auth:active {
+            transform: translateY(1px);
+        }
+
+        /* Minimal Accordion for Manual Auth */
+        .manual-auth-details {
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 10px;
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.015);
+            transition: border-color 0.15s ease;
+        }
+
+        .theme-dark .manual-auth-details {
+            border-color: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .manual-auth-details summary {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 11.5px;
+            font-weight: 500;
+            color: #64748b;
+            cursor: pointer;
+            outline: none;
+            user-select: none;
+        }
+
+        .theme-dark .manual-auth-details summary {
+            color: #94a3b8;
+        }
+
+        .manual-auth-details summary:hover {
+            color: #3b82f6;
+        }
+
+        .manual-auth-body {
+            margin-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* Clean Form Controls */
+        .connect-form-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .form-group {
@@ -1325,18 +1529,17 @@
         }
 
         .form-label {
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.6px;
-            color: #1e3a8a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            color: #334155;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
         .theme-dark .form-label {
-            color: #7dd3fc;
+            color: #cbd5e1;
         }
 
         .form-input-wrap {
@@ -1347,38 +1550,37 @@
 
         .form-input {
             width: 100%;
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid rgba(0, 180, 240, 0.35);
-            border-radius: 10px;
-            padding: 10px 14px;
-            font-family: 'Share Tech Mono', monospace;
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 9px 13px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 13px;
-            color: #0f2757;
+            color: #0f172a;
             outline: none;
-            transition: all 0.2s;
+            transition: border-color 0.15s ease;
         }
 
         .form-input:focus {
-            border-color: #0284c7;
-            background: #ffffff;
+            border-color: #2563eb;
             box-shadow: none;
         }
 
         .theme-dark .form-input {
-            background: rgba(14, 28, 52, 0.85);
-            border-color: rgba(0, 229, 255, 0.35);
-            color: #e0f7fa;
+            background: #141824;
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #f8fafc;
         }
 
         .theme-dark .form-input:focus {
-            border-color: #38bdf8;
-            background: rgba(18, 36, 68, 0.95);
+            border-color: #3b82f6;
+            background: #171d2b;
             box-shadow: none;
         }
 
         .form-input::placeholder {
             color: #94a3b8;
-            font-size: 11.5px;
+            font-size: 12px;
         }
 
         .pw-toggle-btn {
@@ -1388,14 +1590,15 @@
             border: none;
             color: #64748b;
             font-size: 11px;
+            font-weight: 500;
             cursor: pointer;
-            font-family: 'Share Tech Mono', monospace;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             outline: none;
             padding: 2px 4px;
         }
 
         .pw-toggle-btn:hover {
-            color: #0077b6;
+            color: #2563eb;
         }
 
         .theme-dark .pw-toggle-btn {
@@ -1403,71 +1606,68 @@
         }
 
         .theme-dark .pw-toggle-btn:hover {
-            color: #00e5ff;
+            color: #60a5fa;
         }
 
         .form-helper {
-            font-size: 10.5px;
+            font-size: 11px;
             color: #64748b;
             margin-top: 2px;
-            font-family: sans-serif;
         }
 
         .theme-dark .form-helper {
             color: #94a3b8;
         }
 
-        /* Form Notice / Security Badge */
-        .security-notice {
+        /* Minimal Security Badge */
+        .security-notice-minimal {
             display: flex;
             align-items: center;
             gap: 10px;
             padding: 10px 14px;
-            background: rgba(0, 180, 240, 0.06);
-            border: 1px dashed rgba(0, 180, 240, 0.35);
-            border-radius: 10px;
-            font-size: 11px;
-            color: #334155;
-            font-family: sans-serif;
+            background: rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            font-size: 11.5px;
+            color: #475569;
+            line-height: 1.4;
         }
 
-        .theme-dark .security-notice {
-            background: rgba(0, 229, 255, 0.06);
-            border-color: rgba(0, 229, 255, 0.35);
-            color: #cbd5e1;
+        .theme-dark .security-notice-minimal {
+            background: rgba(255, 255, 255, 0.025);
+            border-color: rgba(255, 255, 255, 0.08);
+            color: #94a3b8;
         }
 
         .sec-icon {
-            color: #00b4d8;
+            color: #64748b;
             flex-shrink: 0;
         }
 
         .theme-dark .sec-icon {
-            color: #00e5ff;
+            color: #94a3b8;
         }
 
-        /* Connection Action Buttons */
+        /* Action Buttons */
         .connect-actions-row {
             display: flex;
-            gap: 12px;
-            margin-top: 8px;
+            gap: 10px;
+            margin-top: 6px;
         }
 
         .btn-connect-primary {
             flex: 1;
-            background: #0284c7;
+            background: #2563eb;
             border: none;
             border-radius: 8px;
-            padding: 11px 18px;
+            padding: 10px 18px;
             color: #ffffff;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 11.5px;
-            font-weight: 700;
-            letter-spacing: 0.8px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            display: flex;
+            transition: background 0.15s ease;
+            display: inline-flex;
             justify-content: center;
             align-items: center;
             gap: 8px;
@@ -1475,78 +1675,88 @@
         }
 
         .btn-connect-primary:hover {
-            background: #0369a1;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+            background: #1d4ed8;
         }
 
-        .btn-connect-primary:active {
-            transform: translateY(0);
+        .btn-connect-secondary {
+            background: rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.12);
+            border-radius: 8px;
+            padding: 9px 16px;
+            color: #334155;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            outline: none;
         }
 
-        .theme-dark .btn-connect-primary {
-            background: #0284c7;
+        .btn-connect-secondary:hover {
+            background: rgba(0, 0, 0, 0.08);
+            color: #0f172a;
+        }
+
+        .theme-dark .btn-connect-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.12);
+            color: #cbd5e1;
+        }
+
+        .theme-dark .btn-connect-secondary:hover {
+            background: rgba(255, 255, 255, 0.09);
+            border-color: rgba(255, 255, 255, 0.2);
             color: #ffffff;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .theme-dark .btn-connect-primary:hover {
-            background: #0369a1;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
         }
 
         .btn-disconnect {
-            background: rgba(239, 68, 68, 0.08);
-            border: 1px solid rgba(239, 68, 68, 0.35);
+            background: transparent;
+            border: 1px solid rgba(239, 68, 68, 0.25);
             border-radius: 8px;
-            padding: 11px 16px;
+            padding: 9px 16px;
             color: #ef4444;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 11px;
-            font-weight: 700;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 12px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             outline: none;
         }
 
         .btn-disconnect:hover {
-            background: rgba(239, 68, 68, 0.18);
+            background: rgba(239, 68, 68, 0.08);
             border-color: #ef4444;
-            box-shadow: none;
         }
 
-        /* Success & Status Animation Box */
+        /* Status Notice Box */
         .connect-status-box {
             display: none;
-            padding: 12px 16px;
-            border-radius: 10px;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 11.5px;
-            letter-spacing: 0.5px;
-            animation: fadeIn 0.3s ease;
+            padding: 11px 14px;
+            border-radius: 8px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 12px;
+            animation: fadeIn 0.25s ease;
         }
 
         .connect-status-box.success {
             display: flex;
             align-items: center;
-            gap: 10px;
-            background: rgba(16, 185, 129, 0.12);
-            border: 1px solid rgba(16, 185, 129, 0.45);
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.3);
             color: #059669;
         }
 
         .theme-dark .connect-status-box.success {
-            background: rgba(16, 185, 129, 0.2);
-            border-color: rgba(52, 211, 153, 0.55);
             color: #34d399;
         }
 
         .connect-status-box.error {
             display: flex;
             align-items: center;
-            gap: 10px;
-            background: rgba(239, 68, 68, 0.12);
-            border: 1px solid rgba(239, 68, 68, 0.45);
+            gap: 8px;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
             color: #dc2626;
         }
 
@@ -1554,20 +1764,20 @@
             color: #f87171;
         }
 
-        /* Connected State Details Card */
+        /* Connected State Details Card (Minimal, Refined) */
         .connected-info-card {
-            background: rgba(16, 185, 129, 0.08);
-            border: 1.5px solid rgba(16, 185, 129, 0.35);
-            border-radius: 14px;
+            background: rgba(16, 185, 129, 0.04);
+            border: 1px solid rgba(16, 185, 129, 0.22);
+            border-radius: 12px;
             padding: 16px 20px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
         }
 
         .theme-dark .connected-info-card {
-            background: rgba(16, 185, 129, 0.12);
-            border-color: rgba(52, 211, 153, 0.45);
+            background: rgba(16, 185, 129, 0.06);
+            border-color: rgba(16, 185, 129, 0.25);
         }
 
         .connected-info-header {
@@ -1577,9 +1787,9 @@
         }
 
         .connected-tag {
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 10px;
-            font-weight: 700;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 11px;
+            font-weight: 600;
             color: #059669;
             display: flex;
             align-items: center;
@@ -1590,12 +1800,19 @@
             color: #34d399;
         }
 
+        .connected-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #10b981;
+            display: inline-block;
+        }
+
         .connected-details-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 11px;
+            font-size: 12px;
         }
 
         .detail-item {
@@ -1605,9 +1822,11 @@
         }
 
         .detail-label {
-            font-size: 9px;
+            font-size: 10.5px;
+            font-weight: 500;
             color: #64748b;
             text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
 
         .theme-dark .detail-label {
@@ -1615,15 +1834,222 @@
         }
 
         .detail-value {
-            font-weight: 700;
-            color: #0f2757;
+            font-weight: 600;
+            color: #0f172a;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
         .theme-dark .detail-value {
-            color: #e0f7fa;
+            color: #f1f5f9;
+        }
+
+        /* Minimal Multi-Accounts Hub (Executive, Glow-free) */
+        .multi-accounts-hub {
+            background: rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .theme-dark .multi-accounts-hub {
+            background: rgba(255, 255, 255, 0.025);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .hub-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .hub-title {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .theme-dark .hub-title {
+            color: #94a3b8;
+        }
+
+        .btn-add-account-toggle {
+            background: transparent;
+            border: 1px solid rgba(0, 0, 0, 0.12);
+            color: #2563eb;
+            font-size: 11px;
+            font-weight: 500;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            transition: all 0.15s ease;
+        }
+
+        .btn-add-account-toggle:hover {
+            background: rgba(37, 99, 235, 0.06);
+            border-color: #2563eb;
+        }
+
+        .theme-dark .btn-add-account-toggle {
+            border-color: rgba(255, 255, 255, 0.12);
+            color: #60a5fa;
+        }
+
+        .theme-dark .btn-add-account-toggle:hover {
+            background: rgba(96, 165, 250, 0.1);
+            border-color: #60a5fa;
+        }
+
+        .account-badge-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: border-color 0.15s ease;
+        }
+
+        .account-badge-row.active {
+            border-color: rgba(16, 185, 129, 0.35);
+            background: rgba(16, 185, 129, 0.04);
+        }
+
+        .theme-dark .account-badge-row {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .theme-dark .account-badge-row.active {
+            background: rgba(16, 185, 129, 0.08);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .account-email-text {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 12.5px;
+            font-weight: 500;
+            color: #0f172a;
+            word-break: break-all;
+        }
+
+        .theme-dark .account-email-text {
+            color: #f8fafc;
+        }
+
+        .badge-active-pill {
+            background: #10b981;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            text-transform: uppercase;
+        }
+
+        .badge-label-pill {
+            background: rgba(0, 0, 0, 0.06);
+            color: #475569;
+            font-size: 9px;
+            font-weight: 500;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .theme-dark .badge-label-pill {
+            background: rgba(255, 255, 255, 0.08);
+            color: #94a3b8;
+        }
+
+        .btn-switch-account {
+            background: rgba(0, 0, 0, 0.04);
+            color: #334155;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            font-size: 10.5px;
+            font-weight: 500;
+            padding: 4px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            transition: all 0.15s ease;
+        }
+
+        .btn-switch-account:hover {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+        }
+
+        .theme-dark .btn-switch-account {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.12);
+            color: #cbd5e1;
+        }
+
+        .theme-dark .btn-switch-account:hover {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #ffffff;
+        }
+
+        .btn-remove-account {
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            font-size: 13px;
+            width: 24px;
+            height: 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .btn-remove-account:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .theme-dark .btn-remove-account {
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .theme-dark .btn-remove-account:hover {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        .connected-status-pill {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 10px;
+            font-weight: 600;
+            color: #059669;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            padding: 2px 8px;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+
+        .theme-dark .connected-status-pill {
+            color: #34d399;
+            background: rgba(16, 185, 129, 0.15);
         }
 
         /* ======================================================== */
@@ -4482,6 +4908,9 @@
 
         function openPluginsHub() {
             playHudBeep(780, 0.06);
+            document.body.classList.add('plugins-hub-open');
+            window.__isModalOpen = true;
+            if (window.pauseHydraFilaments) window.pauseHydraFilaments();
             const overlay = document.getElementById('pluginsOverlay');
             if (overlay) {
                 overlay.classList.add('active');
@@ -4491,6 +4920,9 @@
         }
 
         function closePluginsHub() {
+            document.body.classList.remove('plugins-hub-open');
+            window.__isModalOpen = false;
+            if (window.resumeHydraFilaments) window.resumeHydraFilaments();
             const overlay = document.getElementById('pluginsOverlay');
             if (overlay) {
                 overlay.classList.remove('active');
@@ -4612,17 +5044,20 @@
                 .replace(/'/g, '&#039;');
         }
 
+        let currentActivePluginId = null;
+
         function openAppConnection(appId) {
             const app = HYDRA_APPS_CATALOG.find(a => a.id === appId);
             if (!app) return;
 
+            currentActivePluginId = appId;
             playHudBeep(640, 0.05);
             const panel = document.getElementById('pluginConnectPanel');
             const body = document.getElementById('connectPanelBody');
             const sysTag = document.getElementById('panelSysTag');
             if (!panel || !body) return;
 
-            if (sysTag) sysTag.innerText = `${app.name.toUpperCase()} // INTEGRATION PORTAL`;
+            if (sysTag) sysTag.innerText = 'AUTHENTICATION';
 
             const isConn = !!(connectedPlugins[app.id] && connectedPlugins[app.id].connected);
             const connData = connectedPlugins[app.id] || {};
@@ -4631,148 +5066,186 @@
 
             if (app.authType === 'google') {
                 customFieldsHtml = `
-                    <div class="one-click-auth-card" style="margin-bottom: 20px; padding: 18px; border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 10px; background: rgba(15, 23, 42, 0.7); text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-                        <div style="font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #38bdf8; margin-bottom: 6px; letter-spacing: 1px; font-weight: bold;">
-                            ZERO-CODE 1-CLICK CONNECTION (PHASE 1)
+                    <div class="auth-card-minimal">
+                        <div class="auth-action-box">
+                            <button type="button" class="btn-google-auth" onclick="startOneClickAuth('${app.id}')">
+                                <svg viewBox="0 0 24 24" width="18" height="18">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                                </svg>
+                                <span>Continue with Google</span>
+                            </button>
+                            <p class="auth-subtext">
+                                Sign in with your Google Account to connect ${escapeHtml(app.name)}. Tokens are encrypted locally in your private keychain.
+                            </p>
                         </div>
-                        <p style="font-size: 12px; color: #94a3b8; margin: 0 0 14px 0; line-height: 1.4;">
-                            Sign in once securely via isolated local window. HYDRA extracts session tokens into encrypted local vault for 100% background Gmail, Classroom, and YouTube execution.
-                        </p>
-                        <button type="button" class="btn-connect-primary" onclick="startOneClickAuth('google')" style="width: 100%; justify-content: center; background: #2563eb; color: #fff; font-weight: bold; border: 1px solid #3b82f6; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; padding: 10px 16px; border-radius: 8px;">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 8px;"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/></svg>
-                            CONNECT WITH GOOGLE (1-CLICK)
-                        </button>
+                        <details class="manual-auth-details">
+                            <summary>Configure with App Password (Optional)</summary>
+                            <div class="manual-auth-body">
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <span>Google Account Email</span>
+                                        <span style="font-size: 10px; color: #64748b;">Optional</span>
+                                    </label>
+                                    <div class="form-input-wrap">
+                                        <input type="email" id="inp_app_email" class="form-input" placeholder="user@gmail.com" value="${escapeHtml(connData.account || '')}" autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <span>App Password</span>
+                                        <span style="font-size: 10px; color: #64748b;">Encrypted</span>
+                                    </label>
+                                    <div class="form-input-wrap">
+                                        <input type="password" id="inp_app_password" class="form-input" placeholder="Google App Password" autocomplete="new-password">
+                                        <button type="button" class="pw-toggle-btn" onclick="togglePasswordVisibility('inp_app_password', this)">SHOW</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
                     </div>
-                    <details style="margin-bottom: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
-                        <summary style="font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #64748b; cursor: pointer; outline: none;">OR CONFIGURE CREDENTIALS MANUALLY (ADVANCED)</summary>
-                        <div style="margin-top: 10px;">
-                            <div class="form-group">
-                                <label class="form-label">
-                                    <span>GOOGLE ACCOUNT EMAIL</span>
-                                    <span style="font-size: 9px; opacity: 0.7;">OPTIONAL</span>
-                                </label>
-                                <div class="form-input-wrap">
-                                    <input type="email" id="inp_app_email" class="form-input" placeholder="e.g. user@gmail.com" value="${escapeHtml(connData.account || '')}" autocomplete="off">
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">
-                                    <span>APP PASSWORD</span>
-                                    <span style="font-size: 9px; opacity: 0.7;">ENCRYPTED</span>
-                                </label>
-                                <div class="form-input-wrap">
-                                    <input type="password" id="inp_app_password" class="form-input" placeholder="Enter Google app password" autocomplete="new-password">
-                                    <button type="button" class="pw-toggle-btn" onclick="togglePasswordVisibility('inp_app_password', this)">SHOW</button>
-                                </div>
-                            </div>
-                        </div>
-                    </details>
                 `;
             } else if (app.id === 'spotify') {
                 customFieldsHtml = `
-                    <div class="one-click-auth-card" style="margin-bottom: 20px; padding: 18px; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 10px; background: rgba(15, 23, 42, 0.7); text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-                        <div style="font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #10b981; margin-bottom: 6px; letter-spacing: 1px; font-weight: bold;">
-                            SPOTIFY AUTHENTICATION CENTER (GOOGLE & EMAIL)
+                    <div class="auth-card-minimal">
+                        <div class="auth-action-box">
+                            <button type="button" class="btn-spotify-auth" onclick="startOneClickAuth('spotify')">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                                </svg>
+                                <span>Continue with Spotify</span>
+                            </button>
+                            <p class="auth-subtext">
+                                Connect through Spotify's authentication portal. Supports "Continue with Google" and direct Spotify accounts.
+                            </p>
                         </div>
-                        <p style="font-size: 12px; color: #94a3b8; margin: 0 0 14px 0; line-height: 1.4;">
-                            Redirects to Spotify's Authentication Center with "Continue with Google" or email login. Your session is saved forever in your local secure vault for headless background playback, subscription monitoring, and media control.
-                        </p>
-                        <button type="button" class="btn-connect-primary" onclick="startOneClickAuth('spotify')" style="width: 100%; justify-content: center; background: #059669; color: #fff; font-weight: bold; border: 1px solid #10b981; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; padding: 10px 16px; border-radius: 8px;">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 8px;"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
-                            SIGN IN TO SPOTIFY (GOOGLE / EMAIL)
-                        </button>
-                    </div>
-                    <details style="margin-bottom: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
-                        <summary style="font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #64748b; cursor: pointer; outline: none;">OR CONFIGURE CREDENTIALS MANUALLY (ADVANCED)</summary>
-                        <div style="margin-top: 10px;">
-                            <div class="form-group">
-                                <label class="form-label">SPOTIFY ACCOUNT</label>
-                                <div class="form-input-wrap">
-                                    <input type="text" id="inp_app_email" class="form-input" placeholder="e.g. user@spotify.com" value="${escapeHtml(connData.account || '')}" autocomplete="off">
+                        <details class="manual-auth-details">
+                            <summary>Configure Account Manually (Optional)</summary>
+                            <div class="manual-auth-body">
+                                <div class="form-group">
+                                    <label class="form-label">Spotify Account Email or Username</label>
+                                    <div class="form-input-wrap">
+                                        <input type="text" id="inp_app_email" class="form-input" placeholder="user@spotify.com" value="${escapeHtml(connData.account || '')}" autocomplete="off">
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </details>
+                        </details>
+                    </div>
                 `;
             } else if (app.id === 'whatsapp') {
                 customFieldsHtml = `
-                    <div class="one-click-auth-card" style="margin-bottom: 20px; padding: 18px; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 10px; background: rgba(15, 23, 42, 0.7); text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-                        <div style="font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #10b981; margin-bottom: 6px; letter-spacing: 1px; font-weight: bold;">
-                            DYNAMIC QR SESSION PAIRING (PHASE 1.2)
+                    <div class="auth-card-minimal">
+                        <div class="auth-action-box">
+                            <button type="button" class="btn-whatsapp-auth" onclick="startOneClickAuth('whatsapp')">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                    <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/>
+                                </svg>
+                                <span>Link Device with QR Code</span>
+                            </button>
+                            <p class="auth-subtext">
+                                Scan the dynamic QR code using WhatsApp on your phone under Linked Devices.
+                            </p>
                         </div>
-                        <p style="font-size: 12px; color: #94a3b8; margin: 0 0 14px 0; line-height: 1.4;">
-                            Scan pairing link with WhatsApp on your phone (Linked Devices) for autonomous background message dispatch without opening any browser window.
-                        </p>
-                        <button type="button" class="btn-connect-primary" onclick="startOneClickAuth('whatsapp')" style="width: 100%; justify-content: center; background: #059669; color: #fff; font-weight: bold; border: 1px solid #10b981; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; padding: 10px 16px; border-radius: 8px;">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 8px;"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
-                            PAIR WHATSAPP (DYNAMIC QR)
-                        </button>
-                    </div>
-                    <details style="margin-bottom: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
-                        <summary style="font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #64748b; cursor: pointer; outline: none;">OR CONFIGURE PHONE NUMBER MANUALLY (ADVANCED)</summary>
-                        <div style="margin-top: 10px;">
-                            <div class="form-group">
-                                <label class="form-label">PHONE NUMBER</label>
-                                <div style="display: flex; gap: 8px;">
-                                    <input type="text" id="inp_app_country" class="form-input" style="max-width: 90px;" placeholder="+1" value="${escapeHtml((connData.data && connData.data.country) || '+1')}">
-                                    <input type="tel" id="inp_app_email" class="form-input" placeholder="e.g. 3001234567" value="${escapeHtml(connData.account || '')}">
+                        <details class="manual-auth-details">
+                            <summary>Configure Phone Number Manually (Optional)</summary>
+                            <div class="manual-auth-body">
+                                <div class="form-group">
+                                    <label class="form-label">Phone Number</label>
+                                    <div style="display: flex; gap: 8px;">
+                                        <input type="text" id="inp_app_country" class="form-input" style="max-width: 80px;" placeholder="+1" value="${escapeHtml((connData.data && connData.data.country) || '+1')}">
+                                        <input type="tel" id="inp_app_email" class="form-input" placeholder="Phone Number" value="${escapeHtml(connData.account || '')}">
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </details>
+                        </details>
+                    </div>
                 `;
             } else if (app.authType === 'token') {
                 customFieldsHtml = `
-                    <div class="form-group">
-                        <label class="form-label">
-                            <span>ACCOUNT EMAIL OR USERNAME</span>
-                            <span style="font-size: 9px; opacity: 0.7;">REQUIRED</span>
-                        </label>
-                        <div class="form-input-wrap">
-                            <input type="text" id="inp_app_email" class="form-input" placeholder="Username / Account Handle" value="${escapeHtml(connData.account || '')}" required>
+                    <div class="auth-card-minimal" style="margin-bottom: 12px;">
+                        <div class="auth-action-box">
+                            <button type="button" class="btn-google-auth" onclick="startOneClickAuth('${app.id}')">
+                                <svg viewBox="0 0 24 24" width="18" height="18">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                                </svg>
+                                <span>Continue with Google</span>
+                            </button>
+                            <p class="auth-subtext">
+                                Link quickly via your Google Account or enter your access token below.
+                            </p>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">
-                            <span>PERSONAL ACCESS TOKEN / BOT TOKEN</span>
-                            <span style="font-size: 9px; opacity: 0.7;">REQUIRED</span>
+                            <span>Account Username or Email</span>
+                            <span style="font-size: 10px; color: #64748b;">Required</span>
                         </label>
                         <div class="form-input-wrap">
-                            <input type="password" id="inp_app_password" class="form-input" placeholder="Enter token or bot secret" autocomplete="new-password" required>
+                            <input type="text" id="inp_app_email" class="form-input" placeholder="Username / Account Handle" value="${escapeHtml(connData.account || '')}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span>Personal Access Token</span>
+                            <span style="font-size: 10px; color: #64748b;">Required</span>
+                        </label>
+                        <div class="form-input-wrap">
+                            <input type="password" id="inp_app_password" class="form-input" placeholder="Enter API token or secret" autocomplete="new-password">
                             <button type="button" class="pw-toggle-btn" onclick="togglePasswordVisibility('inp_app_password', this)">SHOW</button>
                         </div>
-                        <div class="form-helper">Grants HYDRA API permissions for remote actions and webhooks.</div>
+                        <div class="form-helper">Grants permissions for remote API execution and webhooks.</div>
                     </div>
                 `;
             } else {
                 // Generic Account (Canva, Instagram, Facebook, LinkedIn, Twitter, Reddit)
                 customFieldsHtml = `
-                    <div class="form-group">
-                        <label class="form-label">
-                            <span>ACCOUNT EMAIL, USERNAME OR HANDLE</span>
-                            <span style="font-size: 9px; opacity: 0.7;">REQUIRED</span>
-                        </label>
-                        <div class="form-input-wrap">
-                            <input type="text" id="inp_app_email" class="form-input" placeholder="Account email, username, or @handle" value="${escapeHtml(connData.account || '')}" required>
+                    <div class="auth-card-minimal" style="margin-bottom: 12px;">
+                        <div class="auth-action-box">
+                            <button type="button" class="btn-google-auth" onclick="startOneClickAuth('${app.id}')">
+                                <svg viewBox="0 0 24 24" width="18" height="18">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                                </svg>
+                                <span>Continue with Google</span>
+                            </button>
+                            <p class="auth-subtext">
+                                Link through your Google Account or sign in with your ${escapeHtml(app.name)} credentials.
+                            </p>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">
-                            <span>ACCOUNT PASSWORD</span>
-                            <span style="font-size: 9px; opacity: 0.7;">REQUIRED</span>
+                            <span>Account Email or Username</span>
+                            <span style="font-size: 10px; color: #64748b;">Required</span>
                         </label>
                         <div class="form-input-wrap">
-                            <input type="password" id="inp_app_password" class="form-input" placeholder="Enter account password" autocomplete="new-password" required>
+                            <input type="text" id="inp_app_email" class="form-input" placeholder="Account email, username or @handle" value="${escapeHtml(connData.account || '')}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span>Account Password</span>
+                            <span style="font-size: 10px; color: #64748b;">Required</span>
+                        </label>
+                        <div class="form-input-wrap">
+                            <input type="password" id="inp_app_password" class="form-input" placeholder="Account password" autocomplete="new-password">
                             <button type="button" class="pw-toggle-btn" onclick="togglePasswordVisibility('inp_app_password', this)">SHOW</button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">
-                            <span>2FA / WORKSPACE (OPTIONAL)</span>
-                            <span style="font-size: 9px; opacity: 0.7;">IF APPLICABLE</span>
+                            <span>2FA / Workspace (Optional)</span>
+                            <span style="font-size: 10px; color: #64748b;">If Applicable</span>
                         </label>
                         <div class="form-input-wrap">
-                            <input type="text" id="inp_app_extra" class="form-input" placeholder="Security 2FA token, Team Workspace, or Page ID">
+                            <input type="text" id="inp_app_extra" class="form-input" placeholder="2FA security token, team slug, or workspace">
                         </div>
                     </div>
                 `;
@@ -4793,50 +5266,137 @@
                     <div class="connected-info-card">
                         <div class="connected-info-header">
                             <span class="connected-tag">
-                                <span class="plugins-live-dot" style="background:#10b981; box-shadow: none;"></span>
-                                STATUS: HYDRA NEURAL LINK ACTIVE
+                                <span class="connected-dot"></span>
+                                Connected
                             </span>
-                            <span style="font-family:'Share Tech Mono', monospace; font-size: 10px; color:#10b981; font-weight:bold;">OPERATIONAL</span>
+                            <span class="connected-status-pill">Active</span>
                         </div>
                         <div class="connected-details-grid">
                             <div class="detail-item">
-                                <span class="detail-label">CONNECTED ACCOUNT</span>
+                                <span class="detail-label">Active Account</span>
                                 <span class="detail-value">${escapeHtml(connData.account || 'Unknown')}</span>
                             </div>
                             <div class="detail-item">
-                                <span class="detail-label">ESTABLISHED SINCE</span>
+                                <span class="detail-label">Connected Since</span>
                                 <span class="detail-value">${escapeHtml(connData.connectedAt || 'Recently')}</span>
                             </div>
                             <div class="detail-item">
-                                <span class="detail-label">AUTH PROTOCOL</span>
-                                <span class="detail-value">${escapeHtml(app.authType.toUpperCase())} SECURE BRIDGE</span>
+                                <span class="detail-label">Protocol</span>
+                                <span class="detail-value">${escapeHtml((connData.authType || app.authType || 'Secure').toUpperCase())}</span>
                             </div>
                             <div class="detail-item">
-                                <span class="detail-label">AGENT PERMISSIONS</span>
-                                <span class="detail-value">AUTONOMOUS DISPATCH ENABLED</span>
+                                <span class="detail-label">Security</span>
+                                <span class="detail-value">Encrypted Local Vault</span>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Multi-Accounts Hub -->
+                    <div class="multi-accounts-hub">
+                        <div class="hub-header-row">
+                            <span class="hub-title">
+                                Connected Accounts (${((connData.accounts && connData.accounts.length) || 1)})
+                            </span>
+                            <button type="button" id="btnAddAccountToggle" class="btn-add-account-toggle" onclick="toggleAddAccountSection()">
+                                + Add ${app.id === 'gmail' ? 'Another Email' : 'Another Account'}
+                            </button>
+                        </div>
+
+                        <div id="accountsListContainer">
+                            ${(() => {
+                                const accs = (connData.accounts && Array.isArray(connData.accounts) && connData.accounts.length > 0)
+                                    ? connData.accounts
+                                    : [{ account: connData.account, active: true, label: 'Primary' }];
+                                return accs.map(a => {
+                                    const isAct = (a.account.toLowerCase() === (connData.account || '').toLowerCase()) || Boolean(a.active);
+                                    return `
+                                        <div class="account-badge-row ${isAct ? 'active' : ''}">
+                                            <div style="display: flex; align-items: center; gap: 10px; overflow: hidden; min-width: 0;">
+                                                <span class="connected-dot" style="background: ${isAct ? '#10b981' : '#64748b'}; flex-shrink: 0;"></span>
+                                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0;">
+                                                    <span class="account-email-text">${escapeHtml(a.account)}</span>
+                                                    ${isAct ? '<span class="badge-active-pill">Active</span>' : ''}
+                                                    ${a.label ? `<span class="badge-label-pill">${escapeHtml(a.label)}</span>` : ''}
+                                                </div>
+                                            </div>
+                                            <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                                                ${!isAct ? `
+                                                    <button type="button" class="btn-switch-account" onclick="switchActiveAccount('${app.id}', '${escapeHtml(a.account)}')">
+                                                        Switch
+                                                    </button>
+                                                ` : ''}
+                                                ${accs.length > 1 ? `
+                                                    <button type="button" class="btn-remove-account" title="Remove account" onclick="removeAccount('${app.id}', '${escapeHtml(a.account)}')">
+                                                        ×
+                                                    </button>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('');
+                            })()}
+                        </div>
+
+                        <!-- Add Account Expandable Section -->
+                        <div id="addAccountFormContainer" style="display: none; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08);">
+                            <div style="font-size: 11.5px; font-weight: 600; color: #94a3b8; margin-bottom: 10px;">
+                                Add another ${escapeHtml(app.name)} account:
+                            </div>
+
+                            <div style="margin-bottom: 12px;">
+                                <button type="button" class="btn-google-auth" onclick="startOneClickAuth('${app.id}')">
+                                    <svg viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                                    </svg>
+                                    <span>Sign in with another Google account</span>
+                                </button>
+                            </div>
+
+                            <form onsubmit="submitAdditionalAccount(event, '${app.id}')">
+                                <div class="form-group" style="margin-bottom: 8px;">
+                                    <label class="form-label">Account Email / Username</label>
+                                    <input type="text" id="inp_add_email" class="form-input" placeholder="user@example.com" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 8px;">
+                                    <label class="form-label">Password / Token</label>
+                                    <div class="form-input-wrap">
+                                        <input type="password" id="inp_add_password" class="form-input" placeholder="Password or token" ${app.authType !== 'whatsapp' ? 'required' : ''}>
+                                        <button type="button" class="pw-toggle-btn" onclick="togglePasswordVisibility('inp_add_password', this)">SHOW</button>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label class="form-label">Label (e.g. Work, Personal, Student)</label>
+                                    <input type="text" id="inp_add_label" class="form-input" placeholder="e.g. Work">
+                                </div>
+                                <button type="submit" class="btn-connect-primary" style="width: 100%; justify-content: center;">
+                                    Save & Activate Account
+                                </button>
+                            </form>
                         </div>
                     </div>
 
                     <div id="connectStatusNotice" class="connect-status-box"></div>
 
                     <div class="connect-actions-row">
-                        <button class="btn-connect-primary" style="background: #0284c7;" onclick="testAppConnection('${app.id}')">
+                        <button class="btn-connect-secondary" onclick="testAppConnection('${app.id}')">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                            TEST NEURAL LINK
+                            <span>Test Connection</span>
                         </button>
                         <button class="btn-disconnect" onclick="disconnectApp('${app.id}')">
-                            DISCONNECT PLUGIN
+                            <span>Disconnect</span>
                         </button>
                     </div>
                 ` : `
-                    <div class="security-notice">
-                        <svg class="sec-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <div class="security-notice-minimal">
+                        <svg class="sec-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                         </svg>
                         <div>
-                            <strong>Credentials are securely stored locally.</strong> HYDRA uses these credentials exclusively to perform requested tasks like opening streams, playing songs, and sending messages.
+                            All credentials are encrypted and stored locally in your private keychain. Zero data is shared with external servers.
                         </div>
                     </div>
 
@@ -4848,7 +5408,7 @@
                         <div class="connect-actions-row">
                             <button type="submit" id="btnSubmitConnect" class="btn-connect-primary">
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                CONNECT ${escapeHtml(app.name.toUpperCase())}
+                                <span>Connect ${escapeHtml(app.name)}</span>
                             </button>
                         </div>
                     </form>
@@ -4923,9 +5483,32 @@
                 const now = new Date();
                 const timeStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+                let accList = [];
+                if (connectedPlugins[app.id] && Array.isArray(connectedPlugins[app.id].accounts)) {
+                    accList = connectedPlugins[app.id].accounts.map(a => Object.assign({}, a, { active: false }));
+                } else if (connectedPlugins[app.id] && connectedPlugins[app.id].account && connectedPlugins[app.id].account.toLowerCase() !== emailVal.toLowerCase()) {
+                    accList.push({ account: connectedPlugins[app.id].account, active: false, label: 'Primary' });
+                }
+
+                const existingIdx = accList.findIndex(a => a.account.toLowerCase() === emailVal.toLowerCase());
+                if (existingIdx >= 0) {
+                    accList[existingIdx].active = true;
+                    accList[existingIdx].connectedAt = timeStr;
+                } else {
+                    accList.push({
+                        account: emailVal,
+                        active: true,
+                        label: 'Primary',
+                        authType: app.authType,
+                        connectedAt: timeStr,
+                        data: { extra: extraVal, country: countryVal }
+                    });
+                }
+
                 connectedPlugins[app.id] = {
                     connected: true,
                     account: emailVal,
+                    accounts: accList,
                     connectedAt: timeStr,
                     authType: app.authType,
                     data: {
@@ -4949,6 +5532,136 @@
                 renderPluginsGrid();
                 openAppConnection(app.id);
             }, 600);
+        }
+
+        function toggleAddAccountSection() {
+            const c = document.getElementById('addAccountFormContainer');
+            if (!c) return;
+            const isHidden = (c.style.display === 'none' || !c.style.display);
+            c.style.display = isHidden ? 'block' : 'none';
+            const btn = document.getElementById('btnAddAccountToggle');
+            if (btn) btn.innerText = isHidden ? '− CANCEL' : '+ ADD ANOTHER ACCOUNT';
+        }
+
+        function submitAdditionalAccount(e, appId) {
+            if (e) e.preventDefault();
+            const emailInp = document.getElementById('inp_add_email');
+            const passInp = document.getElementById('inp_add_password');
+            const labelInp = document.getElementById('inp_add_label');
+
+            const emailVal = emailInp ? emailInp.value.trim() : '';
+            const passVal = passInp ? passInp.value : '';
+            const labelVal = (labelInp && labelInp.value.trim()) ? labelInp.value.trim() : 'Secondary';
+
+            if (!emailVal) return;
+
+            const now = new Date();
+            const timeStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            if (!connectedPlugins[appId]) {
+                connectedPlugins[appId] = { connected: true, account: emailVal, accounts: [] };
+            }
+
+            if (!Array.isArray(connectedPlugins[appId].accounts)) {
+                connectedPlugins[appId].accounts = [];
+                if (connectedPlugins[appId].account) {
+                    connectedPlugins[appId].accounts.push({
+                        account: connectedPlugins[appId].account,
+                        active: false,
+                        label: 'Primary',
+                        authType: connectedPlugins[appId].authType || 'account',
+                        data: connectedPlugins[appId].data || {}
+                    });
+                }
+            }
+
+            connectedPlugins[appId].accounts.forEach(a => { a.active = false; });
+
+            const existingIdx = connectedPlugins[appId].accounts.findIndex(a => a.account.toLowerCase() === emailVal.toLowerCase());
+            if (existingIdx >= 0) {
+                connectedPlugins[appId].accounts[existingIdx].active = true;
+                connectedPlugins[appId].accounts[existingIdx].label = labelVal;
+                connectedPlugins[appId].accounts[existingIdx].connectedAt = timeStr;
+                connectedPlugins[appId].accounts[existingIdx].data = { password: passVal, verified: true };
+            } else {
+                connectedPlugins[appId].accounts.push({
+                    account: emailVal,
+                    active: true,
+                    label: labelVal,
+                    authType: 'account',
+                    connectedAt: timeStr,
+                    data: { password: passVal, verified: true }
+                });
+            }
+
+            connectedPlugins[appId].account = emailVal;
+            connectedPlugins[appId].connected = true;
+
+            try {
+                localStorage.setItem('HYDRA_CONNECTED_PLUGINS', JSON.stringify(connectedPlugins));
+            } catch (err) {}
+
+            console.log('HYDRA_PLUGIN_SAVE:' + JSON.stringify(connectedPlugins));
+            playHudBeep(520, 0.05);
+
+            updatePluginsBadges();
+            renderPluginsGrid();
+            openAppConnection(appId);
+        }
+
+        function switchActiveAccount(appId, targetAccount) {
+            playHudBeep(640, 0.05);
+            if (!connectedPlugins[appId] || !Array.isArray(connectedPlugins[appId].accounts)) return;
+
+            connectedPlugins[appId].accounts.forEach(a => {
+                a.active = (a.account.toLowerCase() === targetAccount.toLowerCase());
+            });
+            connectedPlugins[appId].account = targetAccount;
+
+            try {
+                localStorage.setItem('HYDRA_CONNECTED_PLUGINS', JSON.stringify(connectedPlugins));
+            } catch (err) {}
+
+            console.log('HYDRA_ACCOUNT_SWITCH:' + appId + ':' + targetAccount);
+            console.log('HYDRA_PLUGIN_SAVE:' + JSON.stringify(connectedPlugins));
+
+            updatePluginsBadges();
+            renderPluginsGrid();
+            openAppConnection(appId);
+        }
+
+        function removeAccount(appId, targetAccount) {
+            if (!confirm(`Remove account ${targetAccount} from ${appId}?`)) return;
+            playHudBeep(340, 0.08);
+
+            if (!connectedPlugins[appId] || !Array.isArray(connectedPlugins[appId].accounts)) return;
+
+            connectedPlugins[appId].accounts = connectedPlugins[appId].accounts.filter(
+                a => a.account.toLowerCase() !== targetAccount.toLowerCase()
+            );
+
+            if (connectedPlugins[appId].accounts.length === 0) {
+                delete connectedPlugins[appId];
+                console.log('HYDRA_AUTH_DISCONNECT:' + appId);
+            } else {
+                const hasActive = connectedPlugins[appId].accounts.some(a => a.active);
+                if (!hasActive) {
+                    connectedPlugins[appId].accounts[0].active = true;
+                }
+                const activeAcc = connectedPlugins[appId].accounts.find(a => a.active);
+                connectedPlugins[appId].account = activeAcc.account;
+                console.log('HYDRA_ACCOUNT_REMOVE:' + appId + ':' + targetAccount);
+            }
+
+            try {
+                localStorage.setItem('HYDRA_CONNECTED_PLUGINS', JSON.stringify(connectedPlugins));
+            } catch (err) {}
+
+            console.log('HYDRA_PLUGIN_SAVE:' + JSON.stringify(connectedPlugins));
+
+            updatePluginsBadges();
+            renderPluginsGrid();
+            openAppConnection(appId);
         }
 
         function disconnectApp(appId) {
@@ -4978,11 +5691,11 @@
             playHudBeep(720, 0.08);
             const notice = document.getElementById('connectStatusNotice');
             if (notice) {
-                notice.className = 'connect-status-box';
+                notice.className = 'connect-status-box success';
                 notice.style.display = 'flex';
                 const msg = (service === 'whatsapp')
-                    ? 'Launching WhatsApp Dynamic QR Pairing Window... Scan the QR code with your phone (Linked Devices).'
-                    : `Initiating 1-Click Zero-Code Neural Link for ${service.toUpperCase()}...`;
+                    ? 'Opening WhatsApp QR pairing window...'
+                    : 'Opening secure authentication window...';
                 notice.innerHTML = `
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
                     <span>${msg}</span>
@@ -4999,18 +5712,58 @@
 
             if (appId === 'google') {
                 ['gmail', 'google_classroom', 'youtube'].forEach(gApp => {
+                    const prev = connectedPlugins[gApp] || {};
+                    let accList = Array.isArray(prev.accounts) ? prev.accounts.map(a => Object.assign({}, a, { active: false })) : [];
+                    if (accList.length === 0 && prev.account && prev.account.toLowerCase() !== account.toLowerCase()) {
+                        accList.push({ account: prev.account, active: false, label: 'Primary', authType: 'google_session' });
+                    }
+                    const existingIdx = accList.findIndex(a => a.account.toLowerCase() === account.toLowerCase());
+                    if (existingIdx >= 0) {
+                        accList[existingIdx].active = true;
+                    } else {
+                        accList.push({
+                            account: account,
+                            active: true,
+                            label: accList.length === 0 ? 'Primary' : `Account ${accList.length + 1}`,
+                            authType: 'google_session',
+                            connectedAt: timeStr,
+                            data: { session: 'google_session.enc', verified: true }
+                        });
+                    }
+
                     connectedPlugins[gApp] = {
                         connected: true,
                         account: account,
+                        accounts: accList,
                         connectedAt: timeStr,
                         authType: 'google_session',
                         data: { session: 'google_session.enc', verified: true }
                     };
                 });
             } else {
+                const prev = connectedPlugins[appId] || {};
+                let accList = Array.isArray(prev.accounts) ? prev.accounts.map(a => Object.assign({}, a, { active: false })) : [];
+                if (accList.length === 0 && prev.account && prev.account.toLowerCase() !== account.toLowerCase()) {
+                    accList.push({ account: prev.account, active: false, label: 'Primary', authType: prev.authType || 'vault_session' });
+                }
+                const existingIdx = accList.findIndex(a => a.account.toLowerCase() === account.toLowerCase());
+                if (existingIdx >= 0) {
+                    accList[existingIdx].active = true;
+                } else {
+                    accList.push({
+                        account: account,
+                        active: true,
+                        label: accList.length === 0 ? 'Primary' : `Account ${accList.length + 1}`,
+                        authType: 'vault_session',
+                        connectedAt: timeStr,
+                        data: { verified: true }
+                    });
+                }
+
                 connectedPlugins[appId] = {
                     connected: true,
                     account: account,
+                    accounts: accList,
                     connectedAt: timeStr,
                     authType: 'vault_session',
                     data: { verified: true }
@@ -5023,8 +5776,35 @@
 
             updatePluginsBadges();
             renderPluginsGrid();
-            const curApp = (appId === 'google') ? 'gmail' : appId;
+            const curApp = (appId === 'google') ? (currentActivePluginId || 'gmail') : appId;
             openAppConnection(curApp);
+        };
+
+        window.onAccountSwitched = function(appId, account) {
+            playHudBeep(520, 0.06);
+            if (connectedPlugins[appId]) {
+                connectedPlugins[appId].account = account;
+                if (Array.isArray(connectedPlugins[appId].accounts)) {
+                    connectedPlugins[appId].accounts.forEach(a => {
+                        a.active = (a.account.toLowerCase() === account.toLowerCase());
+                    });
+                }
+                updatePluginsBadges();
+                renderPluginsGrid();
+                openAppConnection(appId);
+            }
+        };
+
+        window.onAccountRemoved = function(appId, account) {
+            playHudBeep(340, 0.08);
+            if (connectedPlugins[appId] && Array.isArray(connectedPlugins[appId].accounts)) {
+                connectedPlugins[appId].accounts = connectedPlugins[appId].accounts.filter(
+                    a => a.account.toLowerCase() !== account.toLowerCase()
+                );
+                updatePluginsBadges();
+                renderPluginsGrid();
+                openAppConnection(appId);
+            }
         };
 
         window.onAppDisconnected = function(appId) {
@@ -5071,13 +5851,7 @@
             // Purge any stale mock/dummy accounts from previous testing
             const MOCK_ACCOUNTS = [
                 'connected_google_user@gmail.com',
-                'primary.user@gmail.com',
-                'ahmad@canva.com',
-                'Ahmad#1234',
-                'ahmad-dev2989',
-                'ahmad-pro',
-                'Connected Device (+92-300-1234567)',
-                'Connected WhatsApp Device'
+                'primary.user@gmail.com'
             ];
             for (let k in connectedPlugins) {
                 if (connectedPlugins[k] && MOCK_ACCOUNTS.includes(connectedPlugins[k].account)) {
@@ -5095,7 +5869,16 @@
                                 delete data[k];
                             }
                         }
-                        connectedPlugins = Object.assign({}, data, connectedPlugins);
+                        for (let k in data) {
+                            if (!connectedPlugins[k]) {
+                                connectedPlugins[k] = data[k];
+                            } else {
+                                if (data[k].accounts && (!connectedPlugins[k].accounts || connectedPlugins[k].accounts.length < data[k].accounts.length)) {
+                                    connectedPlugins[k].accounts = data[k].accounts;
+                                    connectedPlugins[k].account = data[k].account;
+                                }
+                            }
+                        }
                         try {
                             localStorage.setItem('HYDRA_CONNECTED_PLUGINS', JSON.stringify(connectedPlugins));
                         } catch (e) {}
