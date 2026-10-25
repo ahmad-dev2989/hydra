@@ -381,35 +381,138 @@ class WhatsAppDirectWorker(BaseDirectWorker):
             return self.open_chat_and_send(display_name, clean_msg)
 
     # =========================================================================
-    # Phase 1.1: Unread Messages & Notifications Monitoring
+    # Phase 1.2: Real-Time Incoming Notifications & Unread Messages Monitoring
     # =========================================================================
 
-    def get_unread_messages(self) -> Tuple[bool, str, List[Dict[str, Any]]]:
+    def _fetch_real_notifications(self, max_count: int = 15) -> List[Dict[str, Any]]:
         """
-        Retrieves unread incoming message summary from paired multi-device session.
-        Voice feedback: "Sir, you have no unread messages on WhatsApp."
+        Directly extracts genuine incoming WhatsApp notifications from Windows Notification Store (wpndatabase.db)
+        without opening WhatsApp, stealing screen focus, or touching keyboard/mouse.
         """
-        unreads = []
-        if UNREAD_CACHE_FILE.exists():
+        import sqlite3
+        import shutil
+        import tempfile
+        import xml.etree.ElementTree as ET
+        from datetime import datetime, timedelta
+
+        db_path = Path(os.environ.get('LOCALAPPDATA', '')) / 'Microsoft' / 'Windows' / 'Notifications' / 'wpndatabase.db'
+        if not db_path.exists():
+            return []
+
+        temp_dir = tempfile.gettempdir()
+        temp_db = Path(temp_dir) / f'wpndatabase_wa_{os.getpid()}.db'
+
+        messages = []
+        seen = set()
+
+        try:
+            shutil.copy2(db_path, temp_db)
+            conn = sqlite3.connect(str(temp_db))
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT h.PrimaryId, n.Payload, n.ArrivalTime 
+                FROM Notification n 
+                LEFT JOIN NotificationHandler h ON n.HandlerId = h.RecordId
+                WHERE (h.PrimaryId LIKE '%WhatsAppDesktop%' OR h.PrimaryId LIKE '%YourPhoneNotifications_com.whatsapp%')
+                ORDER BY n.ArrivalTime DESC
+                LIMIT 50
+            """)
+            rows = cursor.fetchall()
+
+            for h_id, payload_bytes, arrival_filetime in rows:
+                if not payload_bytes:
+                    continue
+                try:
+                    xml_str = payload_bytes.decode('utf-8', errors='ignore')
+                    if '<toast' in xml_str:
+                        root = ET.fromstring(xml_str)
+                        texts = [elem.text for elem in root.iter('text') if elem.text]
+                        if len(texts) >= 2:
+                            sender = texts[0].strip()
+                            body = texts[1].strip()
+                        elif len(texts) == 1:
+                            sender = "WhatsApp"
+                            body = texts[0].strip()
+                        else:
+                            continue
+
+                        # Dedup consecutive duplicate notifications
+                        dedup_key = f"{sender}_{body}"
+                        if dedup_key in seen:
+                            continue
+                        seen.add(dedup_key)
+
+                        dt_str = ""
+                        try:
+                            if arrival_filetime:
+                                dt = datetime(1601, 1, 1) + timedelta(microseconds=arrival_filetime // 10)
+                                dt_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+                        except Exception:
+                            dt_str = ""
+
+                        messages.append({
+                            "sender": sender,
+                            "message": body,
+                            "timestamp": arrival_filetime,
+                            "date": dt_str
+                        })
+                        if len(messages) >= max_count:
+                            break
+                except Exception:
+                    pass
+
+            conn.close()
+        except Exception as e:
+            print(f"[WHATSAPP NOTIFICATIONS] Read notice: {e}")
+
+        return messages
+
+    def get_unread_messages(self, filter_sender: str = "") -> Tuple[bool, str, List[Dict[str, Any]]]:
+        """
+        Retrieves real incoming WhatsApp message notifications directly from Windows Notification Store.
+        Zero window opening, zero screen stealing, strictly genuine messages.
+        """
+        notifications = self._fetch_real_notifications(max_count=10)
+
+        # Filter by specific sender if requested (e.g. "what did Qaseem say on whatsapp")
+        if filter_sender:
+            low_f = filter_sender.lower().strip()
+            notifications = [m for m in notifications if low_f in m.get("sender", "").lower()]
+
+        # Fallback to local cache if DB was empty
+        if not notifications and UNREAD_CACHE_FILE.exists():
             try:
                 with open(UNREAD_CACHE_FILE, "r", encoding="utf-8") as f:
-                    unreads = json.load(f).get("unread", [])
+                    notifications = json.load(f).get("unread", [])
+                if filter_sender:
+                    low_f = filter_sender.lower().strip()
+                    notifications = [m for m in notifications if low_f in m.get("sender", "").lower()]
             except Exception:
-                unreads = []
+                notifications = []
 
-        # Strictly honest: zero mock/synthesized unread messages
-        if not unreads:
+        if not notifications:
+            if filter_sender:
+                return True, f"Sir, you have no recent messages from {filter_sender.title()} on WhatsApp.", []
             return True, "Sir, you have no unread messages on WhatsApp.", []
 
-        first_sender = unreads[0].get("sender", "a contact")
-        count = len(unreads)
+        first = notifications[0]
+        sender = first.get("sender", "a contact")
+        msg = first.get("message", "")
 
-        if count == 1:
-            speech = f"Sir, you have 1 new message from {first_sender} on WhatsApp: '{unreads[0].get('message')}'."
+        if len(notifications) == 1:
+            speech = f"Sir, you received a message from {sender} on WhatsApp: '{msg}'."
         else:
-            speech = f"Sir, you have {count} new messages from {first_sender} on WhatsApp."
+            # Highlight top 2
+            second = notifications[1]
+            s2 = second.get("sender", "")
+            m2 = second.get("message", "")
+            if s2 and s2 != sender:
+                speech = f"Sir, you have {len(notifications)} recent messages on WhatsApp: {sender} said '{msg}', and {s2} said '{m2}'."
+            else:
+                speech = f"Sir, you have {len(notifications)} recent messages on WhatsApp from {sender}, saying '{msg}'."
 
-        return True, speech, unreads
+        return True, speech, notifications
 
     # =========================================================================
     # Natural Language Intent Dispatcher
@@ -418,9 +521,31 @@ class WhatsAppDirectWorker(BaseDirectWorker):
     def execute_task(self, task_type: str, raw_query: str, **kwargs) -> Tuple[bool, str, Dict[str, Any]]:
         low = raw_query.lower().strip()
 
-        # 1. Unread Check
-        if task_type == "unread" or (any(w in low for w in ["unread", "check", "new message", "read message", "any message"]) and not any(w in low for w in ["send", "write", "text", "tell", "chat"])):
-            ok, speech, items = self.get_unread_messages()
+        # 0. Save Contact Phone
+        m_save = re.search(r'\b(?:save|add|store)\s+(?:the\s+)?(?:phone\s+)?(?:number\s+)?(?:for\s+|of\s+)?([a-zA-Z0-9_+]+)(?:s|\'s)?\s+(?:phone\s+)?(?:number\s+)?(?:as\s+|to\s+|is\s+|:\s*)\s*(\+?[0-9\s\-()]{7,})', raw_query, re.IGNORECASE)
+        if m_save:
+            c_name, c_num = m_save.group(1).strip().rstrip("'s").rstrip("s"), m_save.group(2).strip()
+            _save_contact_phone(c_name, c_num)
+            return True, f"Sir, I have saved the phone number for {c_name.title()} as {c_num}.", {"name": c_name, "phone": c_num}
+
+        # 1. Unread / Notification Inquiry Check
+        unread_triggers = [
+            "unread", "check", "new message", "read message", "any message",
+            "messages from", "messages on", "what did", "tell me about the messages",
+            "who messaged", "who sent", "latest message", "recent message"
+        ]
+        is_read_inquiry = any(w in low for w in unread_triggers)
+        if task_type in ["unread", "check_unread"] or (is_read_inquiry and not any(w in low for w in ["send", "write", "text", "tell to", "chat"])):
+            filter_sender = ""
+            m_from = re.search(r'\b(?:from|by)\s+([a-zA-Z0-9_+]+)', raw_query, re.IGNORECASE)
+            if m_from:
+                filter_sender = m_from.group(1).strip()
+            else:
+                m_did = re.search(r'\bwhat\s+did\s+([a-zA-Z0-9_+]+)\s+say\b', raw_query, re.IGNORECASE)
+                if m_did:
+                    filter_sender = m_did.group(1).strip()
+
+            ok, speech, items = self.get_unread_messages(filter_sender=filter_sender)
             return ok, speech, {"unread_messages": items, "count": len(items)}
 
         # 2. Open Chat Specifically

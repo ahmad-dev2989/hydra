@@ -180,7 +180,9 @@ def is_conversational_inquiry(text: str) -> bool:
             action_exceptions = [
                 r"\bplay\s+", r"\bsend\s+", r"\bcheck\s+upcoming\b",
                 r"\bcheck\s+assignments\b", r"\bcheck\s+unread\b",
-                r"\bcreate\s+repo\b", r"\bswitch\s+account\b"
+                r"\bcreate\s+repo\b", r"\bswitch\s+account\b",
+                r"\bmessages?\b", r"\bemails?\b", r"\bnotifications?\b",
+                r"\bassignments?\b", r"\bclasses\b"
             ]
             if not any(re.search(act, low) for act in action_exceptions):
                 return True
@@ -448,7 +450,17 @@ def classify_command(raw_text: str) -> IntentResult:
     ])
     if target_app == "whatsapp" or (is_msg_intent and not any(w in low for w in ["email", "emails", "mail", "gmail", "inbox"])):
         target_app = "whatsapp"
-        if any(re.search(rf"\b{w}\b", low) for w in ["send", "write", "text", "message", "msg", "tell"]):
+        # Check if inquiry about incoming/unread messages
+        is_unread_inquiry = any(re.search(pat, low) for pat in [
+            r"\btell\s+me\s+about\s+(?:the\s+)?messages\b",
+            r"\bcheck\s+(?:my\s+)?(?:unread\s+|new\s+)?messages\b",
+            r"\b(?:what|any)\s+(?:new\s+)?messages\b",
+            r"\bwhat\s+did\s+\w+\s+say\b",
+            r"\bread\s+(?:my\s+)?messages\b",
+            r"\bunread\b",
+            r"\bwho\s+(?:sent|messaged)\b"
+        ])
+        if not is_unread_inquiry and any(re.search(rf"\b{w}\b", low) for w in ["send", "write", "text", "message", "msg"]):
             return IntentResult(
                 intent_type=IntentType.HEADLESS_BACKGROUND,
                 target_app="whatsapp",
