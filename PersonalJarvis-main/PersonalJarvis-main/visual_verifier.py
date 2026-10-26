@@ -145,6 +145,8 @@ class VisualStateVerifier:
     def _prepare_image_b64(self, img: Image.Image, max_dim: int = 1280) -> str:
         """Resizes image maintaining aspect ratio and encodes to base64 JPEG."""
         img_copy = img.copy()
+        if img_copy.mode in ("RGBA", "LA", "P"):
+            img_copy = img_copy.convert("RGB")
         img_copy.thumbnail((max_dim, int(max_dim * 0.75)))
         buf = io.BytesIO()
         img_copy.save(buf, format="JPEG", quality=80)

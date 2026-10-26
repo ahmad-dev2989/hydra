@@ -1949,5 +1949,55 @@
     "verified_by": "nvidia/Nemotron-3.5-Super-VL",
     "success_count": 1,
     "last_verified_timestamp": 1792915604.6252592
+  },
+  "spotify:open_spotify_and_play_laapata": {
+    "id": "spotify:open_spotify_and_play_laapata",
+    "application": "spotify",
+    "intent": "OPEN SPOTIFY AND PLAY LAAPATA",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app('Spotify')",
+        "target": "Spotify",
+        "details": "Open and focus Spotify",
+        "observation": "Ensure Spotify is active"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792996403.1046088
+  },
+  "spotify:open_spotify_and_play_very_first_song_in_my_liked_song_playlist": {
+    "id": "spotify:open_spotify_and_play_very_first_song_in_my_liked_song_playlist",
+    "application": "spotify",
+    "intent": "OPEN SPOTIFY AND PLAY VERY FIRST SONG IN MY LIKED SONG PLAYLIST",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app('Spotify')",
+        "target": "Spotify",
+        "details": "Open and focus Spotify",
+        "observation": "Ensure Spotify is active"
+      },
+      {
+        "step": 2,
+        "action": "click(x=0.023, y=0.212)",
+        "target": "",
+        "details": "To play the first song in the Liked Songs playlist, I need to first navigate to the Liked Songs section by clicking the heart icon in the left sidebar.",
+        "observation": "Spotify is currently open with \"Laapata\" by Joakhay, Talha Anjum playing. The left sidebar shows various navigation options including a heart icon which represents Liked Songs.",
+        "visual_template": "visual_templates/spotify_open_spotify_and_play_very_first_song_in_my_liked_song_playlist/step_2_26_273.png"
+      },
+      {
+        "step": 3,
+        "action": "double_click(x=0.145, y=0.592)",
+        "target": "",
+        "details": "The first song in the Liked Songs playlist is visible and needs to be played to complete the goal.",
+        "observation": "Spotify is open with the Liked Songs playlist displayed, showing \"Safarnama\" as the first song in the list.",
+        "visual_template": "visual_templates/spotify_open_spotify_and_play_very_first_song_in_my_liked_song_playlist/step_5_339_820.png"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792996578.511068
   }
 }

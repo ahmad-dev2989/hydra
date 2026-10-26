@@ -118,7 +118,7 @@
     },
     "whatsapp": {
         "connected": true,
-        "account": "Connected Device (+92-300-1234567)",
+        "account": "Connected WhatsApp Device (+92-300-1234567)",
         "accounts": [
             {
                 "account": "WhatsApp Linked Device",
@@ -143,6 +143,16 @@
             {
                 "account": "Connected Device (+92-300-1234567)",
                 "label": "Account 3",
+                "authType": "whatsapp_qr",
+                "data": {
+                    "session_enc": "session.enc",
+                    "verified": true
+                },
+                "active": false
+            },
+            {
+                "account": "Connected WhatsApp Device (+92-300-1234567)",
+                "label": "Account 4",
                 "authType": "whatsapp_qr",
                 "data": {
                     "session_enc": "session.enc",
@@ -180,7 +190,7 @@
     },
     "gmail": {
         "connected": true,
-        "account": "ahmad.pilot@gmail.com",
+        "account": "f240004@cfd.nu.edu.pk",
         "accounts": [
             {
                 "account": "test.ahmad.pilot@gmail.com",
@@ -215,6 +225,16 @@
             {
                 "account": "ahmad.pilot@gmail.com",
                 "label": "Account 4",
+                "authType": "google_session",
+                "data": {
+                    "session_enc": "google_session.enc",
+                    "verified": true
+                },
+                "active": false
+            },
+            {
+                "account": "f240004@cfd.nu.edu.pk",
+                "label": "Account 5",
                 "authType": "google_session",
                 "data": {
                     "session_enc": "google_session.enc",
@@ -231,7 +251,7 @@
     },
     "google_classroom": {
         "connected": true,
-        "account": "ahmad.pilot@gmail.com",
+        "account": "f240004@cfd.nu.edu.pk",
         "accounts": [
             {
                 "account": "test.ahmad.pilot@gmail.com",
@@ -271,6 +291,16 @@
                     "session_enc": "google_session.enc",
                     "verified": true
                 },
+                "active": false
+            },
+            {
+                "account": "f240004@cfd.nu.edu.pk",
+                "label": "Account 5",
+                "authType": "google_session",
+                "data": {
+                    "session_enc": "google_session.enc",
+                    "verified": true
+                },
                 "active": true
             }
         ],
@@ -282,7 +312,7 @@
     },
     "youtube": {
         "connected": true,
-        "account": "ahmad.pilot@gmail.com",
+        "account": "f240004@cfd.nu.edu.pk",
         "accounts": [
             {
                 "account": "test.ahmad.pilot@gmail.com",
@@ -326,6 +356,16 @@
             {
                 "account": "ahmad.pilot@gmail.com",
                 "label": "Account 5",
+                "authType": "google_session",
+                "data": {
+                    "session_enc": "google_session.enc",
+                    "verified": true
+                },
+                "active": false
+            },
+            {
+                "account": "f240004@cfd.nu.edu.pk",
+                "label": "Account 6",
                 "authType": "google_session",
                 "data": {
                     "session_enc": "google_session.enc",
