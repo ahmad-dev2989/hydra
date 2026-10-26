@@ -514,7 +514,15 @@ def classify_command(raw_text: str) -> IntentResult:
         and any(re.search(rf"\b{w}\b", low) for w in ["send", "write", "compose", "dispatch"])
     )
 
-    if target_app == "gmail" or any(re.search(rf"\b{w}\b", low) for w in ["email", "emails", "inbox"]) or is_email_send:
+    is_email_read = any(re.search(pat, low) for pat in [
+        r"\bread\s+(?:my\s+)?(?:incoming\s+|new\s+|latest\s+)?(?:email|emails|mail)\b",
+        r"\bread\s+(?:the\s+)?(?:email|emails|mail)\s+(?:from|by)\b",
+        r"\bwhat\s+(?:does|did)\s+(?:the\s+)?(?:email|mail)\s+(?:from|by)\b",
+        r"\bwhat\s+(?:does|did)\s+[a-zA-Z0-9_.+-]+\s+(?:say|write)\s+in\s+(?:the\s+)?(?:email|mail)\b",
+        r"\b(?:latest|incoming|new)\s+(?:email|emails|mail)\b"
+    ]) and not is_email_send
+
+    if target_app == "gmail" or any(re.search(rf"\b{w}\b", low) for w in ["email", "emails", "inbox"]) or is_email_send or is_email_read:
         if is_email_send:
             try:
                 from .gmail_direct_worker import parse_email_command
@@ -537,6 +545,22 @@ def classify_command(raw_text: str) -> IntentResult:
                 action="send_email",
                 parameters=params,
                 reasoning=f"Gmail background send email to '{parsed_to or 'recipient'}'"
+            )
+        elif is_email_read:
+            m_from = re.search(r'\b(?:from|by)\s+([a-zA-Z0-9_.+-]+(?:@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)?|[a-zA-Z\s]+?)(?:\s+(?:on|via|in)\s+gmail|\s*$)', clean_text, re.IGNORECASE)
+            sender = ""
+            if m_from:
+                cand = m_from.group(1).strip()
+                cand = re.sub(r'\s+(?:say|says|said|saying|state|states|stated|stating|about|regarding)\b.*$', '', cand, flags=re.IGNORECASE).strip()
+                if cand.lower() not in ["gmail", "inbox", "email", "emails", "my email", "my emails"]:
+                    sender = cand
+
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="gmail",
+                action="read_emails",
+                parameters={"sender": sender},
+                reasoning=f"Gmail background read incoming emails" + (f" from '{sender}'" if sender else "")
             )
         elif any(re.search(rf"\b{w}\b", low) for w in ["search", "find", "look for"]):
             return IntentResult(

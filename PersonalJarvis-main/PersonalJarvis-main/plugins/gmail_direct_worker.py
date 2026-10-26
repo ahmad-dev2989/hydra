@@ -49,6 +49,47 @@ def _decode_mime(val: str) -> str:
         return str(val)
 
 
+def _extract_body_snippet(msg: email.message.Message, max_chars: int = 250) -> str:
+    """Extracts a clean plain-text snippet from an email Message object."""
+    body_text = ""
+    try:
+        if msg.is_multipart():
+            for part in msg.walk():
+                ctype = part.get_content_type()
+                cdisp = str(part.get("Content-Disposition", ""))
+                if ctype == "text/plain" and "attachment" not in cdisp:
+                    payload = part.get_payload(decode=True)
+                    if payload:
+                        charset = part.get_content_charset() or "utf-8"
+                        body_text = payload.decode(charset, errors="replace")
+                        break
+            if not body_text:
+                for part in msg.walk():
+                    if part.get_content_type() == "text/html":
+                        payload = part.get_payload(decode=True)
+                        if payload:
+                            charset = part.get_content_charset() or "utf-8"
+                            raw_html = payload.decode(charset, errors="replace")
+                            body_text = re.sub(r'<[^>]+>', ' ', raw_html)
+                            break
+        else:
+            payload = msg.get_payload(decode=True)
+            if payload:
+                charset = msg.get_content_charset() or "utf-8"
+                body_text = payload.decode(charset, errors="replace")
+                if msg.get_content_type() == "text/html":
+                    body_text = re.sub(r'<[^>]+>', ' ', body_text)
+    except Exception as e:
+        print(f"[GMAIL SNIPPET PARSE NOTICE] {e}")
+
+    # Clean URLs and extra whitespace
+    clean = re.sub(r'https?://\S+|www\.\S+', '', body_text)
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    if len(clean) > max_chars:
+        clean = clean[:max_chars].rstrip() + "..."
+    return clean
+
+
 def _resolve_contact_email(name_or_email: str) -> str:
     """Resolves contact name to email from contacts.json if known with flexible normalization."""
     clean = name_or_email.strip()
@@ -619,6 +660,195 @@ class GmailDirectWorker(BaseDirectWorker):
         return False, speech, {}
 
     # =========================================================================
+    # Phase 4.2: Read Incoming Emails Headlessly (including Body Snippets)
+    # =========================================================================
+
+    def _read_emails_via_api(
+        self,
+        token: str,
+        sender_email: Optional[str] = None,
+        limit: int = 3,
+        unread_only: bool = False
+    ) -> Optional[Tuple[bool, str, List[Dict[str, Any]]]]:
+        """Reads incoming emails via Gmail REST API including body snippet."""
+        import requests
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+        q_parts = []
+        if unread_only:
+            q_parts.append("is:unread")
+        if sender_email:
+            q_parts.append(f"from:{sender_email}")
+        q_str = " ".join(q_parts) if q_parts else "in:inbox"
+
+        try:
+            resp = requests.get(
+                "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+                headers=headers,
+                params={"q": q_str, "maxResults": limit},
+                timeout=4.0
+            )
+            if resp.status_code != 200:
+                return None
+            messages = resp.json().get("messages", [])
+            if not messages:
+                if sender_email:
+                    return True, f"Sir, I checked your inbox but found no incoming emails from {sender_email}.", []
+                return True, "Sir, you have no new incoming emails in your inbox.", []
+
+            results = []
+            for m in messages:
+                mid = m.get("id")
+                m_resp = requests.get(
+                    f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{mid}",
+                    headers=headers,
+                    params={"format": "full"},
+                    timeout=3.0
+                )
+                if m_resp.status_code == 200:
+                    data = m_resp.json()
+                    payload = data.get("payload", {})
+                    hdrs = {h.get("name"): h.get("value") for h in payload.get("headers", [])}
+                    clean_from = re.sub(r"<.*?>", "", hdrs.get("From", "Unknown Sender")).strip().strip('"')
+                    snippet = data.get("snippet", "")
+                    results.append({
+                        "from": clean_from or "Sender",
+                        "subject": hdrs.get("Subject", "No Subject"),
+                        "date": hdrs.get("Date", ""),
+                        "body": snippet
+                    })
+
+            if not results:
+                return True, "Sir, you have no new incoming emails in your inbox.", []
+
+            if len(results) == 1:
+                e = results[0]
+                body_phrase = f", which says: \"{e['body']}\"" if e.get("body") else ""
+                speech = f"Sir, you have an incoming email from {e['from']} regarding '{e['subject']}'{body_phrase}."
+            else:
+                top = results[0]
+                body_phrase = f": \"{top['body']}\"" if top.get("body") else ""
+                other_items = [f"{e['from']} regarding '{e['subject']}'" for e in results[1:]]
+                speech = f"Sir, your newest incoming email is from {top['from']} regarding '{top['subject']}'{body_phrase} You also received emails from {', and from '.join(other_items)}."
+
+            return True, speech, results
+        except Exception as e:
+            print(f"[GMAIL API READ ERROR] {e}")
+            return None
+
+    def read_incoming_emails(
+        self,
+        sender: Optional[str] = None,
+        limit: int = 3,
+        unread_only: bool = False
+    ) -> Tuple[bool, str, List[Dict[str, Any]]]:
+        """
+        Phase 4.2: Reads newest incoming emails from real inbox headlessly, including body content snippets.
+        Optionally filters by sender (contact name or email).
+        """
+        email_addr, password = self._get_credentials()
+        if not email_addr:
+            return False, "Sir, your Gmail account is not connected yet in Plugins Hub.", []
+
+        # Resolve sender if provided
+        target_sender = ""
+        resolved_sender_email = ""
+        if sender:
+            target_sender = sender.strip()
+            resolved_sender_email = _resolve_contact_email(target_sender)
+
+        # Tier 1: Gmail REST API if OAuth token present
+        sess = VAULT_MGR.load_google_session() or {}
+        token = sess.get("token") or sess.get("access_token") or os.environ.get("GMAIL_TOKEN")
+        if token:
+            api_res = self._read_emails_via_api(token, sender_email=resolved_sender_email or target_sender, limit=limit, unread_only=unread_only)
+            if api_res is not None:
+                return api_res
+
+        # Tier 2: Native IMAP4_SSL
+        if email_addr and password:
+            try:
+                t0 = time.perf_counter()
+                mail = imaplib.IMAP4_SSL("imap.gmail.com", 993, timeout=6.0)
+                mail.login(email_addr, password)
+                mail.select("INBOX", readonly=True)
+
+                crit_parts = []
+                if unread_only:
+                    crit_parts.append("UNSEEN")
+                if resolved_sender_email and "@" in resolved_sender_email:
+                    crit_parts.append(f'FROM "{resolved_sender_email}"')
+                elif target_sender:
+                    crit_parts.append(f'FROM "{target_sender}"')
+
+                search_crit = " ".join(crit_parts) if crit_parts else "ALL"
+                status, search_data = mail.search(None, search_crit)
+                if status != "OK" or not search_data or not search_data[0]:
+                    mail.logout()
+                    if target_sender:
+                        return True, f"Sir, I checked your inbox but found no incoming emails from {target_sender}.", []
+                    return True, "Sir, you have no new incoming emails in your inbox.", []
+
+                msg_ids = search_data[0].split()
+                if not msg_ids:
+                    mail.logout()
+                    if target_sender:
+                        return True, f"Sir, I checked your inbox but found no incoming emails from {target_sender}.", []
+                    return True, "Sir, you have no new incoming emails in your inbox.", []
+
+                recent_ids = msg_ids[-limit:]
+                emails_summary = []
+
+                for mid in reversed(recent_ids):
+                    res, data = mail.fetch(mid, "(RFC822)")
+                    if res == "OK" and data and isinstance(data[0], tuple):
+                        msg = email.message_from_bytes(data[0][1])
+                        subj = _decode_mime(msg.get("Subject", "No Subject"))
+                        from_hdr = _decode_mime(msg.get("From", "Unknown Sender"))
+                        date_hdr = _decode_mime(msg.get("Date", ""))
+                        clean_sender = re.sub(r"<.*?>", "", from_hdr).strip().strip('"')
+                        body_snippet = _extract_body_snippet(msg, max_chars=180)
+
+                        emails_summary.append({
+                            "from": clean_sender,
+                            "subject": subj,
+                            "date": date_hdr,
+                            "body": body_snippet
+                        })
+
+                mail.logout()
+                latency = (time.perf_counter() - t0) * 1000
+
+                if not emails_summary:
+                    if target_sender:
+                        return True, f"Sir, I checked your inbox but found no incoming emails from {target_sender}.", []
+                    return True, "Sir, you have no new incoming emails in your inbox.", []
+
+                display_sender = target_sender if target_sender else (emails_summary[0]["from"])
+                if len(emails_summary) == 1:
+                    e = emails_summary[0]
+                    body_phrase = f", which says: \"{e['body']}\"" if e.get("body") else ""
+                    speech = f"Sir, you have an incoming email from {display_sender} regarding '{e['subject']}'{body_phrase}."
+                else:
+                    top = emails_summary[0]
+                    body_phrase = f": \"{top['body']}\"" if top.get("body") else ""
+                    other_items = [f"{e['from']} regarding '{e['subject']}'" for e in emails_summary[1:]]
+                    speech = f"Sir, your newest incoming email is from {top['from']} regarding '{top['subject']}'{body_phrase} You also received emails from {', and from '.join(other_items)}."
+
+                print(f"[GMAIL READ] Fetched {len(emails_summary)} incoming email(s) in {latency:.1f}ms.")
+                return True, speech, emails_summary
+
+            except Exception as e:
+                print(f"[GMAIL READ ERROR] {e}")
+                # Fall through
+
+        # Tier 3: If no password/token configured, honest reporting
+        if target_sender:
+            speech = f"Sir, reading incoming emails from {target_sender} headlessly requires a Gmail App Password configured in the Plugins Hub."
+        else:
+            speech = f"Sir, reading incoming emails from your inbox ({email_addr}) headlessly requires a Gmail App Password configured in the Plugins Hub."
+        return False, speech, []
+
+    # =========================================================================
     # Unified Intent Dispatcher
     # =========================================================================
 
@@ -687,14 +917,31 @@ class GmailDirectWorker(BaseDirectWorker):
                 meta["resolved_email"] = resolved_email
             return ok, speech, meta
 
-        # 2. Search Email Task
+        # 2. Read Incoming Emails Task (Phase 4.2)
+        if task_type in ["read", "read_emails", "incoming", "read_incoming"] or any(w in low for w in [
+            "read email", "read emails", "read incoming", "read my incoming", "read new email", "read new emails",
+            "read latest email", "read the email", "incoming email", "incoming emails", "latest email", "new email"
+        ]):
+            sender_cand = kwargs.get("sender", "")
+            if not sender_cand:
+                m_from = re.search(r'\b(?:from|by)\s+([a-zA-Z0-9_.+-]+(?:@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)?|[a-zA-Z\s]+?)(?:\s+(?:on|via|in)\s+gmail|\s*$)', raw_query, re.IGNORECASE)
+                if m_from:
+                    cand = m_from.group(1).strip()
+                    cand = re.sub(r'\s+(?:say|says|said|saying|state|states|stated|stating|about|regarding)\b.*$', '', cand, flags=re.IGNORECASE).strip()
+                    if cand.lower() not in ["gmail", "inbox", "email", "emails", "my email", "my emails"]:
+                        sender_cand = cand
+
+            ok, speech, emails = self.read_incoming_emails(sender=sender_cand)
+            return ok, speech, {"emails": emails, "sender": sender_cand, "count": len(emails)}
+
+        # 3. Search Email Task
         if task_type == "search" or any(w in low for w in ["search email", "find email", "search mail", "find mail"]):
             m_q = re.search(r"(?:for|about|from|regarding)\s+(.+)", low)
             query_str = m_q.group(1).strip() if m_q else "update"
             ok, speech, results = self.search_emails(query_str)
             return ok, speech, {"results": results, "query": query_str}
 
-        # 3. Check Unread Emails (Default)
+        # 4. Check Unread Emails (Default)
         ok, speech, emails = self.get_unread_emails()
         return ok, speech, {"emails": emails, "count": len(emails)}
 
