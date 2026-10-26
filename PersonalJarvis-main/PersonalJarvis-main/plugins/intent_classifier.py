@@ -531,7 +531,7 @@ def classify_command(raw_text: str) -> IntentResult:
         r"\b(?:cfd\.nu\.edu\.pk|nu\.edu\.pk)\b"
     ]) and not is_email_send and not is_email_read
 
-    if target_app == "gmail" or any(re.search(rf"\b{w}\b", low) for w in ["email", "emails", "inbox"]) or is_email_send or is_email_read or is_email_filter:
+    if target_app == "gmail" or any(re.search(rf"\b{w}\b", low) for w in ["email", "emails", "inbox", "mail", "mails"]) or is_email_send or is_email_read or is_email_filter:
         if is_email_send:
             try:
                 from .gmail_direct_worker import parse_email_command

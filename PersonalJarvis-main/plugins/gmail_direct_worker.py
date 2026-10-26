@@ -297,15 +297,29 @@ class GmailDirectWorker(BaseDirectWorker):
                         for i in range(min(len(email_titles), limit)):
                             raw_subj = email_titles[i] if i < len(email_titles) else "New Message"
                             raw_author = authors[i] if i < len(authors) else "Unknown"
+                            raw_summary = summaries[i] if i < len(summaries) else ""
                             clean_subj = re.sub(r'[^\x00-\x7F]+', ' ', raw_subj).strip()
                             clean_author = re.sub(r'[^\x00-\x7F]+', ' ', raw_author).strip()
+                            clean_body = re.sub(r'[^\x00-\x7F]+', ' ', raw_summary).strip()
                             emails_summary.append({
                                 "from": clean_author or "Sender",
                                 "subject": clean_subj or "Subject",
-                                "date": "Recent"
+                                "date": "Recent",
+                                "body": clean_body
                             })
-                        top_items = [f"{e['from']} regarding '{e['subject']}'" for e in emails_summary[:min(3, len(emails_summary))]]
-                        speech = f"Sir, you have {len(email_titles)} unread email(s) on {email_addr}: from {', '.join(top_items)}."
+                        unread_count = len(email_titles)
+                        if unread_count == 1:
+                            e1 = emails_summary[0]
+                            body_phrase = f", which says: \"{e1['body']}\"" if e1.get("body") else ""
+                            speech = f"Sir, you have 1 unread email on {email_addr} from {e1['from']} regarding '{e1['subject']}'{body_phrase}."
+                        else:
+                            top = emails_summary[0]
+                            body_phrase = f": \"{top['body']}\"" if top.get("body") else ""
+                            other_items = [f"{e['from']} regarding '{e['subject']}'" for e in emails_summary[1:3]]
+                            if other_items:
+                                speech = f"Sir, you have {unread_count} unread emails on {email_addr}. The newest is from {top['from']} regarding '{top['subject']}'{body_phrase} Others include from {', and from '.join(other_items)}."
+                            else:
+                                speech = f"Sir, you have {unread_count} unread emails on {email_addr}. The newest is from {top['from']} regarding '{top['subject']}'{body_phrase}."
                         return True, speech, emails_summary
         except Exception as e:
             print(f"[GMAIL DIRECT NOTICE] {e}")
@@ -338,28 +352,38 @@ class GmailDirectWorker(BaseDirectWorker):
                 m_resp = requests.get(
                     f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{mid}",
                     headers=headers,
-                    params={"format": "metadata", "metadataHeaders": ["From", "Subject", "Date"]},
+                    params={"format": "full"},
                     timeout=3.0
                 )
                 if m_resp.status_code == 200:
-                    payload = m_resp.json().get("payload", {})
+                    data_m = m_resp.json()
+                    payload = data_m.get("payload", {})
                     hdrs = {h.get("name"): h.get("value") for h in payload.get("headers", [])}
                     clean_from = re.sub(r"<.*?>", "", hdrs.get("From", "Unknown Sender")).strip().strip('"')
+                    snippet = data_m.get("snippet", "")
                     emails_summary.append({
                         "from": clean_from or "Sender",
                         "subject": hdrs.get("Subject", "No Subject"),
-                        "date": hdrs.get("Date", "")
+                        "date": hdrs.get("Date", ""),
+                        "body": snippet
                     })
 
             if not emails_summary:
                 return True, "Sir, you have no unread emails in your Gmail inbox.", []
 
-            if len(emails_summary) == 1:
+            unread_count = len(messages)
+            if unread_count == 1:
                 e1 = emails_summary[0]
-                speech = f"Sir, you have 1 unread email in your Gmail from {e1['from']} regarding '{e1['subject']}'."
+                body_phrase = f", which says: \"{e1['body']}\"" if e1.get("body") else ""
+                speech = f"Sir, you have 1 unread email in your Gmail from {e1['from']} regarding '{e1['subject']}'{body_phrase}."
             else:
-                top_items = [f"{e['from']} regarding '{e['subject']}'" for e in emails_summary[:min(3, len(emails_summary))]]
-                speech = f"Sir, you have unread emails in your Gmail: from {', and from '.join(top_items)}."
+                top = emails_summary[0]
+                body_phrase = f": \"{top['body']}\"" if top.get("body") else ""
+                other_items = [f"{e['from']} regarding '{e['subject']}'" for e in emails_summary[1:3]]
+                if other_items:
+                    speech = f"Sir, you have {unread_count} unread emails in your Gmail. The newest is from {top['from']} regarding '{top['subject']}'{body_phrase} Others include from {', and from '.join(other_items)}."
+                else:
+                    speech = f"Sir, you have {unread_count} unread emails in your Gmail. The newest is from {top['from']} regarding '{top['subject']}'{body_phrase}."
 
             return True, speech, emails_summary
         except Exception as e:
@@ -441,12 +465,12 @@ class GmailDirectWorker(BaseDirectWorker):
             return False, f"Sir, failed to dispatch email via Gmail API: {e}", {}
 
     # =========================================================================
-    # Phase 2.1: Check Unread Emails (Native IMAP SSL or REST API in < 300ms)
+    # Phase 2.1 & 4.4: Check Unread Emails (Native IMAP SSL or REST API)
     # =========================================================================
 
     def get_unread_emails(self, limit: int = 5) -> Tuple[bool, str, List[Dict[str, Any]]]:
         """
-        Fetches newest unread email headers directly over SSL or REST API.
+        Fetches newest unread email headers and previews directly over SSL or REST API.
         Returns:
             (success: bool, speech: str, emails_list: List[Dict])
         """
@@ -489,17 +513,19 @@ class GmailDirectWorker(BaseDirectWorker):
             emails_summary = []
 
             for mid in reversed(recent_ids):
-                res, data = mail.fetch(mid, "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+                res, data = mail.fetch(mid, "(RFC822)")
                 if res == "OK" and data and isinstance(data[0], tuple):
                     msg = email.message_from_bytes(data[0][1])
                     subj = _decode_mime(msg.get("Subject", "No Subject"))
                     sender = _decode_mime(msg.get("From", "Unknown Sender"))
                     date_hdr = _decode_mime(msg.get("Date", ""))
                     clean_sender = re.sub(r"<.*?>", "", sender).strip().strip('"')
+                    body_snippet = _extract_body_snippet(msg, max_chars=140)
                     emails_summary.append({
                         "from": clean_sender,
                         "subject": subj,
-                        "date": date_hdr
+                        "date": date_hdr,
+                        "body": body_snippet
                     })
 
             mail.logout()
@@ -508,13 +534,16 @@ class GmailDirectWorker(BaseDirectWorker):
             # Generate natural voice speech response
             if unread_count == 1:
                 e1 = emails_summary[0]
-                speech = f"Sir, you have 1 unread email in your Gmail from {e1['from']} regarding '{e1['subject']}'."
+                body_phrase = f", which says: \"{e1['body']}\"" if e1.get("body") else ""
+                speech = f"Sir, you have 1 unread email in your Gmail from {e1['from']} regarding '{e1['subject']}'{body_phrase}."
             else:
-                top_items = [f"{e['from']} regarding '{e['subject']}'" for e in emails_summary[:3]]
-                if len(top_items) == 2:
-                    speech = f"Sir, you have {unread_count} unread emails in your Gmail: from {top_items[0]}, and from {top_items[1]}."
+                top = emails_summary[0]
+                body_phrase = f": \"{top['body']}\"" if top.get("body") else ""
+                other_items = [f"{e['from']} regarding '{e['subject']}'" for e in emails_summary[1:3]]
+                if other_items:
+                    speech = f"Sir, you have {unread_count} unread emails in your Gmail. The newest is from {top['from']} regarding '{top['subject']}'{body_phrase} Others include from {', and from '.join(other_items)}."
                 else:
-                    speech = f"Sir, you have {unread_count} unread emails in your Gmail: from {top_items[0]}, from {top_items[1]}, and from {top_items[2]}."
+                    speech = f"Sir, you have {unread_count} unread emails in your Gmail. The newest is from {top['from']} regarding '{top['subject']}'{body_phrase}."
 
             print(f"[GMAIL DIRECT] Checked unread emails in {latency:.1f}ms ({unread_count} unread).")
             return True, speech, emails_summary
@@ -1118,11 +1147,16 @@ class GmailDirectWorker(BaseDirectWorker):
                 meta["resolved_email"] = resolved_email
             return ok, speech, meta
 
-        # 2. Read Incoming Emails Task (Phase 4.2)
-        if task_type in ["read", "read_emails", "incoming", "read_incoming"] or any(w in low for w in [
-            "read email", "read emails", "read incoming", "read my incoming", "read new email", "read new emails",
+        # 2. Check Unread Emails (Phase 4.4)
+        if task_type in ["unread", "unread_emails", "check_unread"] or any(w in low for w in ["unread", "unseen", "how many unread", "any unread", "check unread"]):
+            ok, speech, emails = self.get_unread_emails()
+            return ok, speech, {"emails": emails, "count": len(emails)}
+
+        # 3. Read Incoming Emails Task (Phase 4.2)
+        if (task_type in ["read", "read_emails", "incoming", "read_incoming"] or any(w in low for w in [
+            "read incoming", "read my incoming", "read new email", "read new emails",
             "read latest email", "read the email", "incoming email", "incoming emails", "latest email", "new email"
-        ]):
+        ]) or bool(re.search(r'\bread\s+(?:an?\s+)?(?:email|emails|mail)\b', low))) and "unread" not in low:
             sender_cand = kwargs.get("sender", "")
             if not sender_cand:
                 m_from = re.search(r'\b(?:from|by)\s+([a-zA-Z0-9_.+-]+(?:@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)?|[a-zA-Z\s]+?)(?:\s+(?:on|via|in)\s+gmail|\s*$)', raw_query, re.IGNORECASE)
@@ -1135,7 +1169,7 @@ class GmailDirectWorker(BaseDirectWorker):
             ok, speech, emails = self.read_incoming_emails(sender=sender_cand)
             return ok, speech, {"emails": emails, "sender": sender_cand, "count": len(emails)}
 
-        # 3. Filter Emails Task (Phase 4.3: University & Custom Topic Filtering)
+        # 4. Filter Emails Task (Phase 4.3: University & Custom Topic Filtering)
         if task_type in ["filter", "filter_emails", "university_emails"] or any(w in low for w in [
             "university email", "university emails", "fast email", "fast emails", "campus email", "college email",
             "filter email", "filter emails", "emails about", "emails regarding", "emails for", "email about", "email regarding"
@@ -1164,14 +1198,14 @@ class GmailDirectWorker(BaseDirectWorker):
             ok, speech, emails = self.filter_emails(domain_or_sender=domain_cand, topic=topic_str, is_university=is_uni)
             return ok, speech, {"emails": emails, "topic": topic_str, "domain": domain_cand, "is_university": is_uni, "count": len(emails)}
 
-        # 4. Search Email Task
+        # 5. Search Email Task
         if task_type == "search" or any(w in low for w in ["search email", "find email", "search mail", "find mail"]):
             m_q = re.search(r"(?:for|about|from|regarding)\s+(.+)", low)
             query_str = m_q.group(1).strip() if m_q else "update"
             ok, speech, results = self.search_emails(query_str)
             return ok, speech, {"results": results, "query": query_str}
 
-        # 4. Check Unread Emails (Default)
+        # Default: Check Unread Emails
         ok, speech, emails = self.get_unread_emails()
         return ok, speech, {"emails": emails, "count": len(emails)}
 
