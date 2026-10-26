@@ -124,109 +124,10 @@ class ClassroomDirectWorker(BaseDirectWorker):
             self.last_error = str(e)
             return None
 
-    def _ensure_cache_exists(self):
-        """Initializes enrolled course cache for university student account if missing."""
-        if not CACHE_FILE.exists():
-            today = datetime.now().date()
-            asg1_due = (today + timedelta(days=3)).strftime("%Y-%m-%d")
-            asg2_due = (today + timedelta(days=5)).strftime("%Y-%m-%d")
-            asg3_due = (today + timedelta(days=12)).strftime("%Y-%m-%d")
-            default_catalog = {
-                "account": self.get_account_email() or "f240004@cfd.nu.edu.pk",
-                "timestamp": time.time(),
-                "courses": [
-                    {
-                        "id": "course_cs2001",
-                        "name": "Data Structures",
-                        "section": "BCS-3A",
-                        "assignments": [
-                            {
-                                "id": "asg_ds_03",
-                                "title": "Assignment 3: Balanced Binary Trees and Heaps",
-                                "due_date": asg1_due,
-                                "due_time": "23:59",
-                                "due_human": "in 3 days",
-                                "submitted": False,
-                                "points": 10
-                            }
-                        ],
-                        "announcements": [
-                            {
-                                "id": "ann_ds_01",
-                                "title": "Quiz 2 will be held next Tuesday covering BSTs and AVL trees.",
-                                "posted_at": "yesterday",
-                                "author": "Instructor"
-                            }
-                        ]
-                    },
-                    {
-                        "id": "course_cs3004",
-                        "name": "Operating Systems",
-                        "section": "BCS-3A",
-                        "assignments": [
-                            {
-                                "id": "asg_os_05",
-                                "title": "Lab Task 5: CPU Scheduling and Synchronization",
-                                "due_date": asg2_due,
-                                "due_time": "23:59",
-                                "due_human": "in 5 days",
-                                "submitted": False,
-                                "points": 15
-                            }
-                        ],
-                        "announcements": [
-                            {
-                                "id": "ann_os_01",
-                                "title": "Midterm syllabus and lab manual update posted in course materials.",
-                                "posted_at": "2 days ago",
-                                "author": "Instructor"
-                            }
-                        ]
-                    },
-                    {
-                        "id": "course_se3001",
-                        "name": "Software Engineering",
-                        "section": "BCS-3A",
-                        "assignments": [
-                            {
-                                "id": "asg_se_02",
-                                "title": "Software Requirements Specification (SRS) Document",
-                                "due_date": asg3_due,
-                                "due_time": "23:59",
-                                "due_human": "in 12 days",
-                                "submitted": False,
-                                "points": 20
-                            }
-                        ],
-                        "announcements": []
-                    },
-                    {
-                        "id": "course_mt2005",
-                        "name": "Linear Algebra",
-                        "section": "BCS-3A",
-                        "assignments": [],
-                        "announcements": [
-                            {
-                                "id": "ann_la_01",
-                                "title": "Practice problem set for Eigenvalues and Eigenvectors uploaded.",
-                                "posted_at": "3 days ago",
-                                "author": "Instructor"
-                            }
-                        ]
-                    }
-                ]
-            }
-            try:
-                CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-                with open(CACHE_FILE, "w", encoding="utf-8") as f:
-                    json.dump(default_catalog, f, indent=2)
-            except Exception:
-                pass
-
     def _get_enrolled_courses(self) -> List[Dict[str, Any]]:
         """
-        Loads course list from live Google Classroom API or local cache.
-        If no authenticated token exists, falls back gracefully to local verified cache.
+        Loads course list from live Google Classroom API or verified local cache.
+        Strictly eliminates fake mock data and reports honest account status.
         """
         sess = VAULT_MGR.load_google_session() or {}
         token = (
@@ -242,23 +143,38 @@ class ClassroomDirectWorker(BaseDirectWorker):
         else:
             self.last_status = "NO_TOKEN"
 
-        # Ensure local course catalog cache is ready if account is connected
-        if self.is_ready() or self.get_account_email():
-            self._ensure_cache_exists()
-
         if CACHE_FILE.exists():
             try:
                 with open(CACHE_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    if "courses" in data and data["courses"]:
+                    if "courses" in data and isinstance(data["courses"], list):
                         self.last_status = "CACHE"
                         return data["courses"]
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[CLASSROOM DIRECT] Cache read note: {e}")
 
         if self.last_status == "UNKNOWN":
-            self.last_status = "NO_SESSION"
+            self.last_status = "NOT_SYNCED"
         return []
+
+    def update_courses_cache(self, courses: List[Dict[str, Any]], account: Optional[str] = None) -> bool:
+        """
+        Updates verified course and coursework data into local cache without fake records.
+        """
+        try:
+            CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "account": account or self.get_account_email() or "connected",
+                "timestamp": time.time(),
+                "courses": courses
+            }
+            with open(CACHE_FILE, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+            self.last_status = "CACHE"
+            return True
+        except Exception as e:
+            print(f"[CLASSROOM DIRECT ERROR] Could not save cache: {e}")
+            return False
 
     # =========================================================================
     # Phase 3.1: Upcoming Assignments Inspection
@@ -282,8 +198,8 @@ class ClassroomDirectWorker(BaseDirectWorker):
             elif self.last_status == "ZERO_COURSES":
                 speech = f"Sir, I checked your Google Classroom ({account or 'connected'}). You are not currently enrolled in any active courses, so there are no upcoming assignments."
                 return True, speech, []
-            elif self.last_status in ["NO_TOKEN", "NO_SESSION"]:
-                speech = f"Sir, Google Classroom is not authenticated with an active API token for {account or 'your account'}. Please authenticate in the Plugins Hub or allow me to open Classroom in your browser."
+            elif self.last_status in ["NO_TOKEN", "NO_SESSION", "NOT_SYNCED"]:
+                speech = f"Sir, Google Classroom coursework for {account or 'your account'} is not synchronized yet. Please connect your account in the Plugins Hub or allow me to check Classroom in your browser."
                 return False, speech, []
             else:
                 speech = f"Sir, I checked your Google Classroom ({account or 'connected'}), but was unable to retrieve any course data at this time."
@@ -423,8 +339,8 @@ class ClassroomDirectWorker(BaseDirectWorker):
                 return True, f"Sir, I checked your Google Classroom ({account or 'connected'}), and you are not enrolled in any active classes.", []
             elif self.last_status == "AUTH_ERROR":
                 return False, f"Sir, I could not retrieve your enrolled classes because the Google Classroom API returned an authorization error ({self.last_error}).", []
-            elif self.last_status in ["NO_TOKEN", "NO_SESSION"]:
-                return False, f"Sir, Google Classroom is not authenticated with an active API token for {account or 'your account'}. Please sign in via Plugins Hub.", []
+            elif self.last_status in ["NO_TOKEN", "NO_SESSION", "NOT_SYNCED"]:
+                return False, f"Sir, Google Classroom courses for {account or 'your account'} are not synchronized yet. Please connect via Plugins Hub.", []
             else:
                 return False, f"Sir, I was unable to retrieve your enrolled classes for Google Classroom at this time.", []
 

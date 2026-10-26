@@ -157,7 +157,7 @@ def is_conversational_inquiry(text: str) -> bool:
     qa_starters = [
         r"^why\b",
         r"^what\s+is\s+(?!playing\b|the\s+current\s+song\b|the\s+latest\s+email\b|due\b|my\s+assignment\b)",
-        r"^what\s+are\s+(?!my\s+emails\b|my\s+assignments\b|my\s+classes\b|the\s+assignments\b|the\s+classes\b)",
+        r"^what\s+are\s+(?!my\s+emails\b|my\s+assignments\b|my\s+classes\b|the\s+assignments\b|the\s+classes\b|the\s+announcements\b|announcements\b|my\s+courses\b|the\s+courses\b)",
         r"^what\s+does\b",
         r"^how\s+does\b",
         r"^how\s+do\b",
@@ -182,7 +182,8 @@ def is_conversational_inquiry(text: str) -> bool:
                 r"\bcheck\s+assignments\b", r"\bcheck\s+unread\b",
                 r"\bcreate\s+repo\b", r"\bswitch\s+account\b",
                 r"\bmessages?\b", r"\bemails?\b", r"\bnotifications?\b",
-                r"\bassignments?\b", r"\bclasses\b",
+                r"\bassignments?\b", r"\bclasses\b", r"\bcourses?\b",
+                r"\bannouncements?\b", r"\bstream\b", r"\bcoursework\b",
                 r"\bsay\b", r"\bsays\b", r"\bsaid\b", r"\bsaying\b",
                 r"\bsent\b", r"\bwrote\b", r"\bwritten\b",
                 r"\bcall\b", r"\bcalls\b", r"\bcalling\b", r"\bring\b", r"\bdial\b"
@@ -390,9 +391,10 @@ def classify_command(raw_text: str) -> IntentResult:
 
     # 5.1 Google Classroom Actions
     classroom_triggers = [
-        "assignment", "assignments", "coursework", "classwork",
+        "assignment", "assignments", "coursework", "classwork", "homework",
         "how many classes", "how many courses", "enrolled classes", "enrolled courses",
-        "my classes", "my courses", "classes i am", "classes am i", "enrolled in"
+        "my classes", "my courses", "classes i am", "classes am i", "enrolled in",
+        "announcement", "announcements", "class stream", "classroom stream", "notice", "notices"
     ]
     if target_app == "google_classroom" or any(w in low for w in classroom_triggers):
         action = "check_assignments"
