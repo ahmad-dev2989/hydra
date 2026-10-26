@@ -61,20 +61,6 @@ FALLBACK_TARGETS: Dict[str, Dict[str, Any]] = {
         "protocol": "whatsapp://",
         "requires_browser": False
     },
-    "canva": {
-        "name": "Canva",
-        "url_template": "https://www.canva.com/create/",
-        "default_url": "https://www.canva.com/",
-        "protocol": None,
-        "requires_browser": True
-    },
-    "discord": {
-        "name": "Discord",
-        "url_template": "https://discord.com/channels/@me",
-        "default_url": "https://discord.com/app",
-        "protocol": "discord://",
-        "requires_browser": False
-    },
     "github": {
         "name": "GitHub",
         "url_template": "https://github.com/{account}",

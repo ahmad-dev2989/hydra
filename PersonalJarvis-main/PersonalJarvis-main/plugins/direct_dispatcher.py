@@ -15,8 +15,6 @@ from .spotify_direct_worker import SPOTIFY_WORKER
 from .whatsapp_direct_worker import WHATSAPP_WORKER
 from .social_direct_worker import (
     YOUTUBE_WORKER,
-    CANVA_WORKER,
-    DISCORD_WORKER,
     GITHUB_WORKER,
     LINKEDIN_WORKER
 )
@@ -32,8 +30,6 @@ class DirectBackgroundDispatcher:
             "spotify": SPOTIFY_WORKER,
             "whatsapp": WHATSAPP_WORKER,
             "youtube": YOUTUBE_WORKER,
-            "canva": CANVA_WORKER,
-            "discord": DISCORD_WORKER,
             "github": GITHUB_WORKER,
             "linkedin": LINKEDIN_WORKER
         }
@@ -124,7 +120,7 @@ class DirectBackgroundDispatcher:
         if not target_app or any(w in low for w in ["which accounts", "what accounts", "list accounts", "connected accounts", "show accounts"]):
             if not target_app:
                 all_status = []
-                for a_id in ["gmail", "google_classroom", "spotify", "whatsapp", "github", "linkedin", "canva", "discord"]:
+                for a_id in ["gmail", "google_classroom", "spotify", "whatsapp", "github", "linkedin"]:
                     accs = VAULT_MGR.get_all_accounts(a_id)
                     if accs:
                         act = next((a["account"] for a in accs if a.get("active")), accs[0]["account"])

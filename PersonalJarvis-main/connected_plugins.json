@@ -1,42 +1,4 @@
 {
-    "canva": {
-        "connected": true,
-        "account": "ahmad@canva.com",
-        "accounts": [
-            {
-                "account": "ahmad@canva.com",
-                "label": {
-                    "verified": true
-                },
-                "authType": "oauth",
-                "data": {
-                    "verified": true
-                },
-                "active": true
-            }
-        ],
-        "authType": "oauth",
-        "data": {}
-    },
-    "discord": {
-        "connected": true,
-        "account": "Ahmad#1234",
-        "accounts": [
-            {
-                "account": "Ahmad#1234",
-                "label": {
-                    "verified": true
-                },
-                "authType": "bot_token",
-                "data": {
-                    "verified": true
-                },
-                "active": true
-            }
-        ],
-        "authType": "bot_token",
-        "data": {}
-    },
     "github": {
         "connected": true,
         "account": "ahmad-dev2989",

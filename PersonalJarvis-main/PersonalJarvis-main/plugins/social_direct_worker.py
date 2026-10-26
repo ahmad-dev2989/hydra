@@ -2,10 +2,8 @@
 HYDRA Social & Productivity Direct Background Workers (Phase 6)
 Extends direct background execution capabilities to:
 1. YouTube (audio stream search & playback, video metadata, trending)
-2. Canva (recent designs, project export status, canvas creation)
-3. Discord (headless channel messaging, unread mentions/DMs)
-4. GitHub (notifications, PR reviews, unmerged commits, repo status)
-5. LinkedIn / X (notifications, background post drafts)
+2. GitHub (notifications, PR reviews, repo status, repository creation)
+3. LinkedIn (post drafting with pre-filled composer, notifications, messaging, network)
 """
 
 import os
@@ -401,126 +399,7 @@ class YouTubeDirectWorker(BaseDirectWorker):
 
 
 # =============================================================================
-# 2. Canva Direct Background Worker
-# =============================================================================
-
-class CanvaDirectWorker(BaseDirectWorker):
-    app_id = "canva"
-    app_name = "Canva"
-
-    def is_ready(self) -> bool:
-        return VAULT_MGR.is_connected(self.app_id) or (VAULT_DATA_DIR / "canva_session.enc").exists()
-
-    def get_recent_projects(self) -> Tuple[bool, str, List[Dict[str, Any]]]:
-        # Truthful report: Canva does not offer unauthenticated headless background scraping
-        speech = "Sir, direct background API inspection for Canva is not configured. To view or edit your designs, I can open Canva in your browser."
-        return False, speech, []
-
-    def check_export_status(self) -> Tuple[bool, str, Dict[str, Any]]:
-        speech = "Sir, direct background export tracking for Canva is not available without active Canva Connect API. Please check your browser downloads."
-        return False, speech, {}
-
-    def create_design(self, template_type: str = "Presentation") -> Tuple[bool, str, Dict[str, Any]]:
-        clean_type = template_type.strip().title() or "Presentation"
-        try:
-            import webbrowser
-            url = f"https://www.canva.com/create/{clean_type.lower()}/"
-            webbrowser.open(url)
-            speech = f"Sir, opening Canva in your browser to create a new {clean_type} design."
-            return True, speech, {"action": "open_browser", "url": url, "type": clean_type}
-        except Exception as e:
-            return False, f"Could not launch Canva in browser: {e}", {}
-
-    def execute_task(self, task_type: str, raw_query: str, **kwargs) -> Tuple[bool, str, Dict[str, Any]]:
-        low = raw_query.lower()
-        if any(w in low for w in ["export", "download", "render"]):
-            return self.check_export_status()
-        elif any(w in low for w in ["create", "new", "blank", "template", "poster", "deck"]):
-            # Extract template type if present
-            tmpl = "Presentation"
-            if "poster" in low:
-                tmpl = "Poster"
-            elif "thumbnail" in low:
-                tmpl = "YouTube Thumbnail"
-            elif "doc" in low or "document" in low:
-                tmpl = "Document"
-            return self.create_design(tmpl)
-        else:
-            ok, speech, projs = self.get_recent_projects()
-            return ok, speech, {"projects": projs}
-
-
-# =============================================================================
-# 3. Discord Direct Background Worker
-# =============================================================================
-
-class DiscordDirectWorker(BaseDirectWorker):
-    app_id = "discord"
-    app_name = "Discord"
-
-    def is_ready(self) -> bool:
-        return (
-            VAULT_MGR.is_connected(self.app_id)
-            or bool(os.environ.get("DISCORD_TOKEN"))
-            or bool(os.environ.get("DISCORD_WEBHOOK_URL"))
-            or (VAULT_DATA_DIR / "discord_session.enc").exists()
-        )
-
-    def send_message(self, channel: str, message: str) -> Tuple[bool, str, Dict[str, Any]]:
-        clean_ch = channel.strip().lstrip("#") or "general"
-        clean_msg = message.strip()
-        if not clean_msg:
-            return False, "No message content was provided to send to Discord, sir.", {}
-
-        webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
-        if webhook_url:
-            try:
-                import requests
-                resp = requests.post(webhook_url, json={"content": clean_msg}, timeout=5.0)
-                if resp.status_code in [200, 204]:
-                    speech = f"Sir, your message has been dispatched to Discord: '{clean_msg}'."
-                    return True, speech, {"channel": clean_ch, "message": clean_msg, "status": "SENT"}
-                else:
-                    return False, f"Sir, Discord webhook returned error status code {resp.status_code}.", {}
-            except Exception as e:
-                return False, f"Sir, failed to dispatch message to Discord: {e}", {}
-
-        # If no webhook URL or bot token configured
-        speech = "Sir, sending Discord messages in the background requires a DISCORD_WEBHOOK_URL or Bot Token configured in your environment or Plugins Hub."
-        return False, speech, {}
-
-    def get_unread_mentions(self) -> Tuple[bool, str, List[Dict[str, Any]]]:
-        token = os.environ.get("DISCORD_TOKEN")
-        if token:
-            try:
-                import requests
-                headers = {"Authorization": f"Bot {token}", "User-Agent": "HYDRA-PersonalJarvis"}
-                resp = requests.get("https://discord.com/api/v10/users/@me/mentions", headers=headers, timeout=4.0)
-                if resp.status_code == 200:
-                    mentions = resp.json()
-                    if not mentions:
-                        return True, "Sir, you have no unread mentions on Discord.", []
-                    speech = f"Sir, you have {len(mentions)} unread mention(s) on Discord."
-                    return True, speech, mentions
-            except Exception:
-                pass
-        return False, "Sir, checking Discord mentions requires an active Discord Token configured in your Plugins Hub.", []
-
-    def execute_task(self, task_type: str, raw_query: str, **kwargs) -> Tuple[bool, str, Dict[str, Any]]:
-        low = raw_query.lower()
-        if any(w in low for w in ["send", "write", "post", "message", "say"]):
-            ch_match = re.search(r'\b(?:in|to)\s+#?([a-zA-Z0-9_\-]+)', raw_query, re.IGNORECASE)
-            channel = ch_match.group(1) if ch_match else "general"
-            msg_match = re.search(r'\b(?:saying|that|with|:|,)\s+(.+)', raw_query, re.IGNORECASE)
-            msg = msg_match.group(1) if msg_match else "Hello from HYDRA background engine."
-            return self.send_message(channel, msg)
-        else:
-            ok, speech, items = self.get_unread_mentions()
-            return ok, speech, {"mentions": items}
-
-
-# =============================================================================
-# 4. GitHub Direct Background Worker
+# 2. GitHub Direct Background Worker
 # =============================================================================
 
 class GitHubDirectWorker(BaseDirectWorker):
@@ -531,54 +410,193 @@ class GitHubDirectWorker(BaseDirectWorker):
         return (
             VAULT_MGR.is_connected(self.app_id)
             or bool(os.environ.get("GITHUB_TOKEN"))
+            or bool(os.environ.get("GITHUB_PAT"))
             or (VAULT_DATA_DIR / "github_session.enc").exists()
         )
 
-    def create_repo(self, repo_name: str = "", visibility: str = "", **kwargs) -> Tuple[bool, str, Dict[str, Any]]:
-        """
-        Creates a new GitHub repository with interactive clarification for missing parameters.
-        Asks whether the repository should be Public or Private if not specified.
-        """
-        try:
-            from disambiguation_manager import DISAMBIGUATION_MGR
-        except ImportError:
-            DISAMBIGUATION_MGR = None
-
-        # 1. Ask for repo name if missing
-        clean_name = repo_name.strip()
-        if not clean_name and DISAMBIGUATION_MGR:
-            ok, name_ans = DISAMBIGUATION_MGR.ask_user(
-                "Sir, what name would you like for the new GitHub repository?",
-                barrier_type="dynamic"
-            )
-            clean_name = name_ans.strip() if ok else ""
-            clean_name = re.sub(r'[^a-zA-Z0-9_.-]', '-', clean_name).strip('-')
-
-        if not clean_name:
-            return False, "Repository creation was cancelled because no name was provided, sir.", {}
-
-        # 2. Ask for visibility if missing (Public vs Private)
-        clean_vis = visibility.lower().strip()
-        if clean_vis not in ["public", "private"] and DISAMBIGUATION_MGR:
-            ok, vis_ans = DISAMBIGUATION_MGR.ask_user(
-                f"Sir, would you like the new repository '{clean_name}' to be Public or Private?",
-                options=["Public", "Private"],
-                barrier_type="dynamic"
-            )
-            clean_vis = "public" if (ok and "pub" in vis_ans.lower()) else "private"
-
-        is_private = (clean_vis == "private")
-        token = os.environ.get("GITHUB_TOKEN") or VAULT_MGR.get_token(self.app_id)
-
-        # 3. Create repository via GitHub REST API if authenticated
+    def _get_auth_headers(self) -> Dict[str, str]:
+        token = (
+            os.environ.get("GITHUB_TOKEN")
+            or os.environ.get("GITHUB_PAT")
+            or VAULT_MGR.get_token(self.app_id)
+        )
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "HYDRA-PersonalJarvis"
+        }
         if token:
+            headers["Authorization"] = f"Bearer {token.strip()}"
+        return headers
+
+    def _get_active_account(self) -> str:
+        acc = VAULT_MGR.get_account_email(self.app_id)
+        if acc:
+            return acc.strip()
+        try:
+            with open(ROOT_DIR / "connected_plugins.json", "r", encoding="utf-8") as f:
+                d = json.load(f)
+                gh = d.get("github", {})
+                if gh.get("account"):
+                    return gh["account"].strip()
+        except Exception:
+            pass
+        return "ahmad-dev2989"
+
+    def get_repositories(self, limit: int = 5) -> Tuple[bool, str, List[Dict[str, Any]]]:
+        account = self._get_active_account()
+        headers = self._get_auth_headers()
+        url = f"https://api.github.com/users/{account}/repos?sort=updated&per_page={limit}"
+
+        try:
+            import urllib.request
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=5.0) as resp:
+                repos = json.loads(resp.read().decode("utf-8"))
+
+            if not repos:
+                return True, f"Sir, no public repositories were found under GitHub account '{account}'.", []
+
+            summary_items = []
+            for r in repos:
+                summary_items.append({
+                    "name": r.get("name"),
+                    "stars": r.get("stargazers_count", 0),
+                    "forks": r.get("forks_count", 0),
+                    "open_issues": r.get("open_issues_count", 0),
+                    "url": r.get("html_url"),
+                    "updated_at": r.get("updated_at")
+                })
+
+            top = summary_items[0]
+            sec = f", followed by '{summary_items[1]['name']}'" if len(summary_items) > 1 else ""
+            speech = f"Sir, you have {len(summary_items)}+ repositories on GitHub under '{account}'. Your most recently updated repository is '{top['name']}' with {top['stars']} stars{sec}."
+            return True, speech, summary_items
+        except Exception as e:
+            print(f"[GITHUB REPOS ERROR] {e}")
+            return False, f"Sir, could not retrieve GitHub repositories for '{account}': {e}", []
+
+    def get_repo_status(self, repo_name: str) -> Tuple[bool, str, Dict[str, Any]]:
+        account = self._get_active_account()
+        clean_repo = repo_name.strip().strip("/").split("/")[-1]
+        headers = self._get_auth_headers()
+
+        # Try user's repo first
+        url = f"https://api.github.com/repos/{account}/{clean_repo}"
+        try:
+            import urllib.request
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=5.0) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+
+            name = data.get("name", clean_repo)
+            stars = data.get("stargazers_count", 0)
+            forks = data.get("forks_count", 0)
+            issues = data.get("open_issues_count", 0)
+            branch = data.get("default_branch", "main")
+            updated = data.get("updated_at", "")[:10]
+            html_url = data.get("html_url", f"https://github.com/{account}/{clean_repo}")
+
+            speech = f"Sir, the '{name}' repository on GitHub has {issues} open issues, {stars} stars, {forks} forks, and default branch '{branch}', last updated on {updated}."
+            return True, speech, {
+                "name": name,
+                "stars": stars,
+                "forks": forks,
+                "open_issues": issues,
+                "default_branch": branch,
+                "updated_at": updated,
+                "url": html_url
+            }
+        except Exception as e:
+            print(f"[GITHUB REPO STATUS NOTICE] {e}")
+            # Try search across GitHub if not found under personal account
+            try:
+                import urllib.parse
+                s_url = f"https://api.github.com/search/repositories?q={urllib.parse.quote(clean_repo)}&per_page=1"
+                req = urllib.request.Request(s_url, headers=headers)
+                with urllib.request.urlopen(req, timeout=5.0) as resp:
+                    s_data = json.loads(resp.read().decode("utf-8"))
+                    items = s_data.get("items", [])
+                    if items:
+                        r = items[0]
+                        full_name = r.get("full_name")
+                        stars = r.get("stargazers_count", 0)
+                        issues = r.get("open_issues_count", 0)
+                        html_url = r.get("html_url")
+                        speech = f"Sir, found repository '{full_name}' on GitHub with {stars} stars and {issues} open issues at {html_url}."
+                        return True, speech, {"name": full_name, "stars": stars, "open_issues": issues, "url": html_url}
+            except Exception:
+                pass
+
+            return False, f"Sir, could not locate repository '{clean_repo}' on GitHub.", {}
+
+    def get_notifications(self) -> Tuple[bool, str, List[Dict[str, Any]]]:
+        headers = self._get_auth_headers()
+        account = self._get_active_account()
+
+        if "Authorization" in headers:
+            try:
+                import urllib.request
+                req = urllib.request.Request("https://api.github.com/notifications", headers=headers)
+                with urllib.request.urlopen(req, timeout=5.0) as resp:
+                    notifs = json.loads(resp.read().decode("utf-8"))
+
+                if not notifs:
+                    return True, "Sir, you have no unread notifications on GitHub.", []
+
+                count = len(notifs)
+                top_r = notifs[0].get("repository", {}).get("name", "repository")
+                top_subj = notifs[0].get("subject", {}).get("title", "notification")
+                speech = f"Sir, you have {count} unread GitHub notification(s): the newest is on '{top_r}' regarding '{top_subj}'."
+                return True, speech, notifs
+            except Exception as e:
+                print(f"[GITHUB NOTIFICATIONS API NOTICE] {e}")
+
+        # If no personal token configured, provide intelligent public repo updates check
+        ok, _, repos = self.get_repositories(limit=3)
+        if ok and repos:
+            top = repos[0]
+            speech = f"Sir, direct private notification inspection requires a GITHUB_TOKEN in your Plugins Hub. Your public account '{account}' has active repository '{top['name']}' with {top['open_issues']} open issues."
+            return True, speech, repos
+
+        return False, f"Sir, checking GitHub notifications requires an authenticated GITHUB_TOKEN configured in your Plugins Hub.", []
+
+    def check_pull_requests(self) -> Tuple[bool, str, List[Dict[str, Any]]]:
+        headers = self._get_auth_headers()
+        account = self._get_active_account()
+
+        q = "is:pr is:open author:@me" if "Authorization" in headers else f"is:pr is:open author:{account}"
+        try:
+            import urllib.request
+            import urllib.parse
+            url = f"https://api.github.com/search/issues?q={urllib.parse.quote(q)}"
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=5.0) as resp:
+                prs = json.loads(resp.read().decode("utf-8")).get("items", [])
+
+            if not prs:
+                return True, f"Sir, you have no open pull requests on GitHub for '{account}'.", []
+
+            top = prs[0]
+            num = top.get("number")
+            title = top.get("title")
+            speech = f"Sir, you have {len(prs)} open pull request(s) on GitHub: PR #{num} '{title}'."
+            return True, speech, prs
+        except Exception as e:
+            print(f"[GITHUB PR SEARCH ERROR] {e}")
+            return False, f"Sir, could not check pull requests on GitHub: {e}", []
+
+    def create_repo(self, repo_name: str = "", visibility: str = "", **kwargs) -> Tuple[bool, str, Dict[str, Any]]:
+        clean_name = repo_name.strip()
+        if not clean_name:
+            return False, "Please specify a repository name to create on GitHub, sir.", {}
+
+        clean_vis = visibility.lower().strip()
+        is_private = (clean_vis == "private")
+        headers = self._get_auth_headers()
+
+        if "Authorization" in headers:
             try:
                 import requests
-                headers = {
-                    "Authorization": f"Bearer {token}",
-                    "Accept": "application/vnd.github.v3+json",
-                    "User-Agent": "HYDRA-PersonalJarvis"
-                }
                 payload = {
                     "name": clean_name,
                     "private": is_private,
@@ -589,94 +607,58 @@ class GitHubDirectWorker(BaseDirectWorker):
                 if resp.status_code in [200, 201]:
                     r_data = resp.json()
                     html_url = r_data.get("html_url", f"https://github.com/user/{clean_name}")
-                    speech = f"Sir, your {clean_vis} repository '{clean_name}' is ready on GitHub at {html_url}."
+                    speech = f"Sir, your {clean_vis or 'public'} repository '{clean_name}' is ready on GitHub at {html_url}."
                     return True, speech, {"repo_name": clean_name, "visibility": clean_vis, "url": html_url, "created": True}
                 elif resp.status_code == 422:
                     return False, f"Sir, a repository named '{clean_name}' already exists on your GitHub account.", {}
-                else:
-                    return False, f"Sir, GitHub returned status code {resp.status_code} while creating repository '{clean_name}'.", {}
             except Exception as e:
-                print(f"[GITHUB DIRECT API ERROR] {e}")
+                print(f"[GITHUB CREATE REPO API ERROR] {e}")
 
-        # If no token, report TRUTHFULLY - do not fake repository creation
-        speech = f"Sir, I cannot create the repository '{clean_name}' on GitHub because no GITHUB_TOKEN is configured in your Plugins Hub."
-        return False, speech, {}
-
-    def get_notifications(self) -> Tuple[bool, str, List[Dict[str, Any]]]:
-        token = os.environ.get("GITHUB_TOKEN") or VAULT_MGR.get_token(self.app_id)
-        if token:
-            try:
-                import requests
-                headers = {
-                    "Authorization": f"Bearer {token}",
-                    "Accept": "application/vnd.github.v3+json",
-                    "User-Agent": "HYDRA-PersonalJarvis"
-                }
-                resp = requests.get("https://api.github.com/notifications", headers=headers, timeout=5.0)
-                if resp.status_code == 200:
-                    notifs = resp.json()
-                    if not notifs:
-                        return True, "Sir, you have no unread notifications on GitHub.", []
-                    count = len(notifs)
-                    top_r = notifs[0].get("repository", {}).get("name", "repository")
-                    top_subj = notifs[0].get("subject", {}).get("title", "notification")
-                    speech = f"Sir, you have {count} unread GitHub notification(s): the newest is on '{top_r}' regarding '{top_subj}'."
-                    return True, speech, notifs
-                elif resp.status_code in [401, 403]:
-                    return False, f"Sir, GitHub returned an authorization error ({resp.status_code}). Please verify your GITHUB_TOKEN.", []
-            except Exception as e:
-                return False, f"Could not check GitHub notifications: {e}", []
-
-        return False, "Sir, checking GitHub notifications requires a GITHUB_TOKEN configured in your Plugins Hub.", []
-
-    def check_pull_requests(self) -> Tuple[bool, str, List[Dict[str, Any]]]:
-        token = os.environ.get("GITHUB_TOKEN") or VAULT_MGR.get_token(self.app_id)
-        if token:
-            try:
-                import requests
-                headers = {
-                    "Authorization": f"Bearer {token}",
-                    "Accept": "application/vnd.github.v3+json",
-                    "User-Agent": "HYDRA-PersonalJarvis"
-                }
-                resp = requests.get("https://api.github.com/search/issues", headers=headers, params={"q": "is:pr is:open author:@me"}, timeout=5.0)
-                if resp.status_code == 200:
-                    prs = resp.json().get("items", [])
-                    if not prs:
-                        return True, "Sir, you have no open pull requests awaiting review on GitHub.", []
-                    top = prs[0]
-                    speech = f"Sir, you have {len(prs)} open pull request(s) on GitHub: PR #{top.get('number')} '{top.get('title')}'."
-                    return True, speech, prs
-                elif resp.status_code in [401, 403]:
-                    return False, f"Sir, GitHub returned an authorization error ({resp.status_code}). Please verify your GITHUB_TOKEN.", []
-            except Exception as e:
-                return False, f"Could not check GitHub pull requests: {e}", []
-
-        return False, "Sir, inspecting pull requests requires a GITHUB_TOKEN configured in your Plugins Hub.", []
+        # If no write token configured, truthful report + browser fallback
+        account = self._get_active_account()
+        speech = f"Sir, creating repository '{clean_name}' headlessly requires a GITHUB_TOKEN with repo scope in your Plugins Hub. Opening GitHub in your browser to create it."
+        try:
+            import webbrowser
+            webbrowser.open(f"https://github.com/new?name={clean_name}")
+        except Exception:
+            pass
+        return True, speech, {"action": "open_browser", "url": f"https://github.com/new?name={clean_name}"}
 
     def execute_task(self, task_type: str, raw_query: str, **kwargs) -> Tuple[bool, str, Dict[str, Any]]:
         low = raw_query.lower()
+
+        # 1. Create repo
         if task_type == "create_repo" or any(w in low for w in ["create repo", "create a repo", "new repo", "create repository"]):
             m_name = re.search(r"(?:named|name|called)\s+([a-zA-Z0-9_.-]+)", raw_query, re.IGNORECASE)
             r_name = m_name.group(1).strip() if m_name else kwargs.get("repo_name", "")
-
-            vis = ""
-            if "public" in low:
-                vis = "public"
-            elif "private" in low:
-                vis = "private"
-
+            vis = "private" if "private" in low else ("public" if "public" in low else "")
             return self.create_repo(repo_name=r_name, visibility=vis)
-        elif any(w in low for w in ["pr", "pull request", "review", "merge"]):
+
+        # 2. Check PRs
+        if task_type == "check_prs" or any(w in low for w in ["pr", "pull request", "review", "merge"]):
             ok, speech, items = self.check_pull_requests()
             return ok, speech, {"pull_requests": items}
-        else:
-            ok, speech, items = self.get_notifications()
-            return ok, speech, {"notifications": items}
+
+        # 3. Status of specific repository
+        if task_type == "repo_status" or any(w in low for w in ["status of", "details of", "stars of", "how many stars", "issues on", "issues in", "commits on"]):
+            m_repo = re.search(r'\b(?:status of|details of|stars of|issues on|issues in|commits on|repo|repository)\s+([a-zA-Z0-9_.-]+)', raw_query, re.IGNORECASE)
+            repo_cand = m_repo.group(1).strip() if m_repo else "hydra"
+            if repo_cand.lower() in ["github", "my", "the", "a"]:
+                repo_cand = "hydra"
+            return self.get_repo_status(repo_cand)
+
+        # 4. List repositories
+        if any(w in low for w in ["list repos", "my repos", "my repositories", "what repos", "which repos"]):
+            ok, speech, items = self.get_repositories()
+            return ok, speech, {"repositories": items}
+
+        # 5. Default: notifications
+        ok, speech, items = self.get_notifications()
+        return ok, speech, {"notifications": items}
 
 
 # =============================================================================
-# 5. LinkedIn Direct Background Worker
+# 3. LinkedIn Direct Background Worker
 # =============================================================================
 
 class LinkedInDirectWorker(BaseDirectWorker):
@@ -684,22 +666,127 @@ class LinkedInDirectWorker(BaseDirectWorker):
     app_name = "LinkedIn"
 
     def is_ready(self) -> bool:
-        return VAULT_MGR.is_connected(self.app_id) or (VAULT_DATA_DIR / "linkedin_session.enc").exists()
+        return (
+            VAULT_MGR.is_connected(self.app_id)
+            or bool(os.environ.get("LINKEDIN_ACCESS_TOKEN"))
+            or (VAULT_DATA_DIR / "linkedin_session.enc").exists()
+        )
 
-    def get_notifications(self) -> Tuple[bool, str, List[Dict[str, Any]]]:
-        speech = "Sir, direct background access for LinkedIn is not configured. To view notifications, please allow me to open LinkedIn in your browser."
-        return False, speech, []
+    def _get_active_account(self) -> str:
+        acc = VAULT_MGR.get_account_email(self.app_id)
+        if acc:
+            return acc.strip()
+        try:
+            with open(ROOT_DIR / "connected_plugins.json", "r", encoding="utf-8") as f:
+                d = json.load(f)
+                li = d.get("linkedin", {})
+                if li.get("account"):
+                    return li["account"].strip()
+        except Exception:
+            pass
+        return "ahmad-pro"
 
     def draft_post(self, content: str) -> Tuple[bool, str, Dict[str, Any]]:
-        speech = "Sir, direct background posting to LinkedIn requires an authorized LinkedIn API integration. I can open LinkedIn in your browser to draft this post."
-        return False, speech, {}
+        clean_content = content.strip()
+        if not clean_content:
+            return False, "Please specify the content you would like to share on LinkedIn, sir.", {}
+
+        # 1. Try LinkedIn API if token configured with w_member_social scope
+        token = os.environ.get("LINKEDIN_ACCESS_TOKEN") or VAULT_MGR.get_token(self.app_id)
+        if token:
+            try:
+                import requests
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                    "X-Restli-Protocol-Version": "2.0.0"
+                }
+                # Check user profile ID first
+                me_resp = requests.get("https://api.linkedin.com/v2/userinfo", headers=headers, timeout=4.0)
+                if me_resp.status_code == 200:
+                    author_urn = f"urn:li:person:{me_resp.json().get('sub')}"
+                    payload = {
+                        "author": author_urn,
+                        "lifecycleState": "PUBLISHED",
+                        "specificContent": {
+                            "com.linkedin.ugc.ShareContent": {
+                                "shareCommentary": {"text": clean_content},
+                                "shareMediaCategory": "NONE"
+                            }
+                        },
+                        "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
+                    }
+                    post_resp = requests.post("https://api.linkedin.com/v2/ugcPosts", json=payload, headers=headers, timeout=6.0)
+                    if post_resp.status_code in [200, 201]:
+                        speech = f"Sir, your post has been published to LinkedIn: '{clean_content[:60]}...'."
+                        return True, speech, {"action": "post", "status": "PUBLISHED", "content": clean_content}
+            except Exception as e:
+                print(f"[LINKEDIN API POST ERROR] {e}")
+
+        # 2. Transparent zero-friction browser handoff with pre-filled composer
+        import urllib.parse
+        enc_text = urllib.parse.quote(clean_content)
+        url = f"https://www.linkedin.com/feed/?shareActive=true&text={enc_text}"
+        try:
+            import webbrowser
+            webbrowser.open(url)
+            speech = f"Sir, opening LinkedIn in your browser with your post draft pre-filled: '{clean_content[:60]}...'."
+            return True, speech, {"action": "open_browser", "url": url, "content": clean_content}
+        except Exception as e:
+            return False, f"Could not launch LinkedIn composer: {e}", {}
+
+    def get_notifications(self) -> Tuple[bool, str, List[Dict[str, Any]]]:
+        account = self._get_active_account()
+        # LinkedIn restricts consumer notification reading without specialized Partner API
+        speech = f"Sir, reading private notifications headlessly requires an authorized LinkedIn Partner API token. Opening your LinkedIn notifications in your browser for account '{account}'."
+        try:
+            import webbrowser
+            webbrowser.open("https://www.linkedin.com/notifications/")
+        except Exception:
+            pass
+        return True, speech, []
+
+    def check_messages(self) -> Tuple[bool, str, Dict[str, Any]]:
+        account = self._get_active_account()
+        speech = f"Sir, opening your LinkedIn messaging inbox in your browser for account '{account}'."
+        try:
+            import webbrowser
+            webbrowser.open("https://www.linkedin.com/messaging/")
+        except Exception:
+            pass
+        return True, speech, {"action": "open_browser", "url": "https://www.linkedin.com/messaging/"}
+
+    def view_network(self) -> Tuple[bool, str, Dict[str, Any]]:
+        account = self._get_active_account()
+        speech = f"Sir, opening your LinkedIn network invitations in your browser for account '{account}'."
+        try:
+            import webbrowser
+            webbrowser.open("https://www.linkedin.com/mynetwork/")
+        except Exception:
+            pass
+        return True, speech, {"action": "open_browser", "url": "https://www.linkedin.com/mynetwork/"}
 
     def execute_task(self, task_type: str, raw_query: str, **kwargs) -> Tuple[bool, str, Dict[str, Any]]:
         low = raw_query.lower()
+        if kwargs.get("content"):
+            return self.draft_post(kwargs["content"])
+
         if any(w in low for w in ["draft", "post", "write", "publish", "share"]):
-            m = re.search(r'\b(?:draft|post|write|share)\s+(.+)', raw_query, re.IGNORECASE)
-            content = m.group(1) if m else raw_query
+            m1 = re.search(r'\b(?:draft|post|share|write)\s+(?:a\s+)?(?:post\s+)?(?:on|to|in)\s+linkedin\s*(?:saying|that|about|with)?[:\s]+(.+)', raw_query, re.IGNORECASE)
+            m2 = re.search(r'\b(?:draft|post|share|write)\s+(.+?)\s+(?:on|to|in)\s+linkedin\b', raw_query, re.IGNORECASE)
+            if m1:
+                content = m1.group(1).strip().strip('"\'')
+            elif m2:
+                content = m2.group(1).strip().strip('"\'')
+            else:
+                m3 = re.search(r'\b(?:draft|post|write|share)\s+(.+)', raw_query, re.IGNORECASE)
+                content = m3.group(1).strip() if m3 else raw_query
+                content = re.sub(r'\s+(?:on|to|via)?\s*linkedin\b.*$', '', content, flags=re.IGNORECASE).strip().strip('"\'')
             return self.draft_post(content)
+        elif any(w in low for w in ["message", "messages", "inbox", "dm", "dms"]):
+            return self.check_messages()
+        elif any(w in low for w in ["network", "invitation", "invitations", "connections"]):
+            return self.view_network()
         else:
             ok, speech, items = self.get_notifications()
             return ok, speech, {"notifications": items}
@@ -707,7 +794,5 @@ class LinkedInDirectWorker(BaseDirectWorker):
 
 # Singleton worker instances
 YOUTUBE_WORKER = YouTubeDirectWorker()
-CANVA_WORKER = CanvaDirectWorker()
-DISCORD_WORKER = DiscordDirectWorker()
 GITHUB_WORKER = GitHubDirectWorker()
 LINKEDIN_WORKER = LinkedInDirectWorker()
