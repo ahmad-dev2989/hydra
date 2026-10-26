@@ -5291,6 +5291,35 @@
                         </div>
                     </div>
 
+                    ${app.id === 'gmail' ? `
+                    <div class="gmail-headless-config" style="margin-top: 14px; padding: 14px 16px; background: rgba(30, 41, 59, 0.45); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#38bdf8" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                <span style="font-size: 12px; font-weight: 600; color: #e2e8f0; letter-spacing: 0.3px;">HEADLESS BACKGROUND EMAIL ACCESS</span>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: ${(connData.data && connData.data.password) ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)'}; color: ${(connData.data && connData.data.password) ? '#10b981' : '#f59e0b'}; border: 1px solid ${(connData.data && connData.data.password) ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'};">
+                                ${(connData.data && connData.data.password) ? '✓ App Password Ready' : '! App Password Required'}
+                            </span>
+                        </div>
+                        <p style="font-size: 11.5px; color: #94a3b8; margin: 0 0 10px 0; line-height: 1.45;">
+                            To allow HYDRA to read incoming emails, unread counts, and dispatch emails headlessly without opening a browser window, Google requires a 16-character <b>App Password</b> for your account.
+                        </p>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="password" id="inp_gmail_app_password" class="form-input" placeholder="Google App Password (e.g. abcd efgh ijkl mnop)" value="${escapeHtml((connData.data && connData.data.password) || '')}" style="font-family: monospace; font-size: 12.5px;">
+                            <button type="button" class="btn-connect-primary" style="white-space: nowrap; padding: 7px 14px; font-size: 12px; flex-shrink: 0;" onclick="saveGmailAppPassword('${app.id}')">
+                                Save App Password
+                            </button>
+                        </div>
+                        <div id="gmailPasswordStatusNotice" style="margin-top: 8px; display: none;"></div>
+                        <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                            <a href="https://myaccount.google.com/apppasswords" target="_blank" style="font-size: 11px; color: #38bdf8; text-decoration: none; font-weight: 500;">
+                                ➜ Generate 16-char App Password at myaccount.google.com/apppasswords
+                            </a>
+                        </div>
+                    </div>
+                    ` : ''}
+
                     <!-- Multi-Accounts Hub -->
                     <div class="multi-accounts-hub">
                         <div class="hub-header-row">
@@ -5491,9 +5520,11 @@
                 }
 
                 const existingIdx = accList.findIndex(a => a.account.toLowerCase() === emailVal.toLowerCase());
+                const accData = { extra: extraVal, country: countryVal, password: passVal };
                 if (existingIdx >= 0) {
                     accList[existingIdx].active = true;
                     accList[existingIdx].connectedAt = timeStr;
+                    accList[existingIdx].data = Object.assign({}, accList[existingIdx].data || {}, accData);
                 } else {
                     accList.push({
                         account: emailVal,
@@ -5501,7 +5532,7 @@
                         label: 'Primary',
                         authType: app.authType,
                         connectedAt: timeStr,
-                        data: { extra: extraVal, country: countryVal }
+                        data: accData
                     });
                 }
 
@@ -5511,10 +5542,7 @@
                     accounts: accList,
                     connectedAt: timeStr,
                     authType: app.authType,
-                    data: {
-                        extra: extraVal,
-                        country: countryVal
-                    }
+                    data: Object.assign({}, (connectedPlugins[app.id] && connectedPlugins[app.id].data) || {}, accData)
                 };
 
                 // Persist locally
@@ -5532,6 +5560,52 @@
                 renderPluginsGrid();
                 openAppConnection(app.id);
             }, 600);
+        }
+
+        function saveGmailAppPassword(appId) {
+            const inp = document.getElementById('inp_gmail_app_password');
+            const notice = document.getElementById('gmailPasswordStatusNotice');
+            if (!inp) return;
+            const pwd = inp.value.trim();
+            if (!pwd) {
+                if (notice) {
+                    notice.style.display = 'block';
+                    notice.style.color = '#ef4444';
+                    notice.innerText = 'Please enter your 16-character Google App Password.';
+                }
+                return;
+            }
+
+            if (!connectedPlugins[appId]) {
+                connectedPlugins[appId] = { connected: true, account: 'f240004@cfd.nu.edu.pk' };
+            }
+            if (!connectedPlugins[appId].data) connectedPlugins[appId].data = {};
+            connectedPlugins[appId].data.password = pwd;
+
+            if (Array.isArray(connectedPlugins[appId].accounts)) {
+                connectedPlugins[appId].accounts.forEach(a => {
+                    if (a.active) {
+                        if (!a.data) a.data = {};
+                        a.data.password = pwd;
+                    }
+                });
+            }
+
+            try {
+                localStorage.setItem('HYDRA_CONNECTED_PLUGINS', JSON.stringify(connectedPlugins));
+            } catch (e) {}
+
+            console.log('HYDRA_PLUGIN_SAVE:' + JSON.stringify(connectedPlugins));
+            playHudBeep(720, 0.08);
+
+            if (notice) {
+                notice.style.display = 'block';
+                notice.style.color = '#10b981';
+                notice.innerText = '✓ Google App Password saved and synced to encrypted Vault!';
+            }
+            setTimeout(() => {
+                openAppConnection(appId);
+            }, 800);
         }
 
         function toggleAddAccountSection() {
@@ -5828,8 +5902,21 @@
             const notice = document.getElementById('connectStatusNotice');
             if (!notice) return;
 
-            notice.className = 'connect-status-box success';
             notice.style.display = 'flex';
+            if (appId === 'gmail') {
+                const conn = connectedPlugins['gmail'] || {};
+                const hasPwd = Boolean(conn.data && conn.data.password);
+                if (!hasPwd) {
+                    notice.className = 'connect-status-box warning';
+                    notice.innerHTML = `
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        <span>Account connected, but headless background email access requires a 16-character Google App Password. Please enter and save it above.</span>
+                    `;
+                    return;
+                }
+            }
+
+            notice.className = 'connect-status-box success';
             const latency = Math.floor(Math.random() * 15) + 12;
             notice.innerHTML = `
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>

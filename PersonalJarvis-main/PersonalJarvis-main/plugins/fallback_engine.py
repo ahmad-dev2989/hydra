@@ -259,13 +259,17 @@ class FallbackEngine:
         if DISAMBIGUATION_MGR:
             # Extract clean reason summary from worker speech
             clean_reason = reason.strip()
+            # Strip any leading 'Sir, ' to prevent "Sir, Sir, ..."
+            clean_reason = re.sub(r'^(?:sir,?\s*)+', '', clean_reason, flags=re.IGNORECASE).strip()
             if not clean_reason:
                 clean_reason = f"live background access for {app_name} is not available"
 
             # Clean speech for concise question
-            prompt_q = f"Sir, {clean_reason} Would you like me to open {app_name} on your screen?"
-            if "Would you like me to open" not in clean_reason:
-                prompt_q = f"Sir, {clean_reason}. Would you like me to open {app_name} on your screen?"
+            if "Would you like me to open" in clean_reason:
+                prompt_q = f"Sir, {clean_reason}"
+            else:
+                punct = "" if clean_reason.endswith((".", "!", "?")) else "."
+                prompt_q = f"Sir, {clean_reason}{punct} Would you like me to open {app_name} on your screen?"
 
             ok_ans, ans = DISAMBIGUATION_MGR.ask_user(
                 prompt_q,

@@ -241,12 +241,24 @@ class GmailDirectWorker(BaseDirectWorker):
 
     def _get_credentials(self) -> Tuple[str, str]:
         """Retrieves account email and authentication password/token."""
+        # Ensure .env is checked if not in os.environ
+        env_f = ROOT_DIR / ".env"
+        if env_f.exists() and not os.environ.get("GMAIL_APP_PASSWORD"):
+            try:
+                with open(env_f, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("GMAIL_APP_PASSWORD=") or line.startswith("GMAIL_PASSWORD="):
+                            _, v = line.split("=", 1)
+                            os.environ["GMAIL_APP_PASSWORD"] = v.strip().strip('"').strip("'")
+            except Exception:
+                pass
+
         email_addr = self.get_account_email()
-        plugin_data = VAULT_MGR.get_plugin_data(self.app_id) or {}
         password = (
-            plugin_data.get("data", {}).get("password")
-            or plugin_data.get("password")
+            VAULT_MGR.get_account_password(self.app_id)
             or os.environ.get("GMAIL_APP_PASSWORD", "")
+            or os.environ.get("GMAIL_PASSWORD", "")
         )
         return email_addr, password
 

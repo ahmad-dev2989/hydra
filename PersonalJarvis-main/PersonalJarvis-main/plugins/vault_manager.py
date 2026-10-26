@@ -335,6 +335,91 @@ class VaultManager:
         data = self.get_plugin_data(app_id)
         return bool(data and data.get("connected") and data.get("account"))
 
+    def get_account_password(self, app_id: str) -> str:
+        """Retrieves configured password or app password for active account."""
+        app_key = app_id.lower().replace(" ", "_")
+        vault = self._load_raw_vault()
+        entry = vault.get(app_key) or {}
+
+        # 1. Check active account in accounts array
+        accounts = entry.get("accounts", [])
+        for a in accounts:
+            if isinstance(a, dict) and a.get("active"):
+                pwd = a.get("data", {}).get("password") or a.get("password")
+                if pwd:
+                    return str(pwd).strip()
+
+        # 2. Check entry data
+        pwd = entry.get("data", {}).get("password") or entry.get("password")
+        if pwd:
+            return str(pwd).strip()
+
+        # 3. Check any account in accounts array
+        for a in accounts:
+            if isinstance(a, dict):
+                pwd = a.get("data", {}).get("password") or a.get("password")
+                if pwd:
+                    return str(pwd).strip()
+
+        # 4. Fallback to connected_plugins.json
+        if CONNECTED_PLUGINS_FILE.exists():
+            try:
+                with open(CONNECTED_PLUGINS_FILE, "r", encoding="utf-8") as f:
+                    pdata = json.load(f)
+                p_entry = pdata.get(app_key) or {}
+                for a in p_entry.get("accounts", []):
+                    if isinstance(a, dict) and a.get("active"):
+                        p = a.get("data", {}).get("password") or a.get("password")
+                        if p:
+                            return str(p).strip()
+                p = p_entry.get("data", {}).get("password") or p_entry.get("password")
+                if p:
+                    return str(p).strip()
+                for a in p_entry.get("accounts", []):
+                    if isinstance(a, dict):
+                        p = a.get("data", {}).get("password") or a.get("password")
+                        if p:
+                            return str(p).strip()
+            except Exception:
+                pass
+        return ""
+
+    def set_account_password(self, app_id: str, password: str, account: Optional[str] = None):
+        """Sets or updates the password/app_password for an app's active account."""
+        app_key = app_id.lower().replace(" ", "_")
+        vault = self._load_raw_vault()
+        entry = vault.get(app_key, {})
+        target_acc = (account or entry.get("account") or "").strip()
+
+        if not isinstance(entry.get("data"), dict):
+            entry["data"] = {}
+        entry["data"]["password"] = password.strip()
+
+        accounts = entry.get("accounts", [])
+        updated = False
+        for a in accounts:
+            if isinstance(a, dict) and ((target_acc and a.get("account", "").lower() == target_acc.lower()) or a.get("active")):
+                if not isinstance(a.get("data"), dict):
+                    a["data"] = {}
+                a["data"]["password"] = password.strip()
+                updated = True
+                break
+        if not updated and target_acc:
+            accounts.append({
+                "account": target_acc,
+                "label": "Primary",
+                "authType": entry.get("authType", "account"),
+                "data": {"password": password.strip(), "verified": True},
+                "active": True
+            })
+            entry["accounts"] = accounts
+            entry["connected"] = True
+            entry["account"] = target_acc
+
+        vault[app_key] = entry
+        self._save_raw_vault(vault)
+        print(f"[VAULT] Saved password/app_password for {app_key} ({target_acc}).")
+
     def get_all_accounts(self, app_id: str) -> List[Dict[str, Any]]:
         """Returns all configured accounts for an application (Problem 4)."""
         app_key = app_id.lower().replace(" ", "_")

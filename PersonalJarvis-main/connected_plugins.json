@@ -193,54 +193,15 @@
         "account": "f240004@cfd.nu.edu.pk",
         "accounts": [
             {
-                "account": "test.ahmad.pilot@gmail.com",
-                "label": "Primary",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                },
-                "active": false
-            },
-            {
-                "account": "test.pilot@gmail.com",
-                "label": "Account 2",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                },
-                "active": false
-            },
-            {
-                "account": "student.demo@fast.edu.pk",
-                "label": "Account 3",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                },
-                "active": false
-            },
-            {
-                "account": "ahmad.pilot@gmail.com",
-                "label": "Account 4",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                },
-                "active": false
-            },
-            {
                 "account": "f240004@cfd.nu.edu.pk",
-                "label": "Account 5",
-                "authType": "google_session",
+                "active": true,
+                "label": "Primary",
+                "authType": "google",
+                "connectedAt": "26/10/2026 10:45 pm",
                 "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                },
-                "active": true
+                    "extra": "",
+                    "country": ""
+                }
             }
         ],
         "authType": "google_session",
