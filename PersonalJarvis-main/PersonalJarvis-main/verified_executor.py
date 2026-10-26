@@ -848,6 +848,22 @@ class VerifiedStepExecutor:
         except Exception as e:
             print(f"[FOCUS ERROR] {e}")
 
+    def _minimize_app_and_restore(self, app_name: str, orig_fg: Optional[int] = None):
+        """Minimizes the target app window (e.g. Spotify) and restores the user's original foreground window."""
+        try:
+            import ctypes
+            u = ctypes.windll.user32
+            win = WINDOW_MGR.resolve_window(app_name)
+            if win and win.get("hwnd"):
+                hwnd = win["hwnd"]
+                u.ShowWindow(hwnd, 6)  # SW_MINIMIZE = 6
+                print(f"[WINDOW CLEANUP] Minimized {app_name} (hwnd: {hwnd}) upon goal completion.", flush=True)
+            if orig_fg and (not win or orig_fg != win.get("hwnd")):
+                time.sleep(0.15)
+                WINDOW_MGR.focus_window(orig_fg)
+        except Exception as e:
+            print(f"[WINDOW CLEANUP NOTICE] Could not minimize {app_name}: {e}", flush=True)
+
     def find_visual_template_on_screen(
         self,
         template_path_str: str,
@@ -1173,6 +1189,14 @@ class VerifiedStepExecutor:
         self._hud_cb = hud_disambig_callback
         low_t = task_text.lower().strip()
 
+        # Capture initial foreground window for auto-restoration
+        orig_fg = None
+        try:
+            import ctypes
+            orig_fg = ctypes.windll.user32.GetForegroundWindow()
+        except Exception:
+            pass
+
         # 1. Instant Media Commands
         if any(w in low_t for w in ["stop playing", "stop music", "pause music", "pause song", "stop spotify", "pause spotify", "pause playback"]):
             MEDIA_CONTROLLER.pause()
@@ -1197,7 +1221,20 @@ class VerifiedStepExecutor:
             print(f"[MEDIA CONTROLLER] {msg}")
             return True, msg, []
 
-        # 2. Check Database for verified prior procedure
+        # 2. Spotify Dynamic Vision Tasks (Song search, playlists, liked songs)
+        is_spotify_dynamic = ("spotify" in low_t or any(w in low_t for w in ["liked song", "liked songs", "playlist"])) and any(w in low_t for w in ["play", "search", "first song", "top song", "find", "listen", "start", "song", "track"])
+        if is_spotify_dynamic:
+            print("[GOAL ROUTER] Routing Spotify request directly to Dynamic Vision-In-The-Loop Agent with live screen capture...")
+            return self.run_dynamic_vision_loop(
+                task_text=task_text,
+                app_name="Spotify",
+                status_callback=status_callback,
+                voice_callback=voice_callback,
+                hud_disambig_callback=hud_disambig_callback,
+                orig_fg=orig_fg
+            )
+
+        # 3. Check Database for verified prior procedure
         matched_key = None
         prior = None
         try:
@@ -1264,7 +1301,8 @@ class VerifiedStepExecutor:
         memory_key_to_overwrite: Optional[str] = None,
         prior_attempted_steps: Optional[List[Dict[str, Any]]] = None,
         voice_callback=None,
-        hud_disambig_callback=None
+        hud_disambig_callback=None,
+        orig_fg: Optional[int] = None
     ) -> Tuple[bool, str, List[Dict[str, Any]]]:
         """
         Dynamic Vision-In-The-Loop Agent:
@@ -1276,6 +1314,13 @@ class VerifiedStepExecutor:
             self._voice_cb = voice_callback
         if hud_disambig_callback:
             self._hud_cb = hud_disambig_callback
+
+        if orig_fg is None:
+            try:
+                import ctypes
+                orig_fg = ctypes.windll.user32.GetForegroundWindow()
+            except Exception:
+                orig_fg = None
 
         if not app_name:
             low_t = task_text.lower()
@@ -1380,6 +1425,8 @@ class VerifiedStepExecutor:
                         if memory_key_to_overwrite:
                             save_successful_task_to_memory(memory_key_to_overwrite, app_name, task_text, history)
                         save_successful_task_to_memory(task_slug, app_name, task_text, history)
+                        if "spotify" in app_name.lower():
+                            self._minimize_app_and_restore("spotify", orig_fg)
                         return True, "", history
 
             # 2. Build Vision AI prompt with Disambiguation knowledge & persistent user clarifications
@@ -1428,6 +1475,7 @@ class VerifiedStepExecutor:
                 "- click(x=0.5, y=0.5)                                               -> Moves and left-clicks (or click() at current position)\n"
                 "- double_click(x=0.5, y=0.5)                                        -> Moves and double-clicks (or double_click() at current position). Use on song rows or video cards to play immediately!\n"
                 "- right_click(x=0.5, y=0.5)                                         -> Moves and right-clicks to open context menu (or right_click())\n"
+                "- scroll(direction='down') or scroll(direction='up')                -> Scrolls the page/list down or up to reveal more content\n"
                 "- hotkey('key1', 'key2')                                            -> Presses simultaneous keyboard shortcut, e.g. hotkey('ctrl', 't') for new tab, hotkey('ctrl', 'l') for address/search bar, hotkey('ctrl', 'shift', 'p')\n"
                 "- press_key('key')                                                  -> Presses single key, e.g. press_key('enter'), press_key('space'), press_key('esc'), press_key('tab')\n"
                 "- type_text('text', press_enter=True)                               -> Types text into the currently focused input field and optionally presses Enter\n"
@@ -1451,8 +1499,22 @@ class VerifiedStepExecutor:
                 "INSTRUCTIONS FOR ANALYZING THIS LIVE SCREEN:\n"
                 f"Based on the attached live screenshot and the completed steps above, what is the NEXT SINGLE ATOMIC STEP to reach the goal '{task_text}'?\n\n"
                 "CRITICAL OPERATING RULES FOR THIS EXACT SCREEN:\n"
-                "1. SEARCH & PLAY WORKFLOW (YouTube, Spotify, Browser, Desktop):\n"
-                "   -> When your goal is to search or play media (e.g. 'play laapata on youtube', 'search for tutorials'):\n"
+                "1. SPOTIFY PLAYLIST & SEARCH WORKFLOWS:\n"
+                "   -> When goal is to play a specific song (e.g. 'play laapata on spotify'):\n"
+                "      * Step 1: hotkey('ctrl', 'l') to focus search bar (or click the search bar at top).\n"
+                "      * Step 2: type_text('<song_name>', press_enter=True)\n"
+                "      * Step 3: double_click(x=<song_row_x>, y=<song_row_y>) on the top song row or click its play button.\n"
+                "      * Step 4: Once audio starts playing: ACTION: complete()\n"
+                "   -> When goal is to play from Liked Songs or playlist (e.g. 'play very first song in my liked song play list'):\n"
+                "      * Step 1: Look at the left sidebar or library. Click 'Liked Songs' (or the requested playlist):\n"
+                "        ACTION: click(x=<liked_songs_x>, y=<liked_songs_y>)\n"
+                "      * Step 2: Once the playlist/Liked Songs list is visible, locate the very first song row at top of the track list:\n"
+                "        ACTION: double_click(x=<first_song_x>, y=<first_song_y>)\n"
+                "      * Step 3: Once audio starts playing: ACTION: complete()\n"
+                "   -> If content or songs are lower down in a playlist or library list:\n"
+                "      ACTION: scroll(direction='down')\n"
+                "2. SEARCH & PLAY WORKFLOW (YouTube, Browser, Desktop):\n"
+                "   -> When your goal is to search or play media on YouTube or Browser:\n"
                 "      * DO NOT CLICK THE SEARCH BAR WITHOUT TYPING! Combine clicking and typing in ONE atomic step:\n"
                 "        ACTION: type_text('<query>', x=<search_bar_x>, y=<search_bar_y>, press_enter=True)\n"
                 "      * If the search bar was ALREADY clicked or is focused: DO NOT click it again! Immediately type:\n"
@@ -1561,6 +1623,8 @@ class VerifiedStepExecutor:
                     save_successful_task_to_memory(memory_key_to_overwrite, app_name, task_text, history)
                 save_successful_task_to_memory(task_slug, app_name, task_text, history)
                 speech_reply = _generate_humanized_completion_speech(task_text, app_name, obs)
+                if "spotify" in app_name.lower():
+                    self._minimize_app_and_restore("spotify", orig_fg)
                 return True, speech_reply, history
 
             # 6. Execute Action & Crop Visual Template Patch
@@ -1624,6 +1688,8 @@ class VerifiedStepExecutor:
                         if memory_key_to_overwrite:
                             save_successful_task_to_memory(memory_key_to_overwrite, app_name, task_text, history)
                         save_successful_task_to_memory(task_slug, app_name, task_text, history)
+                        if "spotify" in app_name.lower():
+                            self._minimize_app_and_restore("spotify", orig_fg)
                         return True, "", history
 
             history_entry = {
@@ -1691,6 +1757,8 @@ class VerifiedStepExecutor:
                 last_problem = ""
 
         # Finished max steps
+        if "spotify" in app_name.lower():
+            self._minimize_app_and_restore("spotify", orig_fg)
         fail_msg = f"I reached the step limit of {max_steps} steps before finishing '{task_text}', sir."
         print(f"\n[EXECUTION TIMEOUT] {fail_msg}", flush=True)
         return False, fail_msg, history
@@ -1904,7 +1972,30 @@ class VerifiedStepExecutor:
                     pyautogui.click()
                     return True, "Clicked at current position"
 
-            # 5. hotkey('k1', 'k2', ...)
+            # 5. scroll(direction='down'/'up') or scroll(amount=-300) or scrolling
+            if "scroll" in low_act:
+                clicks = -300
+                if any(w in low_act for w in ["up", "clicks=3", "clicks=5", "amount=300"]):
+                    clicks = 300
+                elif any(w in low_act for w in ["down", "clicks=-3", "clicks=-5", "amount=-300"]):
+                    clicks = -300
+                else:
+                    m_num = re.search(r"[-+]?[0-9]+", act_clean)
+                    if m_num:
+                        val = int(m_num.group(0))
+                        clicks = val if abs(val) > 20 else val * 100
+
+                m_x = re.search(r"x\s*=\s*([0-9\.]+)", act_clean, re.I)
+                m_y = re.search(r"y\s*=\s*([0-9\.]+)", act_clean, re.I)
+                if m_x and m_y:
+                    px, py = _coords(float(m_x.group(1)), float(m_y.group(1)))
+                    pyautogui.moveTo(px, py, duration=0.15)
+
+                pyautogui.scroll(clicks)
+                direction_str = "down" if clicks < 0 else "up"
+                return True, f"Scrolled {direction_str} (clicks={clicks})"
+
+            # 6. hotkey('k1', 'k2', ...)
             m_hotkey = re.search(r"hotkey\s*\((.*?)\)", act_clean, re.I)
             if m_hotkey:
                 raw_keys = m_hotkey.group(1)

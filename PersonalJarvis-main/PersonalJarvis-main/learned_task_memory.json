@@ -28,148 +28,6 @@
     "last_success": 1792503747.3226104,
     "last_duration": 0.533862829208374
   },
-  "spotify:play_song": {
-    "id": "spotify:play_song:laapata",
-    "application": "spotify",
-    "intent": "PLAY_SONG",
-    "parameters": {
-      "song_name": "laapata"
-    },
-    "steps": [
-      {
-        "id": 1,
-        "action": "OPEN_APPLICATION",
-        "target": "Spotify",
-        "parameters": {},
-        "expected_state": "Spotify is opened in maximized form",
-        "verification_rule": {
-          "type": "window_maximized",
-          "value": "spotify"
-        },
-        "description": "Open and maximize Spotify"
-      },
-      {
-        "id": 2,
-        "action": "FOCUS_WINDOW",
-        "target": "Spotify",
-        "parameters": {},
-        "expected_state": "Spotify has active window focus",
-        "verification_rule": {
-          "type": "window_active",
-          "value": "Spotify"
-        },
-        "description": "Focus Spotify window"
-      },
-      {
-        "id": 3,
-        "action": "PRESS_KEYS",
-        "target": "",
-        "parameters": {
-          "keys": [
-            "ctrl",
-            "l"
-          ]
-        },
-        "expected_state": "Spotify search bar active",
-        "verification_rule": {},
-        "description": "Press main search button/shortcut (Ctrl+L)"
-      },
-      {
-        "id": 4,
-        "action": "PRESS_KEYS",
-        "target": "",
-        "parameters": {
-          "keys": [
-            "ctrl",
-            "a"
-          ]
-        },
-        "expected_state": "Search bar content selected",
-        "verification_rule": {},
-        "description": "Select all in search bar"
-      },
-      {
-        "id": 5,
-        "action": "PRESS_KEY",
-        "target": "",
-        "parameters": {
-          "key": "backspace"
-        },
-        "expected_state": "Search bar cleared",
-        "verification_rule": {},
-        "description": "Clear search bar"
-      },
-      {
-        "id": 6,
-        "action": "PASTE_TEXT",
-        "target": "",
-        "parameters": {
-          "text": "laapata"
-        },
-        "expected_state": "Song name 'laapata' typed into search",
-        "verification_rule": {},
-        "description": "Paste song query 'laapata'"
-      },
-      {
-        "id": 7,
-        "action": "PRESS_KEY",
-        "target": "",
-        "parameters": {
-          "key": "enter"
-        },
-        "expected_state": "Search results returned",
-        "verification_rule": {},
-        "description": "Submit search query"
-      },
-      {
-        "id": 8,
-        "action": "WAIT",
-        "target": "",
-        "parameters": {
-          "seconds": 0.45
-        },
-        "expected_state": "Results displayed",
-        "verification_rule": {},
-        "description": "Wait for tracks to load"
-      },
-      {
-        "id": 9,
-        "action": "CUSTOM",
-        "target": "spotify_click_play_song",
-        "parameters": {
-          "song_name": "laapata"
-        },
-        "expected_state": "Play button clicked alongside matching song",
-        "verification_rule": {},
-        "description": "Click play button alongside matching song"
-      },
-      {
-        "id": 10,
-        "action": "WAIT",
-        "target": "",
-        "parameters": {
-          "seconds": 0.5
-        },
-        "expected_state": "Track 'laapata' starts playing",
-        "verification_rule": {
-          "type": "spotify_playing",
-          "value": "laapata"
-        },
-        "description": "Verify track starts playing"
-      }
-    ],
-    "final_verification": {
-      "type": "spotify_playing",
-      "value": "laapata"
-    },
-    "success_count": 12,
-    "failure_count": 6,
-    "confidence": 0.6,
-    "last_success": 1792584266.469165,
-    "last_duration": 9.382184505462646,
-    "last_failure": 1792584776.0487332,
-    "last_failure_reason": "Audio is playing, but track 'Natasha Baig - Maikhana' does not match expected song 'my liked songs'."
-  },
   "spotify:open_app": {
     "id": "spotify:open_app:planned",
     "application": "spotify",
@@ -1773,5 +1631,323 @@
       }
     ],
     "verified_at": "2026-10-23T20:20:00"
+  },
+  "canva:create_a_blank_1080_x_1920_design_on_canva": {
+    "id": "canva:create_a_blank_1080_x_1920_design_on_canva",
+    "application": "canva",
+    "intent": "CREATE A BLANK 1080 X 1920 DESIGN ON CANVA",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app('Canva')",
+        "target": "Canva",
+        "details": "Open and focus Canva",
+        "observation": "Ensure Canva is active"
+      },
+      {
+        "step": 2,
+        "action": "click(x=0.025, y=0.156)",
+        "target": "",
+        "details": "To create a blank 1080 x 1920 design, I need to first click on the \"Create a design\" button which will allow me to specify custom dimensions for the new design.",
+        "observation": "I'm on the Canva homepage showing the main dashboard with various design categories and recent designs. The interface shows \"What will you learn today?\" at the top with navigation options including Home and Templates tabs.",
+        "visual_template": "visual_templates/canva_create_a_blank_1080_x_1920_design_on_canva/step_3_32_192.png"
+      },
+      {
+        "step": 3,
+        "action": "click(x=0.793, y=0.394)",
+        "target": "",
+        "details": "To create a blank 1080 x 1920 design, I need to click on the \"Custom size\" option which will allow me to specify the exact dimensions required for the design.",
+        "observation": "I'm on the Canva homepage showing various design templates and options. The screen displays the main Canva interface with a sidebar on the left and design type options in the center including \"Custom size\" which would allow creating a design with specific dimensions.",
+        "visual_template": "visual_templates/canva_create_a_blank_1080_x_1920_design_on_canva/step_4_1998_535.png"
+      },
+      {
+        "step": 4,
+        "action": "click(x=0.025, y=0.156)",
+        "target": "",
+        "details": "To create a blank 1080 x 1920 design, I need to first click the \"Create\" button in the left sidebar to access the design creation options where I can specify custom dimensions.",
+        "observation": "I'm on the Canva homepage showing various design categories and templates. The left sidebar contains a \"Create\" button which is the entry point for creating new designs.",
+        "visual_template": "visual_templates/canva_create_a_blank_1080_x_1920_design_on_canva/step_5_32_192.png"
+      },
+      {
+        "step": 5,
+        "action": "click(x=0.793, y=0.394)",
+        "target": "",
+        "details": "To create a blank 1080 x 1920 design, I need to click on \"Create new\" to access the custom dimensions option where I can specify the exact size requirements.",
+        "observation": "The Canva homepage is displayed showing various design categories and templates. The \"Create new\" button is visible in the top row of options, which would allow creating a custom-sized design.",
+        "visual_template": "visual_templates/canva_create_a_blank_1080_x_1920_design_on_canva/step_6_1998_535.png"
+      },
+      {
+        "step": 6,
+        "action": "click(x=0.345, y=0.223)",
+        "target": "",
+        "details": "To create a 1080 x 1920 design, I need to first enter the width value of 1080 in the Width input field, which is currently empty and ready for input.",
+        "observation": "The Canva \"Create a design\" dialog is open with \"Custom size\" selected, showing empty Width and Height input fields with Units set to \"px\", and popular layout templates displayed below.",
+        "visual_template": "visual_templates/canva_create_a_blank_1080_x_1920_design_on_canva/step_8_851_289.png"
+      },
+      {
+        "step": 7,
+        "action": "type_text('1080', press_enter=True)",
+        "target": "",
+        "details": "To create a 1080 x 1920 design, I need to enter the width value first. Since the width field is already focused from the previous click, I should type \"1080\" into it.",
+        "observation": "The Canva \"Create a design\" dialog is open with \"Custom size\" selected, showing empty Width and Height input fields with units set to \"px\". The width field appears to be focused and ready for input."
+      },
+      {
+        "step": 8,
+        "action": "click(x=0.520, y=0.223)",
+        "target": "",
+        "details": "The width has been entered as 1080, but the height still needs to be set to 1920 to match the goal of creating a 1080 x 1920 design. I need to click on the height input field to focus it before typing the value.",
+        "observation": "The Canva \"Create a design\" dialog is open with Custom size selected. The width field shows \"1080\" and the height field is empty, waiting for input. Units are set to \"px\".",
+        "visual_template": "visual_templates/canva_create_a_blank_1080_x_1920_design_on_canva/step_10_1299_289.png"
+      },
+      {
+        "step": 9,
+        "action": "type_text('1920', press_enter=True)",
+        "target": "",
+        "details": "The height field needs to be filled with 1920 to complete the custom dimensions for the 1080 x 1920 design.",
+        "observation": "The Canva \"Create a design\" dialog is open with Custom size selected; width is set to 1080, height field is empty and focused, units are set to px."
+      },
+      {
+        "step": 10,
+        "action": "wait(seconds=2.0)",
+        "target": "",
+        "details": "The dimensions have been entered in previous steps, but we need to wait for the interface to respond or for the create design button to become available before proceeding.",
+        "observation": "Canva is open in a browser tab with dimensions 1080 x 1920 entered, but the design creation interface appears to be loading or waiting for the next"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792835835.6760628
+  },
+  "canva:create_a_blank_1080_x_1920_desing_on_canva": {
+    "id": "canva:create_a_blank_1080_x_1920_desing_on_canva",
+    "application": "canva",
+    "intent": "CREATE A BLANK 1080 X 1920 DESING ON CANVA",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app('Canva')",
+        "target": "Canva",
+        "details": "Open and focus Canva",
+        "observation": "Ensure Canva is active"
+      },
+      {
+        "step": 2,
+        "action": "click(x=0.344, y=0.222)",
+        "target": "",
+        "details": "The width field contains an incorrect combined value \"10801920\" instead of just \"1080\". I need to click on the width field to focus it so I can correct the value to \"1080\" before creating the design.",
+        "observation": "The Canva \"Create a design\" dialog is open with Custom size selected. The width field incorrectly shows \"10801920\" while the height field correctly shows \"1920\" with units set to \"px\".",
+        "visual_template": "visual_templates/canva_create_a_blank_1080_x_1920_desing_on_canva/step_7_848_287.png"
+      },
+      {
+        "step": 3,
+        "action": "click(x=0.793, y=0.394)",
+        "target": "",
+        "details": "To create a blank 1080 x 1920 design, I need to click on the \"Custom size\" option which will allow me to specify the exact dimensions required for the design. This is the most direct path to creating a custom-sized blank design rather than selecting from pre-made templates.",
+        "observation": "I'm on the Canva homepage showing various design templates and options. The screen displays the main Canva interface with a search bar, design category icons (Templates, Education, Presentation, etc.), and a \"Continue designing\" section showing previous designs. I can see a \"Custom size\" option in the design type row which would allow creating a design with specific dimensions.",
+        "visual_template": "visual_templates/canva_create_a_blank_1080_x_1920_desing_on_canva/step_8_1998_535.png"
+      },
+      {
+        "step": 4,
+        "action": "click(x=0.344, y=0.222)",
+        "target": "",
+        "details": "The width field needs to be corrected to \"1080\" to match the goal of creating a 1080 x 1920 design, so I need to click on the width input field to focus it and then enter the correct value.",
+        "observation": "The Canva \"Create a design\" dialog is open with Custom size selected, but the width field incorrectly shows \"10801920\" instead of just \"1080\", while the height field correctly shows \"1920\" and units are set to \"px\".",
+        "visual_template": "visual_templates/canva_create_a_blank_1080_x_1920_desing_on_canva/step_9_848_287.png"
+      },
+      {
+        "step": 5,
+        "action": "type_text('1080', x=0.344, y=0.222, overwrite=True)",
+        "target": "",
+        "details": "The width field needs to be corrected to 1080 before creating the design, and since the field appears focused with the incorrect value, I should overwrite it with the correct width.",
+        "observation": "The Canva \"Create a design\" dialog is open with Custom size selected, but the width field incorrectly shows \"10801920\" instead of \"1080\", while height is correctly set to 1920 and units are px."
+      },
+      {
+        "step": 6,
+        "action": "click(x=0.866, y=0.222)",
+        "target": "",
+        "details": "The dimensions 1080 x 1920 are already entered correctly, so the next step is to click the \"Create new design\" button to create the blank design with these specifications.",
+        "observation": "The Canva \"Create a design\" dialog is open with Custom size selected, width is set to 1080, height is set to 1920, and units are px. The purple \"Create new design\" button is visible in the top right.",
+        "visual_template": "visual_templates/canva_create_a_blank_1080_x_1920_desing_on_canva/step_11_2184_287.png"
+      },
+      {
+        "step": 7,
+        "action": "wait(seconds=3.0)",
+        "target": "",
+        "details": "We need to wait for the Canva interface to fully load before we can proceed with entering the height dimension (1920) to complete the 1080 x 1920 design setup.",
+        "observation": "The Canva tab is open but the main content area is blank/white, indicating the page is still loading or hasn't fully rendered yet."
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792836035.0099642
+  },
+  "antigravity:change_theme_of_antigravity_to_light_theme": {
+    "id": "antigravity:change_theme_of_antigravity_to_light_theme",
+    "application": "antigravity",
+    "intent": "CHANGE THEME OF ANTIGRAVITY TO LIGHT THEME",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app('Antigravity')",
+        "target": "Antigravity",
+        "details": "Open and focus Antigravity",
+        "observation": "Ensure Antigravity is active"
+      },
+      {
+        "step": 2,
+        "action": "type_text('color theme', x=0.45, y=0.105, press_enter=True)",
+        "target": "",
+        "details": "To change the theme to light, I need to search for the color theme settings using the search bar at the top of the settings panel.",
+        "observation": "The Antigravity IDE Settings panel is open showing \"Commonly Used\" settings, but the color theme option is not visible in the current view."
+      },
+      {
+        "step": 3,
+        "action": "click(x=0.203, y=0.181)",
+        "target": "",
+        "details": "Since the search for \"color theme\" has been executed, I need to click on the theme settings option to access the theme selection interface where I can change from dark to light theme.",
+        "observation": "The Antigravity IDE settings page is open with \"color theme\" search results displayed, showing various editor configuration options in a dark theme interface.",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_2_487_228.png"
+      },
+      {
+        "step": 4,
+        "action": "click(x=0.385, y=0.244)",
+        "target": "",
+        "details": "We need to click on the theme selection option to change from dark to light theme, as the search results are displayed but the actual theme change hasn't been initiated yet.",
+        "observation": "The Antigravity IDE Settings panel is open showing color theme search results with dark mode currently active, displaying options for \"Editor: Semantic Token Color Customizations\" and \"Editor: Token Color Customizations\".",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_4_953_319.png"
+      },
+      {
+        "step": 5,
+        "action": "click(x=0.203, y=0.228)",
+        "target": "",
+        "details": "The Color Theme setting is likely under the Workbench > Appearance section which shows 4 settings, so I need to click on Appearance to access the theme options where I can select the light theme.",
+        "observation": "The Antigravity IDE Settings panel is open with \"color theme\" search results displayed, showing Editor customization options, but the main Color Theme setting is not visible in the current view.",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_5_487_296.png"
+      },
+      {
+        "step": 6,
+        "action": "click(x=0.385, y=0.244)",
+        "target": "",
+        "details": "To change the theme to light, I need to click on the color theme dropdown to open the theme selection options where I can choose a light theme.",
+        "observation": "The Antigravity IDE settings page is open showing the Appearance section with Workbench: Color Theme currently set to \"Dark (Visual Studio)\" in a dropdown menu.",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_6_953_319.png"
+      },
+      {
+        "step": 7,
+        "action": "click(x=0.385, y=0.417)",
+        "target": "",
+        "details": "The goal is to change the theme to light theme, and the dropdown menu is already open showing the available themes. I need to click on \"Light (Visual Studio)\" to select the light theme option.",
+        "observation": "The Antigravity IDE settings page is open with the color theme dropdown menu expanded, showing various theme options including \"Light (Visual Studio)\" which is visible in the list.",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_7_953_568.png"
+      },
+      {
+        "step": 8,
+        "action": "click(x=0.385, y=0.244)",
+        "target": "",
+        "details": "The goal is to change the theme to light theme, and I can see the color theme dropdown is already visible. I need to click on the dropdown to open the theme options and select a light theme.",
+        "observation": "The Antigravity IDE settings page is open showing the \"Workbench: Color Theme\" section with \"Light (Visual Studio)\" currently selected in the dropdown.",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_8_953_319.png"
+      },
+      {
+        "step": 9,
+        "action": "click(x=0.385, y=0.417)",
+        "target": "",
+        "details": "Since the goal is to change the theme to light theme and the \"Light (Visual Studio)\" option is visible and highlighted in the dropdown, clicking on this option will select and apply the light theme to complete the task.",
+        "observation": "The Antigravity IDE settings page is open with the color theme dropdown menu expanded, showing various theme options including \"Light (Visual Studio)\" which is currently highlighted in blue.",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_10_953_568.png"
+      },
+      {
+        "step": 10,
+        "action": "click(x=0.385, y=0.244)",
+        "target": "",
+        "details": "To change the theme to light theme, I need to click on the color theme dropdown to see available light theme options and select the appropriate one.",
+        "observation": "The Antigravity IDE Settings page is open showing the \"Workbench: Color Theme\" section with a dropdown currently set to \"Light Visual Studio\".",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_11_953_319.png"
+      },
+      {
+        "step": 11,
+        "action": "click(x=0.385, y=0.417)",
+        "target": "",
+        "details": "The light theme option is visible and highlighted in the dropdown menu, so clicking on it will select and apply the light theme to complete the goal.",
+        "observation": "The Antigravity IDE Settings page is open showing the \"Workbench: Color Theme\" section with a dropdown menu displaying various theme options, where \"Light (Visual Studio)\" is currently highlighted in blue.",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_12_953_568.png"
+      },
+      {
+        "step": 12,
+        "action": "click(x=0.385, y=0.694)",
+        "target": "",
+        "details": "To change the theme to light theme, I need to click on the \"Light Modern\" dropdown under Workbench: Preferred Light Color Theme to ensure the light theme is properly selected and applied.",
+        "observation": "The Antigravity IDE settings page is open showing color theme options, with \"Light Visual Studio\" currently selected for Workbench: Color Theme, and \"Light Modern\" visible under Workbench: Preferred Light Color Theme.",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_13_953_967.png"
+      },
+      {
+        "step": 13,
+        "action": "click(x=0.385, y=0.894)",
+        "target": "",
+        "details": "The dropdown for light color themes is already open, and I can see the \"Light Modern Default Light Modern\" option which is the light theme we need to select. Clicking on this option will apply the light theme to Antigravity, completing the user's goal.",
+        "observation": "The Antigravity IDE settings page is open with the color theme section visible. The \"Workbench: Preferred Light Color Theme\" dropdown is expanded showing various light theme options, with \"Light Modern Default Light Modern\" highlighted at the bottom of the list.",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_14_953_1255.png"
+      },
+      {
+        "step": 14,
+        "action": "click(x=0.385, y=0.694)",
+        "target": "",
+        "details": "To change the theme to light theme, I need to click on the \"Light Modern\" dropdown under \"Workbench: Preferred Light Color Theme\" to either confirm this selection or choose a different light theme option.",
+        "observation": "The Antigravity IDE settings page is open showing color theme options, with the \"Workbench: Preferred Light Color Theme\" section visible and \"Light Modern\" currently selected in the dropdown.",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_15_953_967.png"
+      },
+      {
+        "step": 15,
+        "action": "click(x=0.385, y=0.894)",
+        "target": "",
+        "details": "The dropdown for light color themes is already open, and \"Light Modern Default Light Modern\" is visible as an option. Clicking on this option will select it as the light theme, which directly accomplishes the goal of changing the theme to light theme.",
+        "observation": "The Antigravity IDE settings page is open with the color theme section visible. The \"Workbench: Preferred Light Color Theme\" dropdown is expanded showing various light theme options, with \"Light Modern Default Light Modern\" highlighted at the bottom of the list.",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_16_953_1255.png"
+      },
+      {
+        "step": 16,
+        "action": "click(x=0.385, y=0.706)",
+        "target": "",
+        "details": "To change the theme to light, I need to select \"Light Modern\" from the light color theme dropdown to apply the light theme to the IDE.",
+        "observation": "The Antigravity IDE settings page is open showing color theme options, with \"Workbench: Preferred Light Color Theme\" section visible and \"Light Modern\" appearing in the dropdown.",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_19_953_984.png"
+      },
+      {
+        "step": 17,
+        "action": "click(x=0.385, y=0.894)",
+        "target": "",
+        "details": "The dropdown for light themes is already open, and I can see \"Light Modern Default Light Modern\" as an available option. Clicking on this option will select it as the light theme, which directly accomplishes the user's goal of changing the theme to light theme.",
+        "observation": "The Antigravity IDE settings page is open with the color theme section visible. The \"Workbench: Preferred Light Color Theme\" dropdown is expanded showing various light theme options including \"Light Modern Default Light Modern\" at the bottom of the list.",
+        "visual_template": "visual_templates/antigravity_change_theme_of_antigravity_to_light_theme/step_20_953_1255.png"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792836174.2456732
+  },
+  "spotify:open_spotify_and_play_the_very_first_song_in_my_liked_song_playlist": {
+    "id": "spotify:open_spotify_and_play_the_very_first_song_in_my_liked_song_playlist",
+    "application": "spotify",
+    "intent": "OPEN SPOTIFY AND PLAY THE VERY FIRST SONG IN MY LIKED SONG PLAYLIST",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app('Spotify')",
+        "target": "Spotify",
+        "details": "Open and focus Spotify",
+        "observation": "Ensure Spotify is active"
+      },
+      {
+        "step": 2,
+        "action": "double_click(x=0.841, y=0.501)",
+        "target": "",
+        "details": "The next step is to play the very first song in the \"Liked Songs\" playlist. The first song in the playlist is visible, and the play button is next to it.",
+        "observation": "The Spotify application is open, and the \"Liked Songs\" playlist is visible on the right side of the screen.",
+        "visual_template": "visual_templates/spotify_open_spotify_and_play_the_very_first_song_in_my_liked_song_playlist/step_1_2120_689.png"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 1,
+    "last_verified_timestamp": 1792915604.6252592
   }
 }

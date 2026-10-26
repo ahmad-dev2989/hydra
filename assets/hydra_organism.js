@@ -357,6 +357,8 @@
     }
 
     window.setWindowVisibility = setWindowVisibility;
+    window.pauseHydraFilaments = stopRenderLoop;
+    window.resumeHydraFilaments = startRenderLoop;
 
     document.addEventListener('visibilitychange', function () {
         setWindowVisibility(!document.hidden);
@@ -372,7 +374,7 @@
     // Throttled Dynamic Frame-Rate Governor (30 FPS speaking, 18 FPS idle)
     // ------------------------------------------------------------------------
     function renderLoop(timestamp) {
-        if (!isWindowVisible) {
+        if (!isWindowVisible || window.__isModalOpen || (typeof document !== 'undefined' && document.body && document.body.classList.contains('plugins-hub-open'))) {
             animFrameId = null;
             return;
         }

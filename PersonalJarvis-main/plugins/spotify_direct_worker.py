@@ -444,7 +444,7 @@ class SpotifyDirectWorker(BaseDirectWorker):
     def toggle_mute(self) -> Tuple[bool, str, Dict[str, Any]]:
         """Mutes or unmutes system audio."""
         MEDIA_CONTROLLER.toggle_mute()
-        return True, "Audio toggle mute applied, sir.", {"action": "mute"}
+        return True, "Audio muted or unmuted, sir.", {"action": "mute"}
 
     # =========================================================================
     # Account, Subscription & Settings Queries (Headless)
@@ -606,7 +606,7 @@ class SpotifyDirectWorker(BaseDirectWorker):
             else:
                 return self.volume_up()
 
-        # 11. Specific Song Search & Play
+        # 11. Specific Song Search & Play -> Routed to Dynamic Vision Agent
         if task == "play_track" or any(re.search(rf"\b{w}\b", low) for w in ["play", "listen to", "put on", "stream"]):
             query_cand = kwargs.get("query", "").strip()
             if not query_cand:
@@ -615,8 +615,8 @@ class SpotifyDirectWorker(BaseDirectWorker):
                     query_cand = play_match.group(1).strip()
             # Clean app references
             query_cand = re.sub(r'\s+(?:on|via|from|using|in)?\s*spotify\b.*$', '', query_cand, flags=re.IGNORECASE).strip()
-            if query_cand and query_cand not in ["music", "song", "songs", "track", "tracks", "spotify", "playlist"]:
-                return self.search_and_play(query_cand)
+            if query_cand and query_cand not in ["music", "song", "songs", "track", "tracks", "spotify"]:
+                return False, "Specific track playback requires Dynamic Vision Agent.", {"action": "play_track", "fallback": "desktop_goal", "query": query_cand}
             return self.play()
 
         # 12. Fallback general play

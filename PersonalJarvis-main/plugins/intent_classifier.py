@@ -250,9 +250,15 @@ def is_foreground_command(text: str) -> bool:
     if any(re.search(rf"\b{w}\b", low) for w in ["call", "calls", "calling", "videocall"]):
         return False
 
-    # Do NOT treat playback requests (e.g. "open spotify and play laapata") as generic foreground app launches
-    if any(w in low for w in ["play", "stream", "listen to"]) and any(a in low for a in ["spotify", "music", "song", "track"]):
+    # Standalone Media Transport Controls (pure background, zero UI) must NOT be foreground launches
+    is_pure_transport = bool(re.search(r"^(?:pause|resume|stop|next|skip|previous|prev|unpause|mute|unmute)(?:\s+(?:the\s+)?(?:song|track|music|audio|playback|spotify))?$", low))
+    if is_pure_transport or low in ["pause", "resume", "stop", "next", "skip", "previous", "prev", "unpause", "mute", "unmute"]:
         return False
+
+    # Spotify specific playback, search, or playlist/library goals require foreground visual AI
+    if any(re.search(rf"\b{w}\b", low) for w in ["spotify", "playlist", "liked songs", "liked song"]) or "spotify" in low:
+        if any(w in low for w in ["play", "search", "liked", "first song", "top song", "find", "listen", "playlist", "stream", "queue"]):
+            return True
 
     # Check UI manipulation patterns
     for pat in UI_MANIPULATION_PATTERNS:
@@ -358,8 +364,8 @@ def classify_command(raw_text: str) -> IntentResult:
 
     # 5. Headless Background Task Execution
     # Media Standalone Quick Controls & Transport Commands
-    transport_match = re.search(r"^(?:pause|resume|stop|next|skip|previous|prev|unpause|mute|unmute)(?:\s+(?:the\s+)?(?:song|track|music|audio|playback|spotify))?$", low)
-    if transport_match or low in ["pause", "resume", "stop", "next", "skip", "previous", "prev", "unpause", "mute", "unmute"]:
+    transport_match = re.search(r"^(?:pause|resume|stop|next|skip|previous|prev|unpause|mute|unmute|volume\s+(?:up|down)|volume|louder|quieter)(?:\s+(?:the\s+)?(?:song|track|music|audio|playback|spotify))?$", low)
+    if transport_match or low in ["pause", "resume", "stop", "next", "skip", "previous", "prev", "unpause", "mute", "unmute", "volume up", "volume down", "louder", "quieter"]:
         cmd_action = "transport"
         if any(w in low for w in ["next", "skip"]):
             cmd_action = "next_track"
@@ -369,7 +375,7 @@ def classify_command(raw_text: str) -> IntentResult:
             cmd_action = "pause"
         elif any(w in low for w in ["resume", "unpause"]):
             cmd_action = "resume"
-        elif any(w in low for w in ["mute", "unmute"]):
+        elif any(w in low for w in ["mute", "unmute", "volume", "louder", "quieter"]):
             cmd_action = "volume"
         return IntentResult(
             intent_type=IntentType.HEADLESS_BACKGROUND,
@@ -410,20 +416,7 @@ def classify_command(raw_text: str) -> IntentResult:
 
     # 5.2 Spotify Playback & Media Actions
     if target_app == "spotify" or any(re.search(rf"\b{w}\b", low) for w in ["song", "music", "track"]):
-        if any(re.search(rf"\b{w}\b", low) for w in ["play", "listen to", "put on", "stream"]):
-            action = "play_track"
-            # Extract track name
-            m = re.search(r"\b(?:play|listen to|put on|stream)\s+(?:the\s+(?:song|track|music)\s+)?(.+?)(?:\s+(?:on|in|via)\s+spotify|$)", low)
-            track_name = m.group(1).strip() if m else ""
-            track_name = re.sub(r'\s+(?:on|via|from|in)\s+spotify\b.*$', '', track_name, flags=re.IGNORECASE).strip()
-            return IntentResult(
-                intent_type=IntentType.HEADLESS_BACKGROUND,
-                target_app="spotify",
-                action=action,
-                parameters={"query": track_name},
-                reasoning=f"Spotify background playback for '{track_name}'"
-            )
-        elif any(re.search(rf"\b{w}\b", low) for w in ["next", "skip"]):
+        if any(re.search(rf"\b{w}\b", low) for w in ["next", "skip"]):
             return IntentResult(
                 intent_type=IntentType.HEADLESS_BACKGROUND,
                 target_app="spotify",
@@ -457,6 +450,32 @@ def classify_command(raw_text: str) -> IntentResult:
                 target_app="spotify",
                 action="current_track",
                 reasoning="Spotify current track query"
+            )
+        elif any(w in low for w in ["mute", "unmute", "volume"]):
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="spotify",
+                action="volume",
+                reasoning="Spotify volume command"
+            )
+        elif any(re.search(rf"\b{w}\b", low) for w in ["play", "listen to", "put on", "stream"]):
+            # Specific track or playlist command: route to FOREGROUND_DESKTOP for Dynamic Vision Agent!
+            m = re.search(r"\b(?:play|listen to|put on|stream)\s+(?:the\s+(?:song|track|music)\s+)?(.+?)(?:\s+(?:on|in|via)\s+spotify|$)", low)
+            track_name = m.group(1).strip() if m else ""
+            track_name = re.sub(r'\s+(?:on|via|from|in)\s+spotify\b.*$', '', track_name, flags=re.IGNORECASE).strip()
+            if not track_name or track_name in ["music", "song", "songs", "track", "tracks", "spotify"]:
+                return IntentResult(
+                    intent_type=IntentType.HEADLESS_BACKGROUND,
+                    target_app="spotify",
+                    action="resume",
+                    reasoning="Spotify general resume playback in background"
+                )
+            return IntentResult(
+                intent_type=IntentType.FOREGROUND_DESKTOP,
+                target_app="spotify",
+                action="play_media_foreground",
+                parameters={"query": track_name},
+                reasoning=f"Spotify specific track playback '{track_name}' routed to Dynamic Vision Agent"
             )
         elif any(w in low for w in ["volume up", "volume down", "louder", "quieter", "mute", "unmute"]):
             return IntentResult(
@@ -718,12 +737,19 @@ def classify_command(raw_text: str) -> IntentResult:
     if re.search(r"\b(?:play|listen to)\s+(.+)", low):
         m = re.search(r"\b(?:play|listen to)\s+(.+)", low)
         track = m.group(1).strip() if m else ""
+        if not track or track in ["music", "song", "songs", "track", "tracks"]:
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="spotify",
+                action="resume",
+                reasoning="General media resume playback in background"
+            )
         return IntentResult(
-            intent_type=IntentType.HEADLESS_BACKGROUND,
+            intent_type=IntentType.FOREGROUND_DESKTOP,
             target_app="spotify",
-            action="play_track",
+            action="play_media_foreground",
             parameters={"query": track},
-            reasoning=f"Inferred media playback for '{track}'"
+            reasoning=f"Inferred media playback request for '{track}' routed to Dynamic Vision Agent"
         )
 
     # Default fallback: Send to conversational Brain LLM

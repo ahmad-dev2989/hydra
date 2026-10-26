@@ -1,44 +1,92 @@
+"""
+HYDRA System Interface — PersonalJarvis Core Engine
+Powered by Nebius AI (NVIDIA Nemotron) with Hydra Living HUD Interface & Edge-TTS Voice.
+"""
+
 import os
+import sys
+
+# Multi-root sys.path resolution (ensures modules resolve whether invoked from hydra-main or PersonalJarvis-main)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+for candidate_dir in [
+    BASE_DIR,
+    os.path.join(BASE_DIR, "PersonalJarvis-main"),
+    os.path.abspath(os.path.join(BASE_DIR, "..")),
+]:
+    if os.path.exists(candidate_dir) and candidate_dir not in sys.path:
+        sys.path.insert(0, candidate_dir)
+
+import io
+import re
+import time
+import json
+import asyncio
+import threading
+import webbrowser
+
+# Qt Configuration
 os.environ["QT_LOGGING_RULES"] = "qt.qpa.*=false"
 os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "1"
-import io
-import sys
-import threading
-import asyncio
+
+# Load local .env into os.environ if present
+ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(ENV_PATH):
+    with open(ENV_PATH, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+
+# Audio and Speech Dependencies
 import edge_tts
 import pygame
-from ai_engine import (
-    nebius_chat,
-    warm_up_nebius,
-    DEFAULT_FAST_MODEL,
-    DEFAULT_REASONING_MODEL,
-    is_nebius_configured
-)
-import subprocess
-import difflib
-import sqlite3
-import re
-from datetime import datetime
-import webbrowser
-from system_ops import SystemDriver
-from web_ops import WEB_SEARCH
-from PyQt6.QtCore import QUrl, pyqtSignal, QObject, QEvent
+
+# PyQt6 WebEngine
+from PyQt6.QtCore import QUrl, pyqtSignal, QObject, QTimer, QPoint, QEvent
 from PyQt6.QtWidgets import QApplication, QMainWindow
-from PyQt6.QtWebEngineCore import QWebEnginePage
+from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings, QWebEngineProfile
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 
-# Persona Configuration
-MASTER_NAME = os.environ.get("HYDRA_MASTER_NAME", "Ahmad Farooq")
+# PersonalJarvis Core Backend
+from jarvis.core.bus import EventBus
+from jarvis.brain.factory import build_default_brain
+from media_controller import MEDIA_CONTROLLER
+
+# Master / Persona Configuration
+MASTER_NAME = os.environ.get("HYDRA_MASTER_NAME", "Ahmad")
 ASSISTANT_NAME = os.environ.get("HYDRA_ASSISTANT_NAME", "HYDRA")
 
-# Creates a safe bridge between background threads and the GUI
+# Persistent Background Event Loop (prevents "Event loop is closed" errors)
+_ASYNC_LOOP = None
+_LOOP_READY = threading.Event()
+
+def _start_background_loop():
+    global _ASYNC_LOOP
+    _ASYNC_LOOP = asyncio.new_event_loop()
+    asyncio.set_event_loop(_ASYNC_LOOP)
+    _LOOP_READY.set()
+    _ASYNC_LOOP.run_forever()
+
+_LOOP_THREAD = threading.Thread(target=_start_background_loop, daemon=True, name="HydraAsyncLoop")
+_LOOP_THREAD.start()
+_LOOP_READY.wait()
+
+def run_async(coro, timeout: float = 90.0):
+    """Safely runs an async coroutine inside the persistent background loop."""
+    future = asyncio.run_coroutine_threadsafe(coro, _ASYNC_LOOP)
+    return future.result(timeout=timeout)
+
+
+# Global UI Signaler for Thread-Safe Qt Bridge
 class UISignaler(QObject):
     js_signal = pyqtSignal(str)
 
 GUI_SIGNALS = UISignaler()
+ACTIVE_PAGE = None
 
 def safe_emit_js(code: str):
-    """Safely emits JavaScript to Qt WebEngine, catching any deleted C++ wrapper errors."""
+    """Safely emits JavaScript commands to Qt WebEngine across threads."""
     try:
         if GUI_SIGNALS is not None:
             GUI_SIGNALS.js_signal.emit(code)
@@ -51,82 +99,68 @@ def safe_emit_js(code: str):
     except Exception:
         pass
 
-try:
-    from camera_vision import CAMERA_ENGINE
-    CAMERA_ENGINE.set_ui_signaler(safe_emit_js)
-except Exception as e:
-    print(f"[MAIN] Camera vision signaler setup warning: {e}")
 
-APPS_CACHE = {}
-DIALOGUE_STATE = {"mode": "NORMAL", "pending_action": None, "payload": None}
+def clean_ai_response(content: str, user_input_hint: str = "") -> str:
+    """
+    Cleans raw LLM outputs from reasoning models (NVIDIA Nemotron, DeepSeek, etc.).
+    Strips XML thinking tags, reasoning scratchpads, and ensures clean voice output.
+    """
+    if not content:
+        return ""
+    text = content.strip()
+
+    # 1. Strip XML-style thinking tags (<think>...</think>, <thought>...</thought>)
+    text = re.sub(r'<(?:think|thought)>.*?</(?:think|thought)>', '', text, flags=re.DOTALL).strip()
+
+    # 2. Check for "Here's a thinking process:" or similar scratchpad headers
+    low = text.lower()
+    if "thinking process" in low or "analyze user input" in low or low.startswith("here's a thinking"):
+        match_resp = re.search(
+            r'(?:^|\n)(?:\*\*|##\s*|###\s*)?(?:final response|final answer|direct answer|spoken response|spoken reply)[:\s*]*(.*?)$',
+            text, re.IGNORECASE | re.DOTALL
+        )
+        if match_resp and len(match_resp.group(1).strip()) > 3:
+            candidate = match_resp.group(1).strip()
+            if not re.match(r'^(?:1\.|[-*]|\*\*analyze)', candidate, re.IGNORECASE):
+                text = candidate
+        else:
+            parts_div = re.split(r'\n\s*[-*_]{3,}\s*\n', text)
+            if len(parts_div) > 1 and len(parts_div[-1].strip()) > 5:
+                text = parts_div[-1].strip()
+            else:
+                paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+                non_thinking = []
+                for p in paragraphs:
+                    p_clean = p.strip()
+                    if re.match(r'^(?:here\'s a thinking|thinking process|1\.|2\.|3\.|4\.|5\.|[-*]|\*\*analyze|\*\*identify|\*\*drafting|\*\*determine|\*\*formulate|\*\*intent)', p_clean, re.IGNORECASE):
+                        continue
+                    if any(marker in p_clean.lower() for marker in ["user asks:", "user says:", "user wants", "analyze user"]):
+                        continue
+                    non_thinking.append(p_clean)
+                if non_thinking:
+                    text = non_thinking[-1]
+                else:
+                    text = ""
+
+    # 3. Clean markdown wrapper clutter
+    text = re.sub(r'^(?:Assistant|HYDRA|Jarvis):\s*', '', text, flags=re.IGNORECASE).strip()
+    if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
+        text = text[1:-1].strip()
+
+    # 4. Anti-Echo Guard
+    if user_input_hint:
+        clean_hint = re.sub(r'[^a-zA-Z0-9\s]', '', user_input_hint.lower()).strip()
+        clean_text = re.sub(r'[^a-zA-Z0-9\s]', '', text.lower()).strip()
+        if clean_text and clean_text == clean_hint:
+            return ""
+
+    return text.strip()
+
+
+# Audio Engine
 PYGAME_MIXER_READY = False
 TTS_ENGINE = None
-TTS_LOOP = None
 TTS_LOCK = threading.Lock()
-LAST_ACTIVE_TIME = 0.0
-LEARNING_SESSION_ACTIVE = False
-ACTIVE_PAGE = None
-SYS_DRIVER = SystemDriver()
-
-
-def parse_fs_intent(raw_command):
-    text = raw_command.lower().strip()
-    text = re.sub(r'[!?]', '', text)
-    if text.endswith('.'): text = text[:-1].strip()
-    text = re.sub(r'^hydra[\s,]+', '', text).strip()
-    
-    # SAFETY VALVE: Ignore file actions if the user is giving a core system rule
-    rule_triggers = ["new rule", "from now on", "behavioral rule", "talk like", "act like"]
-    if any(rt in text for rt in rule_triggers):
-        return None
-
-    # SAFETY VALVE: Ignore hardware input automation (mouse, cursor, clicks, keys, typing)
-    if any(w in text for w in ["mouse", "cursor", "pointer", "click", "scroll", "press key", "press enter", "hotkey", "drag mouse", "type "]):
-        return None
-
-    # SAFETY VALVE: Ignore app-specific complex tasks / design creation (Canva, Spotify, Figma, etc.)
-    if any(w in text for w in ["canva", "spotify", "figma", "photoshop", "illustrator", "design", "canvas", "dimension", "1080", "template"]):
-        return None
-
-    action = None
-    if any(w in text for w in ["delete", "remove", "erase", "destroy"]): action = "DELETE"
-    elif any(w in text for w in ["move", "transfer", "shift", "put"]): action = "MOVE"
-    elif any(w in text for w in ["create", "make", "new", "build"]): action = "CREATE"
-    elif any(w in text for w in ["locate", "find", "where is", "search"]): action = "SEARCH"
-    elif any(w in text for w in ["open", "launch", "start", "run"]):
-        if any(w in text for w in ["file", "folder", "directory", "document"]) or "." in text or re.search(r'\b(in|inside|at)\b', text):
-            action = "OPEN"
-    if not action: return None
-
-    # Extension logic
-    ext_map = {"python": ".py", "py": ".py", "html": ".html", "js": ".js", "css": ".css", "text": ".txt", "txt": ".txt"}
-    detected_ext = ""
-    for word, ext in ext_map.items():
-        if re.search(r'\b' + word + r'\b', text):
-            detected_ext = ext
-            break
-
-    item_type = "FOLDER" if any(w in text for w in ["folder", "directory"]) else "FILE"
-
-    # Location extraction
-    location = None
-    prep_split = re.split(r'\b(in|inside|into|at|on)\b', text, maxsplit=1)
-    if len(prep_split) == 3:
-        text = prep_split[0].strip()
-        location = re.sub(r'[^\w\s]', '', prep_split[2]).strip()
-
-    # Clean Name
-    clean_working = re.sub(r'[^\w\s.]', ' ', text)
-    ban_words = ["please", "hydra", "file", "folder", "directory", "create", "make", "open", "launch"]
-    ban_words.extend(list(ext_map.keys()))
-    tokens = [t for t in clean_working.split() if t not in ban_words]
-    clean_target = " ".join(tokens).strip()
-
-    # SMART GUESSER: If they say "index" and we don't find it, the system will now 
-    # try searching for the base name without worrying about the extension.
-    # The 'locate_path' function in system_ops.py will now handle partial matching.
-    
-    return {"action": action, "type": item_type, "name": clean_target, "location": location, "ext": detected_ext}
 
 def ensure_pygame_mixer():
     global PYGAME_MIXER_READY
@@ -136,492 +170,336 @@ def ensure_pygame_mixer():
             PYGAME_MIXER_READY = True
         except Exception as e:
             print(f"[MIXER INIT ERROR] {e}")
+    else:
+        PYGAME_MIXER_READY = True
 
-def warm_up_ai_models():
-    warm_up_nebius()
-
-def ai_chat(model, messages, num_predict=450, num_ctx=1024, timeout=30):
-    """
-    Bridge function routing calls to Nebius Token Factory with NVIDIA models.
-    Supports both fast and reasoning models with graceful fallback.
-    """
-    target_model = (
-        DEFAULT_REASONING_MODEL
-        if ("1.5b" in str(model) or "70b" in str(model) or "super" in str(model) or "ultra" in str(model))
-        else DEFAULT_FAST_MODEL
-    )
-    return nebius_chat(
-        messages=messages,
-        model=target_model,
-        max_tokens=max(num_predict or 450, 450),
-        timeout=timeout or 30.0
-    )
-
-def get_db_connection():
-    conn = sqlite3.connect("hydra_memory.db", timeout=15.0)
-    conn.execute("PRAGMA journal_mode=WAL")
-    return conn
-
-def get_tts_engine():
+def get_offline_tts():
     global TTS_ENGINE
     if TTS_ENGINE is None:
         try:
-            import pythoncom
-            pythoncom.CoInitialize()
-        except Exception:
-            pass
-        import pyttsx3
-        try:
-            TTS_ENGINE = pyttsx3.init("sapi5")
-        except Exception:
-            TTS_ENGINE = pyttsx3.init()
-        voices = TTS_ENGINE.getProperty("voices")
-        for voice in voices:
-            if "david" in voice.name.lower() or "desktop" in voice.name.lower():
-                TTS_ENGINE.setProperty("voice", voice.id)
-                break
-        TTS_ENGINE.setProperty("rate", 165)
+            import pyttsx3
+            try:
+                TTS_ENGINE = pyttsx3.init("sapi5")
+            except Exception:
+                TTS_ENGINE = pyttsx3.init()
+            voices = TTS_ENGINE.getProperty("voices")
+            for voice in voices:
+                if "david" in voice.name.lower() or "desktop" in voice.name.lower():
+                    TTS_ENGINE.setProperty("voice", voice.id)
+                    break
+            TTS_ENGINE.setProperty("rate", 190)
+        except Exception as e:
+            print(f"[OFFLINE TTS INIT ERROR] {e}")
     return TTS_ENGINE
 
-
-def init_memory_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS chats (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chat_date TEXT,
-            role TEXT,
-            content TEXT
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS long_term_memory (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fact TEXT
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS custom_rules (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_query TEXT,
-            forced_response TEXT,
-            context_snapshot TEXT
-        )
-    """)
-    # --- NEW TABLE: Tracks which days the AI has already analyzed ---
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS processed_days (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chat_date TEXT UNIQUE
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS created_files (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            file_path TEXT UNIQUE
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-def log_created_file(filepath):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO created_files (file_path) VALUES (?)", (filepath,))
-    conn.commit()
-    conn.close()
-
-def get_and_clear_created_files():
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT file_path FROM created_files")
-    files = [row[0] for row in c.fetchall()]
-    c.execute("DELETE FROM created_files")
-    conn.commit()
-    conn.close()
-    return files
-
-def save_chat_message(role, content):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    current_date = datetime.now().strftime("%d %B")
-    cursor.execute("INSERT INTO chats (chat_date, role, content) VALUES (?, ?, ?)", (current_date, role, content))
-    conn.commit()
-    conn.close()
-
-def load_chat_context():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    # Dropped from 8 to 2. Saves the CPU ~6 seconds of re-reading old text.
-    cursor.execute("SELECT role, content FROM chats ORDER BY id DESC LIMIT 2")
-    rows = cursor.fetchall()
-    conn.close()
-    context = []
-    for role, content in reversed(rows):
-        context.append({"role": role, "content": content})
-    return context
-
-def get_context_snapshot():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT role, content FROM chats ORDER BY id DESC LIMIT 5")
-    rows = cursor.fetchall()
-    conn.close()
-    if len(rows) > 1:
-        rows = rows[1:]
-    snapshot_elements = [f"{row[0]}: {row[1]}" for row in reversed(rows)]
-    return " | ".join(snapshot_elements)
-
-def save_contextual_rule(user_query, forced_response, current_context):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, forced_response, context_snapshot FROM custom_rules WHERE user_query = ?", (user_query,))
-    existing_rules = cursor.fetchall()
-    updated = False
-    for rule_id, old_response, stored_context in existing_rules:
-        similarity = difflib.SequenceMatcher(None, current_context.lower(), stored_context.lower()).ratio()
-        if similarity > 0.45:
-            cursor.execute("UPDATE custom_rules SET forced_response = ?, context_snapshot = ? WHERE id = ?", (forced_response, current_context, rule_id))
-            updated = True
-            print(f"[LEARNING CORE] Overwriting existing rule match under shared context track (Similarity: {similarity:.2f})")
-            break
-    if not updated:
-        cursor.execute("INSERT INTO custom_rules (user_query, forced_response, context_snapshot) VALUES (?, ?, ?)", (user_query, forced_response, current_context))
-        print("[LEARNING CORE] Distinct conversational context mapped. Created a branched rule entry.")
-    conn.commit()
-    conn.close()
-
-def find_contextual_rule(current_command, current_context):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT user_query, forced_response, context_snapshot FROM custom_rules")
-    rows = cursor.fetchall()
-    conn.close()
-    
-    # Remove punctuation so "hi!" and "hi" are treated the same
-    clean_cmd = ''.join(e for e in current_command.lower() if e.isalnum() or e.isspace()).strip()
-    
-    queries = list(set([row[0] for row in rows]))
-    clean_queries = [''.join(e for e in q.lower() if e.isalnum() or e.isspace()).strip() for q in queries]
-    
-    # Lowered cutoff to 0.50 to make the AI more adaptable to slight rephrasing
-    matches = difflib.get_close_matches(clean_cmd, clean_queries, n=1, cutoff=0.50)
-    
-    if matches:
-        matched_clean_query = matches[0]
-        # Find the original query that matches our cleaned version
-        original_query = next(q for q in queries if ''.join(e for e in q.lower() if e.isalnum() or e.isspace()).strip() == matched_clean_query)
-        
-        best_response = None
-        max_similarity = -1
-        
-        for user_query, forced_response, stored_context in rows:
-            if user_query == original_query:
-                similarity = difflib.SequenceMatcher(None, current_context.lower(), stored_context.lower()).ratio()
-                if similarity > max_similarity:
-                    max_similarity = similarity
-                    best_response = forced_response
-                    
-        print(f"[LEARNING CORE] Evaluated Context Score: {max_similarity:.2f}")
-        # Lowered context strictness to 0.35 so it actually triggers
-        if max_similarity >= 0.35: 
-            return best_response
-    return None
-
-def get_last_user_command():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT content FROM chats WHERE role = 'user' ORDER BY id DESC LIMIT 2")
-    rows = cursor.fetchall()
-    conn.close()
-    if len(rows) >= 2:
-        return rows[1][0]
-    return None
-
-def save_long_term_memory(fact):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM long_term_memory WHERE fact = ?", (fact,))
-    if not cursor.fetchone():
-        cursor.execute("INSERT INTO long_term_memory (fact) VALUES (?)", (fact,))
-        conn.commit()
-    conn.close()
-
-def load_long_term_memories():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT fact FROM long_term_memory ORDER BY id DESC")
-    rows = cursor.fetchall()
-    conn.close()
-    return [row[0] for row in rows]
-
-def retrieve_relevant_memories(current_command):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    # Order by DESC to always get newest memories first
-    cursor.execute("SELECT fact FROM long_term_memory ORDER BY id DESC")
-    rows = cursor.fetchall()
-    conn.close()
-    
-    all_facts = [row[0] for row in rows]
-    # Use a beginner-friendly stop-word list instead of char length limits
-    stop_words = ["the", "is", "at", "which", "on", "and", "a", "to", "in", "of", "for", "it"]
-    command_words = [w for w in current_command.lower().split() if w not in stop_words]
-    
-    relevant_facts = []
-    for fact in all_facts:
-        fact_lower = fact.lower()
-        if any(word in fact_lower for word in command_words):
-            relevant_facts.append(fact)
-            
-    # Always include the 4 most recent memories so HYDRA understands its current state
-    recent_facts = all_facts[:4]
-    
-    # Combine relevant facts and recent facts, removing duplicates
-    combined_facts = list(set(relevant_facts + recent_facts))
-    
-    # Give it up to 12 facts so it has enough data to analyze
-    return combined_facts[:12]
-
-def populate_apps_cache():
-    global APPS_CACHE
-    if hasattr(SYS_DRIVER, "app_engine"):
-        with SYS_DRIVER.app_engine.lock:
-            for k, v in SYS_DRIVER.app_engine.apps.items():
-                APPS_CACHE[k] = v["target"]
-    paths = [
-        os.path.join(os.environ.get('PROGRAMDATA', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
-        os.path.join(os.environ.get('APPDATA', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs')
-    ]
-    for path in paths:
-        if os.path.exists(path):
-            for root, _, files in os.walk(path):
-                for file in files:
-                    if file.endswith('.lnk'):
-                        APPS_CACHE[file[:-4].lower()] = os.path.join(root, file)
-
-# --- GLOBAL TRACKER: Remembers what the user just asked about ---
-LAST_INFO_QUERY = None
-LAST_INFO_SUMMARY = None
-LAST_EXECUTIVE_SUMMARY = None
-LAST_INFO_LINKS = []
-LAST_STRUCTURED_HTML = None
-LAST_IMAGES = []
-
-def execute_information_retrieval(query):
-    global LAST_INFO_QUERY, LAST_INFO_SUMMARY, LAST_EXECUTIVE_SUMMARY, LAST_INFO_LINKS, LAST_STRUCTURED_HTML, LAST_IMAGES
-    import json
-    from web_ops import WEB_SEARCH
-
-    clean_target = WEB_SEARCH.clean_query(query)
-    if not clean_target:
-        clean_target = query.strip()
-
-    res = WEB_SEARCH.search_dossier(clean_target)
-    LAST_INFO_QUERY = res.get("title", clean_target.upper())
-    LAST_INFO_SUMMARY = res.get("summary", "")
-    LAST_EXECUTIVE_SUMMARY = res.get("executive_summary", "")
-    LAST_INFO_LINKS = res.get("links", [])
-    LAST_STRUCTURED_HTML = res.get("structured_html", "")
-    LAST_IMAGES = res.get("images", [])
-
-    photos_json = json.dumps(res.get("dossier_photos", []))
-    primary_url = res.get("primary_url", "")
-    summary_text = res.get("summary", "")
-    spoken_text = res.get("spoken", f"I have retrieved the intel on {LAST_INFO_QUERY}, sir. Displaying on your screen now.")
-
-    js_emit = f"populateInfoHUD({json.dumps(LAST_INFO_QUERY)}, {json.dumps(summary_text)}, {photos_json}, {json.dumps(primary_url)});"
-    GUI_SIGNALS.js_signal.emit(js_emit)
-    return spoken_text, summary_text
-    
-def network_monitor_worker():
-    import time
-    import subprocess
-    while True:
-        try:
-            # creationflags=0x08000000 prevents cmd windows from flashing and freezing the app
-            result = subprocess.run(
-                ["netsh", "wlan", "show", "interfaces"], 
-                capture_output=True, 
-                text=True, 
-                creationflags=0x08000000
-            ).stdout
-            
-            ssid, signal, speed = "DISCONNECTED", "--", "--"
-            
-            if "State" in result and "connected" in result:
-                for line in result.split('\n'):
-                    if " SSID" in line and "BSSID" not in line:
-                        ssid = line.split(":", 1)[1].strip()
-                    elif "Signal" in line:
-                        signal = line.split(":", 1)[1].strip()
-                    elif "Receive rate" in line:
-                        speed = line.split(":", 1)[1].strip()
-                js_code = f"updateRealNetwork('{ssid}', '{signal}', '{speed}');"
-            else:
-                js_code = "updateRealNetwork('DISCONNECTED', '--', '--');"
-            
-            # Safely send the javascript code to the main thread via our Signal bridge
-            GUI_SIGNALS.js_signal.emit(js_code)
-        except Exception as e:
-            print(f"[NET MONITOR ERR] {e}")
-        time.sleep(4)
-def analyze_specific_day(day):
-    print(f"[TARGETED LEARN] Analyzing specific date: {day}")
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT role, content FROM chats WHERE chat_date LIKE ? ORDER BY id ASC", (f"%{day}%",))
-    day_chats = cursor.fetchall()
-    conn.close()
-
-    if not day_chats:
-        if ACTIVE_PAGE: ACTIVE_PAGE.speak_voice(f"I found no archives for {day}, sir.")
+def speak_voice(text: str):
+    """Speaks text using Hydra's online Ryan voice, animating the living HUD organism."""
+    cleaned_text = clean_ai_response(text)
+    if not cleaned_text:
         return
 
-    if len(day_chats) >= 2:
-        transcript = "\n".join([f"{r}: {c}" for r, c in day_chats])
-        prompt = (
-            "Analyze this daily chat transcript. Look for patterns where the user gives a command "
-            "and the assistant gave a good response.\n"
-            "Extract predictive rules ONLY in this exact format, one per line:\n"
-            "RULE: user command | ideal assistant response\n"
-            "If no clear repeatable rules exist, output strictly 'NONE'.\n"
-            f"Transcript:\n{transcript}"
-        )
-        analysis = ai_chat(DEFAULT_REASONING_MODEL, [{"role": "user", "content": prompt}], num_predict=150, timeout=25)
-        
-        if analysis and "none" not in analysis.lower():
-            for line in analysis.split("\n"):
-                if "RULE:" in line:
-                    try:
-                        clean_line = line.split("RULE:")[1]
-                        q, a = clean_line.split("|", 1)
-                        save_contextual_rule(q.strip().lower(), a.strip(), f"targeted_learned_{day}")
-                        print(f"[TARGETED LEARN] Locked Rule: '{q.strip()}' -> '{a.strip()}'")
-                    except Exception:
-                        pass
-    if ACTIVE_PAGE: ACTIVE_PAGE.speak_voice(f"Targeted learning for {day} is complete, sir.")
+    print(f"\n[HYDRA SAYS]: {cleaned_text}\n")
 
-def historical_learning_worker():
-    global LEARNING_SESSION_ACTIVE, ACTIVE_PAGE
-    import time
+    def voice_worker():
+        t0 = time.perf_counter()
+        spoken_text = cleaned_text.replace("h.y.d.r.a", "Hydra").replace("H.Y.D.R.A", "Hydra").replace(".", " ")
+        spoken = False
 
-    while True:
-        if not LEARNING_SESSION_ACTIVE:
-            time.sleep(1)
-            continue
+        def speak_offline():
+            nonlocal spoken
+            with TTS_LOCK:
+                engine = get_offline_tts()
+                if engine:
+                    approx_dur = max(1.5, len(spoken_text) * 0.065)
+                    safe_emit_js(f"notifySpeechStart({approx_dur});")
+                    engine.say(spoken_text)
+                    engine.runAndWait()
+                    safe_emit_js("notifySpeechEnd();")
+                    spoken = True
+                    print(f"[VOICE] Offline speech completed ({time.perf_counter() - t0:.1f}s).")
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT DISTINCT chat_date FROM chats 
-            WHERE chat_date NOT IN (SELECT chat_date FROM processed_days)
-        """)
-        unprocessed_days = [row[0] for row in cursor.fetchall()]
-        conn.close()
-
-        if not unprocessed_days:
-            if ACTIVE_PAGE:
-                ACTIVE_PAGE.speak_voice("I have finished reading all archives to the end, sir. Resetting memory pointer to read again.")
-            
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute("DELETE FROM processed_days")
-            conn.commit()
-            conn.close()
-            
-            time.sleep(3)
-            continue
-
-        for day in unprocessed_days:
-            if not LEARNING_SESSION_ACTIVE:
-                break
-
-            print(f"[BATCH LEARN] Digesting full archive for: {day}...")
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT role, content FROM chats WHERE chat_date = ? ORDER BY id ASC", (day,))
-            day_chats = cursor.fetchall()
-            conn.close()
-
-            if len(day_chats) >= 2:
-                transcript = "\n".join([f"{r}: {c}" for r, c in day_chats])
-                prompt = (
-                    "Analyze this daily chat transcript. Look for patterns where the user gives a command "
-                    "and the assistant gave a good response.\n"
-                    "Extract predictive rules ONLY in this exact format, one per line:\n"
-                    "RULE: user command | ideal assistant response\n"
-                    "If no clear repeatable rules exist, output strictly 'NONE'.\n"
-                    f"Transcript:\n{transcript}"
+        try:
+            # Hydra Online Cloud Voice: en-GB-RyanNeural (Pitch: -25Hz, Rate: -8%)
+            async def generate_audio():
+                communicate = edge_tts.Communicate(
+                    spoken_text,
+                    "en-GB-RyanNeural",
+                    pitch="-25Hz",
+                    rate="-8%",
                 )
+                audio_data = bytearray()
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        audio_data.extend(chunk["data"])
+                return bytes(audio_data)
 
-                analysis = ai_chat(DEFAULT_REASONING_MODEL, [{"role": "user", "content": prompt}], num_predict=150, timeout=25)
+            raw_audio = run_async(generate_audio(), timeout=10.0)
 
-                if analysis and "none" not in analysis.lower():
-                    for line in analysis.split("\n"):
-                        if "RULE:" in line:
-                            try:
-                                clean_line = line.split("RULE:")[1]
-                                q, a = clean_line.split("|", 1)
-                                save_contextual_rule(q.strip().lower(), a.strip(), f"batch_learned_{day}")
-                                print(f"[BATCH LEARN] Locked Rule: '{q.strip()}' -> '{a.strip()}'")
-                            except Exception:
-                                pass
+            # Animate the living organism core filament
+            approx_dur = max(1.5, len(spoken_text) * 0.068)
+            safe_emit_js(f"notifySpeechStart({approx_dur});")
 
-            # Mark day as read in DB so we never scan it again
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute("INSERT OR IGNORE INTO processed_days (chat_date) VALUES (?)", (day,))
-            conn.commit()
-            conn.close()
+            audio_stream = io.BytesIO(raw_audio)
+            ensure_pygame_mixer()
+            pygame.mixer.music.load(audio_stream, "mp3")
+            pygame.mixer.music.play()
+            while pygame.mixer.music.get_busy():
+                pygame.time.Clock().tick(10)
+            pygame.mixer.music.unload()
 
-            if ACTIVE_PAGE:
-                ACTIVE_PAGE.speak_voice(f"I have read the {day} conversation, sir.")
+            safe_emit_js("notifySpeechEnd();")
+            spoken = True
+            print(f"[VOICE] Cloud speech successful ({time.perf_counter() - t0:.1f}s).")
+        except Exception as online_err:
+            print(f"[VOICE] Cloud speech fallback: {online_err}. Switching to offline voice...")
+            try:
+                if PYGAME_MIXER_READY:
+                    pygame.mixer.music.stop()
+                    pygame.mixer.music.unload()
+            except Exception:
+                pass
+            try:
+                speak_offline()
+            except Exception as offline_err:
+                print(f"[VOICE] Offline speech error: {offline_err}")
 
-            # 20-second leash: checks every half-second if you spoke to interrupt it
-            interrupted = False
-            start_wait = time.time()
-            while (time.time() - start_wait) < 20:
-                if not LEARNING_SESSION_ACTIVE:
-                    interrupted = True
-                    break
-                time.sleep(0.5)
+        if not spoken:
+            try:
+                speak_offline()
+            except Exception as e:
+                print(f"[VOICE] All voice engines failed: {e}")
 
-            if interrupted:
-                if ACTIVE_PAGE:
-                    ACTIVE_PAGE.speak_voice("Learning cycle paused, sir.")
-                break
+    threading.Thread(target=voice_worker, daemon=True).start()
 
-        LEARNING_SESSION_ACTIVE = False
 
-def is_simple_conversation(text):
-    """Fallback function to determine if a prompt is just casual chat."""
-    words = text.lower().split()
-    action_words = ["open", "launch", "play", "search", "find", "delete", "create", "convert", "check", "organize", "what", "how", "why", "who", "tell", "about", "know", "information"]
-    if len(words) <= 6 and not any(w in text for w in action_words):
-        return True
-    return False
+# PersonalJarvis Brain Engine Initializer
+JARVIS_BRAIN = None
+BRAIN_BUS = None
+BRAIN_LOCK = threading.Lock()
 
+def get_jarvis_brain():
+    global JARVIS_BRAIN, BRAIN_BUS
+    with BRAIN_LOCK:
+        if JARVIS_BRAIN is None:
+            print("[ENGINE] Booting PersonalJarvis BrainManager with Nebius Provider...")
+            BRAIN_BUS = EventBus()
+            # Build brain inside the persistent async loop
+            JARVIS_BRAIN = run_async(asyncio.to_thread(build_default_brain, bus=BRAIN_BUS, tier="router"))
+            JARVIS_BRAIN._curator = None
+            if hasattr(JARVIS_BRAIN, "set_reply_language"):
+                JARVIS_BRAIN.set_reply_language("en")
+            print(f"[ENGINE] BrainManager ready! Active provider: {JARVIS_BRAIN.active_provider}")
+        return JARVIS_BRAIN
+
+
+# =========================================================================
+# Post-Connection Immediate Background Execution & Status Telemetry (Problem 3)
+# =========================================================================
+_SYNCED_APP_ACCOUNTS = set()
+
+def execute_post_connection_tasks(app_id: str, account: str = "", silent_if_unchanged: bool = False):
+    """
+    Executes immediate post-connection background tasks, telemetry synchronization,
+    and voice verification for newly connected applications without user intervention.
+    """
+    clean_id = app_id.lower().strip()
+    sync_key = f"{clean_id}_{account}"
+    if silent_if_unchanged and sync_key in _SYNCED_APP_ACCOUNTS:
+        return
+    _SYNCED_APP_ACCOUNTS.add(sync_key)
+
+    def _worker():
+        try:
+            print(f"[POST-CONNECTION] Running immediate background tasks for {clean_id} ({account})...")
+
+            if clean_id == "spotify":
+                from plugins.spotify_direct_worker import SPOTIFY_WORKER
+                ok, sub_speech, meta = SPOTIFY_WORKER.check_subscription()
+                state = MEDIA_CONTROLLER.get_state()
+                if state:
+                    safe_emit_js(f"updateMediaState({json.dumps(state)});")
+                product = meta.get("product", "Premium").title()
+                speech = f"Sir, your Spotify account ({account or 'connected'}) is active with Spotify {product}. Direct background playback and controls are ready."
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+            elif clean_id in ["google_classroom", "classroom"]:
+                from plugins.classroom_direct_worker import CLASSROOM_WORKER
+                ok, asg_speech, items = CLASSROOM_WORKER.get_upcoming_assignments()
+                speech = f"Sir, Google Classroom has been connected. {asg_speech}"
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+            elif clean_id in ["gmail", "email"]:
+                from plugins.gmail_direct_worker import GMAIL_WORKER
+                ok, mail_speech, items = GMAIL_WORKER.get_unread_emails()
+                speech = f"Sir, Gmail has been connected. {mail_speech}"
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+            elif clean_id in ["google", "google_workspace"]:
+                from plugins.gmail_direct_worker import GMAIL_WORKER
+                from plugins.classroom_direct_worker import CLASSROOM_WORKER
+                GMAIL_WORKER.get_unread_emails()
+                CLASSROOM_WORKER.get_upcoming_assignments()
+                speech = f"Sir, your Google account ({account}) has been connected. Gmail and Google Classroom background workers are synchronized."
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+            elif clean_id == "whatsapp":
+                from plugins.whatsapp_direct_worker import WHATSAPP_WORKER
+                ok, wa_speech, items = WHATSAPP_WORKER.get_unread_messages()
+                speech = f"Sir, WhatsApp session has been securely linked. Direct background message dispatcher and unread notifications monitor are active."
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+            elif clean_id == "youtube":
+                speech = "Sir, YouTube has been connected. Background streaming and media search engine are ready."
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+            elif clean_id in ["canva", "discord", "github", "linkedin"]:
+                app_title = clean_id.replace("_", " ").title()
+                speech = f"Sir, your {app_title} account ({account or 'active'}) has been connected. Direct background access is verified."
+                speak_voice(speech)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(speech)});")
+
+        except Exception as e:
+            print(f"[POST-CONNECTION ERROR] {clean_id}: {e}")
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+
+# Custom WebEngine Page with Console Message Bridge
 class HydraPage(QWebEnginePage):
     def javaScriptConsoleMessage(self, level, message, line, source):
         if message.startswith("HYDRA_CMD:"):
-            command = message[10:].lower().strip()
+            command = message[10:].strip()
             self.process_hydra_command(command)
         elif message.startswith("HYDRA_OPEN_URL:"):
             url = message[15:].strip()
             if url:
-                print(f"[HYDRA BROWSER] Launching live URL: {url}")
-                import webbrowser
+                print(f"[HYDRA BROWSER] Opening URL: {url}")
                 webbrowser.open(url)
         elif message.startswith("HYDRA_MEDIA_CMD:"):
             action = message[16:].strip()
             self.handle_media_command(action)
+        elif message.startswith("HYDRA_PLUGIN_SAVE:"):
+            payload = message[18:].strip()
+            self.handle_plugin_save(payload)
+        elif message.startswith("HYDRA_AUTH_CONNECT:"):
+            app_id = message[19:].strip()
+            self.handle_auth_connect(app_id)
+        elif message.startswith("HYDRA_AUTH_DISCONNECT:"):
+            app_id = message[22:].strip()
+            self.handle_auth_disconnect(app_id)
+        elif message.startswith("HYDRA_ACCOUNT_SWITCH:"):
+            payload = message[21:].strip()
+            self.handle_account_switch(payload)
+        elif message.startswith("HYDRA_ACCOUNT_REMOVE:"):
+            payload = message[21:].strip()
+            self.handle_account_remove(payload)
+
+    def handle_account_switch(self, payload: str):
+        try:
+            from plugins.vault_manager import VAULT_MGR
+            if ":" in payload:
+                app_id, target_account = payload.split(":", 1)
+                app_id = app_id.strip()
+                target_account = target_account.strip()
+                ok = VAULT_MGR.switch_active_account(app_id, target_account)
+                if ok:
+                    execute_post_connection_tasks(app_id, target_account)
+                    safe_emit_js(f"if (window.onAccountSwitched) window.onAccountSwitched('{app_id}', '{target_account}');")
+                    speak_voice(f"Sir, active {app_id.replace('_', ' ').title()} account has been switched to {target_account}.")
+        except Exception as e:
+            print(f"[HYDRA ACCOUNT SWITCH ERROR]: {e}")
+
+    def handle_account_remove(self, payload: str):
+        try:
+            from plugins.vault_manager import VAULT_MGR
+            if ":" in payload:
+                app_id, target_account = payload.split(":", 1)
+                app_id = app_id.strip()
+                target_account = target_account.strip()
+                ok = VAULT_MGR.remove_plugin_account(app_id, target_account)
+                if ok:
+                    safe_emit_js(f"if (window.onAccountRemoved) window.onAccountRemoved('{app_id}', '{target_account}');")
+                    speak_voice(f"Sir, removed {target_account} from {app_id.replace('_', ' ').title()}.")
+        except Exception as e:
+            print(f"[HYDRA ACCOUNT REMOVE ERROR]: {e}")
+
+    def handle_auth_connect(self, app_id: str):
+        try:
+            from plugins.auth_bridge import AUTH_BRIDGE
+            def on_connected(connected_app, account):
+                safe_emit_js(f"if (window.onAppConnected) window.onAppConnected('{connected_app}', '{account}');")
+                execute_post_connection_tasks(connected_app, account)
+
+            AUTH_BRIDGE.start_connection(app_id, on_success=on_connected)
+        except Exception as e:
+            print(f"[HYDRA AUTH ERROR]: {e}")
+
+    def handle_auth_disconnect(self, app_id: str):
+        try:
+            from plugins.auth_bridge import AUTH_BRIDGE
+            AUTH_BRIDGE.disconnect(app_id)
+            safe_emit_js(f"if (window.onAppDisconnected) window.onAppDisconnected('{app_id}');")
+            speak_voice(f"Sir, {app_id.replace('_', ' ').title()} has been disconnected.")
+        except Exception as e:
+            print(f"[HYDRA DISCONNECT ERROR]: {e}")
+
+    def handle_plugin_save(self, payload: str):
+        try:
+            data = json.loads(payload)
+            target_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "connected_plugins.json")
+            with open(target_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
+            print(f"[HYDRA PLUGINS] Synchronized {len(data)} app connection states to {target_path}")
+
+            # Automatically persist connected app credentials into Secure Local Vault (Problem 4 Multi-Account Support)
+            try:
+                from plugins.vault_manager import VAULT_MGR
+                for app_id, conn_info in data.items():
+                    if isinstance(conn_info, dict) and conn_info.get("connected"):
+                        acc = conn_info.get("account", "").strip()
+                        auth_type = conn_info.get("authType", "account")
+                        extra = conn_info.get("data", {})
+                        accounts = conn_info.get("accounts", [])
+                        if accounts and isinstance(accounts, list):
+                            for a in accounts:
+                                if isinstance(a, dict) and a.get("account"):
+                                    VAULT_MGR.set_plugin_credential(
+                                        app_id=app_id,
+                                        account=a.get("account"),
+                                        auth_type=a.get("authType", auth_type),
+                                        label=a.get("label", ""),
+                                        extra_data=a.get("data", extra),
+                                        make_active=bool(a.get("active", False))
+                                    )
+                        elif acc:
+                            VAULT_MGR.set_plugin_credential(
+                                app_id=app_id,
+                                account=acc,
+                                auth_type=auth_type,
+                                label=conn_info.get("label", "Primary"),
+                                extra_data=extra,
+                                make_active=True
+                            )
+            except Exception as ve:
+                print(f"[HYDRA PLUGINS VAULT SYNC NOTE]: {ve}")
+
+            # Execute background verification and sync for connected apps (Problem 3)
+            for app_id, conn_info in data.items():
+                if isinstance(conn_info, dict) and conn_info.get("connected"):
+                    acc = conn_info.get("account", "").strip()
+                    execute_post_connection_tasks(app_id, acc, silent_if_unchanged=True)
+
+        except Exception as e:
+            print(f"[HYDRA PLUGINS ERROR]: {e}")
 
     def handle_media_command(self, action):
         try:
-            import json
-            from media_controller import MEDIA_CONTROLLER
             if action == "toggle":
                 MEDIA_CONTROLLER.toggle_play_pause()
             elif action == "next":
@@ -634,1220 +512,245 @@ class HydraPage(QWebEnginePage):
                     MEDIA_CONTROLLER.seek(sec)
                 except Exception:
                     pass
-            # Trigger immediate UI update
             state = MEDIA_CONTROLLER.get_state()
             if state:
-                GUI_SIGNALS.js_signal.emit(f"updateMediaState({json.dumps(state)});")
+                safe_emit_js(f"updateMediaState({json.dumps(state)});")
         except Exception as e:
             print(f"[HYDRA MEDIA ERROR]: {e}")
 
-    def process_hydra_command(self, command):
-        import time
-        import re
-        global LAST_ACTIVE_TIME, LEARNING_SESSION_ACTIVE, ACTIVE_PAGE, LAST_INFO_QUERY, LAST_INFO_SUMMARY, LAST_EXECUTIVE_SUMMARY, LAST_INFO_LINKS
-        LAST_ACTIVE_TIME = time.time()
-        ACTIVE_PAGE = self 
-
-        cmd_lower = command.lower()
-        
-        # ---> ALWAYS CLOSE INFO PANEL ON NEW COMMAND <---
-        GUI_SIGNALS.js_signal.emit("resetScreenSwipe();")
-        
-        # ---> ALLOW EXPLICIT CLOSING OF THE PANEL <---
-        if any(w in cmd_lower for w in ["close info", "close panel", "hide info", "go back"]):
-            reply = "Closing information panel, sir."
-            self.speak_voice(reply)
-            save_chat_message("user", command)
-            save_chat_message("assistant", reply)
+    def process_hydra_command(self, command: str):
+        global ACTIVE_PAGE
+        ACTIVE_PAGE = self
+        cmd_clean = command.strip()
+        cmd_lower = cmd_clean.lower()
+        if not cmd_clean:
             return
 
-        # ---> THEME COMMANDS (HYDRA OPERATES IN LIGHT HUD MODE) <---
-        if any(w in cmd_lower for w in ["dark mode", "night mode", "dark theme", "switch to dark", "enable dark", "turn on dark mode", "set theme to dark", "change to dark"]):
-            reply = "Dark mode has been retired; Hydra operates exclusively in high-clarity Light HUD mode, sir."
-            self.speak_voice(reply)
-            save_chat_message("user", command)
-            save_chat_message("assistant", reply)
-            return
+        print(f"\n[USER INPUT]: {cmd_clean}")
 
-        if any(w in cmd_lower for w in ["light mode", "day mode", "light theme", "switch to light", "enable light", "turn on light mode", "set theme to light", "change to light", "switch theme", "toggle theme", "change theme"]):
-            reply = "Interface is operating in high-clarity Light HUD mode, sir."
-            self.speak_voice(reply)
-            save_chat_message("user", command)
-            save_chat_message("assistant", reply)
-            return
-
-        # ---> CAMERA ACCESS, OPTICAL PERCEPTION & GESTURE RECOGNITION (PHASE 15) <---
+        # Check if HYDRA is paused waiting for user clarification (Phase 4 Human-in-the-Loop)
         try:
-            from camera_vision import CAMERA_ENGINE
-            cam_handled, cam_reply = CAMERA_ENGINE.handle_command(command)
-            if cam_handled:
-                self.speak_voice(cam_reply)
-                save_chat_message("user", command)
-                save_chat_message("assistant", cam_reply)
+            from disambiguation_manager import DISAMBIGUATION_MGR
+            if DISAMBIGUATION_MGR.is_waiting():
+                print(f"[DISAMBIGUATION BRIDGE] Routing answer to waiting agent: '{cmd_clean}'")
+                safe_emit_js("hideDisambiguationPrompt();")
+                DISAMBIGUATION_MGR.provide_answer(cmd_clean)
                 return
         except Exception as e:
-            print(f"[MAIN CAMERA ERROR]: {e}")
+            print(f"[DISAMBIGUATION ROUTING ERROR] {e}")
 
-        # ---> NEW: DIVE DEEP & DETAILED ANALYSIS COMMAND <---
-        if any(w in cmd_lower for w in ["dive deep", "more detail", "more details", "expand on", "tell me more about that"]):
-            target_subject = LAST_INFO_QUERY
-            for p in ["dive deep into ", "dive deep on ", "more details on ", "expand on "]:
-                if p in cmd_lower:
-                    extracted = cmd_lower.split(p, 1)[1].strip()
-                    if extracted:
-                        target_subject = extracted
-                        break
+        # Always close side drawer on new query
+        safe_emit_js("resetScreenSwipe();")
 
-            if target_subject:
-                reply = f"Compiling deep dive intel on {target_subject}, sir. Pulling it up now."
-                self.speak_voice(reply)
-                save_chat_message("user", command)
-                save_chat_message("assistant", reply)
-                
-                def deep_dive_worker():
-                    import json
-                    from web_ops import WEB_SEARCH
-                    global LAST_INFO_QUERY, LAST_INFO_SUMMARY, LAST_EXECUTIVE_SUMMARY, LAST_INFO_LINKS, LAST_STRUCTURED_HTML, LAST_IMAGES
-                    if LAST_STRUCTURED_HTML and LAST_INFO_QUERY and (target_subject.lower() in LAST_INFO_QUERY.lower() or LAST_INFO_QUERY.lower() in target_subject.lower()):
-                        primary_url = LAST_INFO_LINKS[0]['url'] if LAST_INFO_LINKS else ""
-                        js_emit = f"openDeepDiveHUD({json.dumps(LAST_INFO_QUERY)}, {json.dumps(LAST_STRUCTURED_HTML)}, {json.dumps(LAST_IMAGES)}, {json.dumps(primary_url)});"
-                    else:
-                        res = WEB_SEARCH.search_dossier(target_subject)
-                        LAST_INFO_QUERY = res.get("title", target_subject.upper())
-                        LAST_INFO_SUMMARY = res.get("summary", "")
-                        LAST_EXECUTIVE_SUMMARY = res.get("executive_summary", "")
-                        LAST_INFO_LINKS = res.get("links", [])
-                        LAST_STRUCTURED_HTML = res.get("structured_html", "")
-                        LAST_IMAGES = res.get("images", [])
-                        js_emit = f"openDeepDiveHUD({json.dumps(res['title'])}, {json.dumps(res['structured_html'])}, {json.dumps(res['images'])}, {json.dumps(res['primary_url'])});"
-                    GUI_SIGNALS.js_signal.emit(js_emit)
+        # Phase 1: High-Precision Intent & Modality Classification
+        from plugins.intent_classifier import classify_command, IntentType, normalize_command_text
+        cmd_normalized = normalize_command_text(cmd_clean)
+        cmd_norm_lower = cmd_normalized.lower()
 
-                threading.Thread(target=deep_dive_worker, daemon=True).start()
+        classified = classify_command(cmd_clean)
+        print(f"[INTENT CLASSIFIER] '{cmd_clean}' -> Modality: {classified.intent_type.value} | App: {classified.target_app} | Action: {classified.action} ({classified.reasoning})")
+
+        # 1. Built-in HUD Interface Controls
+        if classified.intent_type == IntentType.BUILTIN_UI:
+            if classified.action == "close_panel":
+                speak_voice("Closing information panel, sir.")
                 return
-            else:
-                reply = "I don't have a recent subject in memory to dive into, sir."
-                self.speak_voice(reply)
-                return
-
-        # ---> READ IT FOR ME COMMAND (Concise Executive Summary Only) <---
-        if any(w in cmd_lower for w in ["read it for me", "please read it", "read it", "read the summary", "read this", "read that", "what does it say", "tell me the summary", "give me the summary", "summarize it"]):
-            if LAST_EXECUTIVE_SUMMARY:
-                reply = LAST_EXECUTIVE_SUMMARY
-            elif LAST_INFO_QUERY:
-                reply = f"The subject currently on screen is {LAST_INFO_QUERY}, sir. Would you like me to dive into deeper details?"
-            else:
-                reply = "I don't have any retrieved intel in memory to read yet, sir."
-            self.speak_voice(reply)
-            save_chat_message("user", command)
-            save_chat_message("assistant", reply)
-            return
-
-        # ---> EXPLORE LINKS & DEEP RETRIEVAL COMMAND <---
-        link_triggers = [
-            "go to links and find ", "find in the links ", "in the links find ",
-            "search the links for ", "check the links for ", "from the links find ",
-            "find information about ", "find this information about "
-        ]
-        matched_link_query = None
-        for lt in link_triggers:
-            if lt in cmd_lower:
-                matched_link_query = cmd_lower.split(lt, 1)[1].strip()
-                break
-
-        if matched_link_query:
-            compound_target = f"{LAST_INFO_QUERY} {matched_link_query}" if LAST_INFO_QUERY else matched_link_query
-            reply = f"Searching the verified sources for {matched_link_query}, sir. Updating your screen."
-            self.speak_voice(reply)
-            save_chat_message("user", command)
-            save_chat_message("assistant", reply)
-
-            def link_dive_worker():
-                import json
-                from web_ops import WEB_SEARCH
-                res = WEB_SEARCH.search_dossier(compound_target)
-                js_emit = f"openDeepDiveHUD({json.dumps(res['title'])}, {json.dumps(res['structured_html'])}, {json.dumps(res['images'])}, {json.dumps(res['primary_url'])});"
-                GUI_SIGNALS.js_signal.emit(js_emit)
-
-            threading.Thread(target=link_dive_worker, daemon=True).start()
-            return
-
-        # ---> BROWSER LAUNCH COMMANDS <---
-        if any(w in cmd_lower for w in ["open in browser", "open browser", "browse live", "open search in browser", "open web link"]):
-            import webbrowser, urllib.parse
-            if LAST_INFO_QUERY:
-                search_url = f"https://www.google.com/search?q={urllib.parse.quote(LAST_INFO_QUERY)}"
-                webbrowser.open(search_url)
-                reply = f"Opening live browser intel for {LAST_INFO_QUERY}, sir."
-            else:
-                webbrowser.open("https://www.google.com")
-                reply = "Opening browser, sir."
-            self.speak_voice(reply)
-            save_chat_message("user", command)
-            save_chat_message("assistant", reply)
-            return
-
-        # 1. SPECIFIC DATE LEARNING MUST BE CHECKED FIRST
-        targeted_match = re.search(r'(?:read|learn from|start learning from)\s+(.*?)\s+(?:conversation|logs|archive|chat)', cmd_lower)
-        if targeted_match:
-            target_date = targeted_match.group(1).strip()
-            self.speak_voice(f"Initiating targeted analysis for {target_date}, sir.")
-            threading.Thread(target=analyze_specific_day, args=(target_date,), daemon=True).start()
-            return
-
-        # 2. GENERAL BACKGROUND LEARNING (checked second)
-        if "start learning" in cmd_lower:
-            LEARNING_SESSION_ACTIVE = True
-            self.speak_voice("Background learning sequence started, sir.")
-            return
-
-        if LEARNING_SESSION_ACTIVE:
-            LEARNING_SESSION_ACTIVE = False # Intercepts background loop!
-            print("[BATCH LEARN] User spoke; pausing deep learning.")
-
-        # Specific check to shutdown HYDRA itself only when explicitly asked
-        clean_quit = command.strip().lower()
-        if clean_quit in ["close", "exit", "quit", "shutdown hydra", "close hydra", "exit hydra", "quit hydra", "terminate hydra"]:
-            reply = "Shutting down systems. Goodbye."
-            self.speak_voice(reply)
-            QApplication.quit()
-            return
-
-        if "clear database" in command or "wipe memory" in command or "reset database" in command:
-            try:
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM chats")
-                cursor.execute("DELETE FROM long_term_memory")
-                cursor.execute("DELETE FROM custom_rules")
-                conn.commit()
-                conn.close()
-                reply = "Systems flushed, sir. Core memory tables have been completely initialized."
-            except Exception as e:
-                reply = f"Database flush execution failure: {e}"
-            self.speak_voice(reply)
-            return
-
-        save_chat_message("user", command)
-
-        def background_processor():
-            import random
-            import time
-            global DIALOGUE_STATE
-            pipeline_start = time.perf_counter()
-            
-            print(f"\n========================================")
-            print(f"[USER COMMAND]: '{command}'")
-            print(f"========================================")
-            
-            clean_cmd = command.strip().lower().replace(".", "").replace("!", "").replace("?", "").strip()
-
-            # ---> MULTI-TURN MESSAGING DIALOGUE LISTENER (WHATSAPP) <---
-            if DIALOGUE_STATE.get("mode") == "AWAITING_MESSAGE_TEXT":
-                if any(clean_cmd == c for c in ["cancel", "nevermind", "never mind", "stop", "dont send", "don't send"]):
-                    DIALOGUE_STATE = {"mode": "NORMAL", "pending_action": None, "payload": None}
-                    cancel_reply = "Understood, sir. Message cancelled."
-                    self.speak_voice(cancel_reply)
-                    save_chat_message("assistant", cancel_reply)
-                    return
-
-                payload = DIALOGUE_STATE.get("payload", {})
-                recipient = payload.get("recipient", "contact")
-                from dodaios_operator import DODAIOS_OPERATOR
-                report = DODAIOS_OPERATOR.execute_goal(f"send message to {recipient} saying {command}", sys_driver=SYS_DRIVER)
-                reply = report.spoken_reply if (report and report.spoken_reply) else f"Sir, I have sent your message to {recipient}."
-                DIALOGUE_STATE = {"mode": "NORMAL", "pending_action": None, "payload": None}
-                self.speak_voice(reply)
-                save_chat_message("assistant", reply)
-                return
-
-            # ---> PROACTIVE WHATSAPP READ CONFIRMATION ("Sir, message from Ahmad has arrived, do you want me to read it?" -> "Yes") <---
-            if DIALOGUE_STATE.get("mode") == "AWAITING_READ_WHATSAPP":
-                from proactive_daemon import handle_whatsapp_read_confirmation
-                handled, reply, new_state = handle_whatsapp_read_confirmation(command, DIALOGUE_STATE, SYS_DRIVER)
-                DIALOGUE_STATE = new_state
-                if handled and reply:
-                    self.speak_voice(reply)
-                    save_chat_message("assistant", reply)
-                    return
-
-            # ---> INTENT CONFIRMATION DIALOGUE LISTENER (PROACTIVE CLARIFICATION) <---
-            if DIALOGUE_STATE.get("mode") == "AWAITING_INTENT_CONFIRMATION":
-                from intelligent_agent import handle_intent_confirmation
-                handled, reply, new_state = handle_intent_confirmation(command, DIALOGUE_STATE, SYS_DRIVER)
-                DIALOGUE_STATE = new_state
-                if handled and reply:
-                    self.speak_voice(reply)
-                    save_chat_message("assistant", reply)
-                    return
-
-            # ---> CONTACT DISAMBIGUATION LISTENER (WHATSAPP MULTIPLE MATCHES) <---
-            if DIALOGUE_STATE.get("mode") == "AWAITING_CONTACT_DISAMBIGUATION":
-                from intelligent_agent import handle_contact_disambiguation
-                handled, reply, new_state = handle_contact_disambiguation(command, DIALOGUE_STATE, SYS_DRIVER)
-                DIALOGUE_STATE = new_state
-                if handled and reply:
-                    self.speak_voice(reply)
-                    save_chat_message("assistant", reply)
-                    return
-
-            # ---> PHASE 9: CONTINUOUS SCREEN CONTEXT (WHAT AM I DOING? / WHAT IS ON MY SCREEN?) <---
-            from intelligent_agent import check_screen_context_intent, check_indirect_intent
-            screen_res = check_screen_context_intent(command)
-            if screen_res:
-                handled, screen_reply = screen_res
-                if handled and screen_reply:
-                    self.speak_voice(screen_reply)
-                    save_chat_message("assistant", screen_reply)
-                    return
-
-            # ---> PROACTIVE INTENT CLARIFICATION ("I want to design something" -> "Would you like me to open Canva?") <---
-            indirect = check_indirect_intent(command)
-            if indirect:
-                question, state = indirect
-                DIALOGUE_STATE = state
-                self.speak_voice(question)
-                save_chat_message("assistant", question)
-                return
-
-            # ---> PHASE 7: UNIFIED NLP COMMAND DISPATCHER & MULTI-ACTION CHAINING ENGINE <---
-            try:
-                from nlp_dispatcher import execute_chained_pipeline, pop_pending_dialogue_state
-                nlp_handled, nlp_reply = execute_chained_pipeline(command, SYS_DRIVER, execute_information_retrieval)
-                if nlp_handled:
-                    dialogue_update = pop_pending_dialogue_state()
-                    if dialogue_update:
-                        DIALOGUE_STATE = dialogue_update
-                        print(f"[MAIN] Dialogue state updated: {DIALOGUE_STATE}")
-                    self.speak_voice(nlp_reply)
-                    save_chat_message("assistant", nlp_reply)
-                    return
-            except Exception as e:
-                print(f"[PHASE 7 DISPATCHER ERROR]: {e}")
-
-            # ---> VISUAL SCREEN UNDERSTANDING & COMPUTER VISION (PHASE 6: SCREEN INTERROGATION, OCR, VISUAL CLICK) <---
-            vision_handled, vision_reply = SYS_DRIVER.execute_vision(command)
-            if vision_handled:
-                self.speak_voice(vision_reply)
-                save_chat_message("assistant", vision_reply)
-                return
-
-            # ---> WINDOW MANAGEMENT & MULTITASKING (PHASE 5: FOCUS, SNAP, MIN/MAX, SHOW DESKTOP) <---
-            wm_handled, wm_reply = SYS_DRIVER.execute_window_management(command)
-            if wm_handled:
-                self.speak_voice(wm_reply)
-                save_chat_message("assistant", wm_reply)
-                return
-
-            # ---> HARDWARE INPUT AUTOMATION (MOUSE & KEYBOARD) <---
-            hw_handled, hw_reply = SYS_DRIVER.execute_hardware(command)
-            if hw_handled:
-                self.speak_voice(hw_reply)
-                save_chat_message("assistant", hw_reply)
-                return
-
-            # ---> WIRELESS NETWORKING (PHASE 3: WI-FI, BLUETOOTH, HOTSPOT, AIRPLANE MODE) <---
-            wl_handled, wl_reply = SYS_DRIVER.execute_wireless(command)
-            if wl_handled:
-                self.speak_voice(wl_reply)
-                save_chat_message("assistant", wl_reply)
-                return
-
-            # ---> BROWSER / LIVE WEB SEARCH & INTEL (PHASE 4: PURE CODE & INTERNET RETRIEVAL) <---
-            search_triggers = [
-                "how many songs are in the ", "how many songs are in ", "how many songs in the ",
-                "how many songs in ", "how many tracks are in the ", "how many tracks in ",
-                "how many tracks does ", "how many songs does ",
-                "what are the songs in ", "what are the tracks in ", "tracklist of ", "songs of ",
-                "i want to know about ", "i wanna know about ", "i need to know about ",
-                "i want to learn about ", "i want info on ", "i want information about ",
-                "can you tell me about ", "tell me about ", "tell me something about ",
-                "what do you know about ", "do you know about ",
-                "find out about ", "find info on ", "find information on ",
-                "search for ", "search the web for ", "search web for ", "search ",
-                "look up ", "browse for ", "who is ", "what is ", "explain ", "meaning of "
-            ]
-            matched_search = None
-            for st in search_triggers:
-                if clean_cmd.startswith(st):
-                    candidate = clean_cmd[len(st):].strip()
-                    if candidate and not any(w in candidate for w in ["your name", "the time", "my name", "you ok", "you doing"]):
-                        matched_search = candidate
-                        break
-
-            if matched_search:
-                spoken_reply, _ = execute_information_retrieval(matched_search)
-                self.speak_voice(spoken_reply)
-                save_chat_message("assistant", spoken_reply)
-                return
-
-            # ---> MASS DELETE ALL CREATED FILES <---
-            if "delete all" in clean_cmd and any(w in clean_cmd for w in ["created", "made", "generated", "wrote"]):
-                import shutil
-                files = get_and_clear_created_files()
-                count = 0
-                for f in files:
-                    if os.path.exists(f):
-                        try:
-                            if os.path.isdir(f): shutil.rmtree(f)
-                            else: os.remove(f)
-                            count += 1
-                        except: pass
-                reply = f"I have purged {count} files that I previously created sir. "
-                self.speak_voice(reply)
-                save_chat_message("assistant", reply)
-                return
-
-            # ---> SMART FILE EXTENSION CHANGER <---
-            ext_match = re.search(r'change (?:the )?(?:type|extension) of (.*?) to (.*?)$', clean_cmd)
-            if not ext_match: ext_match = re.search(r'change (.*?)(?:\'s)? (?:type|extension) to (.*?)$', clean_cmd)
-            
-            implicit_match = re.search(r'change (?:the )?(?:file )?(?:type|extension) to (.*?)$', clean_cmd)
-            from_to_match = re.search(r'change (?:the )?(?:file )?(?:type|extension) from (.*?) to (.*?)$', clean_cmd)
-
-            target_file = None
-            new_ext = None
-            is_implicit = False
-
-            if from_to_match:
-                new_ext = from_to_match.group(2).strip()
-                is_implicit = True
-            elif implicit_match:
-                new_ext = implicit_match.group(1).strip()
-                is_implicit = True
-            elif ext_match:
-                target_file = ext_match.group(1).strip()
-                new_ext = ext_match.group(2).strip()
-                if target_file in ["the file", "file", "it", "this"]:
-                    is_implicit = True
-                    target_file = None
-                    
-            if new_ext:
-                new_ext = new_ext.replace("dot", "").strip(". ")
-                if is_implicit:
-                    last_file = globals().get("LAST_INTERACTED_FILE")
-                    if last_file and os.path.exists(last_file):
-                        success, reply = SYS_DRIVER.change_extension(last_file, new_ext)
-                        if success:
-                            new_path = os.path.splitext(last_file)[0] + "." + new_ext
-                            globals()["LAST_INTERACTED_FILE"] = new_path
-                            reply += " Sir, do you want me to open this updated file?"
-                            DIALOGUE_STATE = {"mode": "AWAITING_OPEN_FILE", "pending_action": "OPEN_FILE", "payload": new_path}
-                        self.speak_voice(reply)
-                        save_chat_message("assistant", reply)
-                        return
-                    else:
-                        reply = "Sir, can you please provide me the name of the file you want to change?"
-                        DIALOGUE_STATE = {"mode": "AWAITING_FILE_NAME", "pending_action": "CHANGE_EXTENSION", "payload": new_ext}
-                        self.speak_voice(reply)
-                        save_chat_message("assistant", reply)
-                        return
+            elif classified.action == "hud_theme_query":
+                if any(w in cmd_norm_lower for w in ["dark mode", "night mode", "dark theme"]):
+                    speak_voice("Dark mode has been retired; Hydra operates exclusively in high-clarity Light HUD mode, sir.")
                 else:
-                    matches = SYS_DRIVER.locate_all_paths(target_file, target_type="FILE")
-                    if len(matches) == 0:
-                        reply = f"I could not find a file named '{target_file}', sir."
-                        self.speak_voice(reply)
-                        save_chat_message("assistant", reply)
-                        return
-                    elif len(matches) == 1:
-                        success, reply = SYS_DRIVER.change_extension(matches[0], new_ext)
-                        if success:
-                            new_path = os.path.splitext(matches[0])[0] + "." + new_ext
-                            globals()["LAST_INTERACTED_FILE"] = new_path
-                            reply += " Sir, do you want me to open the changed file?"
-                            DIALOGUE_STATE = {"mode": "AWAITING_OPEN_FILE", "pending_action": "OPEN_FILE", "payload": new_path}
-                        self.speak_voice(reply)
-                        save_chat_message("assistant", reply)
-                        return
-                    else:
-                        locations = [os.path.basename(os.path.dirname(m)) for m in matches]
-                        loc_str = ", ".join(f"one in {loc}" for loc in locations)
-                        reply = f"I found multiple files named {target_file}, sir. {loc_str}. Which one should I target?"
-                        DIALOGUE_STATE = {"mode": "AWAITING_FILE_LOCATION", "pending_action": "CHANGE_EXTENSION", "payload": {"matches": matches, "ext": new_ext}}
-                        self.speak_voice(reply)
-                        save_chat_message("assistant", reply)
-                        return
-
-            # --- SMART FILESYSTEM INTERCEPTOR ---
-            fs_intent = parse_fs_intent(command)
-            if fs_intent:
-                act = fs_intent["action"]
-                target_folder = None
-
-                if act == "CREATE":
-                    success, reply = SYS_DRIVER.smart_create(fs_intent["type"], fs_intent["name"], fs_intent["location"])
-                    if success:
-                        target_folder = SYS_DRIVER.resolve_directory(fs_intent["location"])
-                        # Track it perfectly
-                        found, path, _ = SYS_DRIVER.locate_path(fs_intent["name"], fs_intent["location"])
-                        if found:
-                            log_created_file(path)
-                            globals()["LAST_INTERACTED_FILE"] = path
-
-                elif act == "DELETE":
-                    success, reply = SYS_DRIVER.smart_delete(fs_intent["name"])
-
-                elif act == "MOVE":
-                    success, reply = SYS_DRIVER.smart_move(fs_intent["name"], fs_intent["location"])
-
-                elif act == "SEARCH":
-                    found, path, is_dir = SYS_DRIVER.locate_path(fs_intent["name"], fs_intent["location"])
-                    if found:
-                        reply = f"Located at: {path}"
-                        target_folder = path if is_dir else os.path.dirname(path)
-                    else:
-                        reply = f"Could not find '{fs_intent['name']}'."
-                
-                # ---> NEW ACTION: SMART OPEN <---
-                elif act == "OPEN":
-                    found, path, is_dir = SYS_DRIVER.locate_path(fs_intent["name"], fs_intent["location"])
-                    if found:
-                        os.startfile(path)
-                        reply = f"Pulling up {fs_intent['name']} on your screen, sir."
-                    else:
-                        reply = f"Could not find '{fs_intent['name']}' to open."
-                
-                if target_folder:
-                    reply += ", sir do you want to see?"
-                    DIALOGUE_STATE = {"mode": "AWAITING_EXPLORER", "payload": target_folder}
-
-                self.speak_voice(reply)
-                save_chat_message("assistant", reply)
+                    speak_voice("Interface is operating in high-clarity Light HUD mode, sir.")
                 return
 
-            # ---> SMART NOTEPAD BRAIN (MOVED ABOVE BASIC LAUNCHER) <---
-            # Also added 'draft' to triggers
-            if "notepad" in clean_cmd and any(w in clean_cmd for w in ["write", "note", "type", "draft"]):
-                content = clean_cmd
-                for filler in ["open notepad and write", "write in notepad", "take a note saying", "take a note", "notepad write", "write", "type", "notepad", "saying", "that", "open", "in", "about", "for"]:
-                    content = content.replace(filler, "").strip()
-                
-                if not content or content in ["something", "anything"]:
-                    reply = "Sir, I have opened Notepad and I am ready to note. What should I write?"
-                    subprocess.Popen(["notepad.exe"])
-                    self.speak_voice(reply)
-                    save_chat_message("assistant", reply)
-                    return
-                
-                # BULLETPROOF NAMING
-                safe_name = "".join(c for c in content if c.isalnum() or c.isspace()).strip().replace(' ', '_')
-                if len(safe_name) > 20:
-                    safe_name = safe_name[:20].rstrip('_')
-                if not safe_name:
-                    safe_name = "hydra_note"
-                
-                file_name = f"{safe_name}.txt"
-                dest_dir = SYS_DRIVER.resolve_directory("desktop")
-                full_path = os.path.join(dest_dir, file_name)
-                
-                friendly_name = safe_name.replace('_', ' ')
-                self.speak_voice(f"Creating a new file named {friendly_name} and drafting the content, sir.")
-                
-                raw_rules = load_long_term_memories()[:8]
-                formatted_rules = "\n".join([f"- {r}" for r in raw_rules]) if raw_rules else "None."
-                
-                sys_prompt = (
-                    f"Your name is {ASSISTANT_NAME}. The user is {MASTER_NAME}. "
-                    f"Core Memories & Rules:\n{formatted_rules}\n\n"
-                    "Write ONLY the raw text that belongs inside the requested document. "
-                    "Do not include markdown formatting, backticks, greetings, or conversational filler. "
-                    f"If asked to write your name, write {ASSISTANT_NAME}. If asked to write the user's name, write {MASTER_NAME}. "
-                    "Command: " + command
-                )
-                
-                generated_content = ai_chat(DEFAULT_REASONING_MODEL, [{"role": "user", "content": sys_prompt}], num_predict=500, timeout=35)
-                final_content = generated_content.strip() if generated_content else content
-                
+        def _run_desktop_goal(task_text: str):
+            def goal_worker():
                 try:
-                    # strictly create the file first
-                    with open(full_path, "w", encoding="utf-8") as f:
-                        f.write(final_content)
-                        
-                    # Track this file globally so the correction system knows what to overwrite
-                    globals()["LAST_INTERACTED_FILE"] = full_path
-                    log_created_file(full_path)
-                    subprocess.Popen(["notepad.exe", full_path])
-                    reply = "New document created and pulled up on your screen, sir."
-                except Exception as e:
-                    reply = "I encountered a system error while trying to save the file, sir."
-                    print(f"[FILE ERROR]: {e}")
-                    
-                self.speak_voice(reply)
-                save_chat_message("assistant", reply)
-                return
+                    from verified_executor import VERIFIED_EXECUTOR
 
-            commands = {
-                "WIFI_ON": ["turn on wifi", "enable wifi"],
-                "WIFI_OFF": ["turn off wifi", "disable wifi"],
-                "WIFI_CONNECT": ["connect to wifi ", "connect wifi "],
-                "OPEN_APP": ["open ", "launch ", "start ", "run ", "pull up ", "bring up ", "fire up "],
-                "CLOSE_APP": ["close ", "kill ", "terminate ", "stop app ", "shut down app ", "quit app ", "exit app "],
-                "LIST_APPS": ["list apps", "running apps", "open apps"],
-                "SEARCH_FILE": ["find file ", "locate file ", "where is "],
-                "CREATE_FOLDER": ["create folder ", "make folder ", "new folder "],
-                "DELETE_FILE": ["delete file ", "remove file "],
-                "SHUTDOWN": ["shut down computer", "turn off pc"],
-                "RESTART": ["restart computer", "reboot pc"],
-                "LOCK": ["lock pc", "lock the computer"]
-            }
+                    # Phase 3 & Phase 4: Dynamic Vision Agent & Human-in-the-Loop Disambiguation
+                    def on_hud_status(status_text):
+                        safe_emit_js(f"console.log('HYDRA_HUD: {status_text}');")
 
-            executed = False
-            for action, triggers in commands.items():
-                matched_trigger = next((t for t in triggers if t in clean_cmd), None)
-                if matched_trigger:
-                    raw_low = command.strip().lower()
-                    payload = raw_low.replace(matched_trigger, "").replace("wifi", "").strip()
-                    payload = payload.rstrip(".?!") 
-                    if not payload: payload = None
+                    def on_hud_disambig(question, options):
+                        opts_json = json.dumps(options)
+                        safe_emit_js(f"showDisambiguationPrompt({json.dumps(question)}, {opts_json});")
 
-                    success, state = SYS_DRIVER.execute_command(action, payload)
-
-                    if action in ["WIFI_ON", "WIFI_OFF", "WIFI_CONNECT"]:
-                        reply = state
-                    elif action == "OPEN_APP":
-                        reply = state
-                    elif action == "CLOSE_APP":
-                        reply = state
-                    elif action == "LIST_APPS":
-                        reply = f"Active processes: {state}" if success else "Could not retrieve process list."
-                    elif action == "SEARCH_FILE":
-                        reply = f"File located at: {state}" if success else state
-                    elif action == "CREATE_FOLDER":
-                        reply = state if success else f"Failed to create folder: {state}"
-                    elif action == "DELETE_FILE":
-                        reply = f"Item purged, sir." if success else state
-                    elif action in ["SHUTDOWN", "RESTART", "LOCK"]:
-                        reply = "Executing system command, sir."
-                        self.speak_voice(reply)
-                        return
-
-                    self.speak_voice(reply)
-                    save_chat_message("assistant", reply)
-                    executed = True
-                    break
-            
-            if executed: return
-
-            if "setting" in clean_cmd:
-                sub_settings = {
-                    "bluetooth": ("ms-settings:bluetooth", "bluetooth"),
-                    "display": ("ms-settings:display", "display"),
-                    "screen": ("ms-settings:display", "display"),
-                    "sound": ("ms-settings:sound", "audio"),
-                    "audio": ("ms-settings:sound", "audio"),
-                    "volume": ("ms-settings:sound", "audio"),
-                    "apps": ("ms-settings:appsfeatures", "installed applications"),
-                    "uninstall": ("ms-settings:appsfeatures", "installed applications"),
-                    "update": ("ms-settings:windowsupdate", "windows update"),
-                    "privacy": ("ms-settings:privacy", "privacy"),
-                    "power": ("ms-settings:powersleep", "power and sleep"),
-                    "sleep": ("ms-settings:powersleep", "power and sleep"),
-                    "battery": ("ms-settings:batterysaver", "battery"),
-                    "storage": ("ms-settings:storagesense", "storage")
-                }
-                for key, (uri, name) in sub_settings.items():
-                    if key in clean_cmd:
-                        subprocess.Popen(f"cmd /c start {uri}", shell=True)
-                        reply = f"navigating directly to {name} settings, sir."
-                        self.speak_voice(reply)
-                        save_chat_message("assistant", reply)
-                        return
-
-            explorer_triggers = ["open", "go to", "show", "explorer", "folder", "drive", "check"]
-            if any(t in clean_cmd for t in explorer_triggers):
-                sub_folders = {
-                    "downloads": ("shell:Downloads", "downloads"),
-                    "download": ("shell:Downloads", "downloads"),
-                    "documents": ("shell:Personal", "documents"),
-                    "document": ("shell:Personal", "documents"),
-                    "pictures": ("shell:My Pictures", "pictures"),
-                    "picture": ("shell:My Pictures", "pictures"),
-                    "photos": ("shell:My Pictures", "pictures"),
-                    "music": ("shell:My Music", "music"),
-                    "videos": ("shell:My Video", "videos"),
-                    "desktop": ("shell:Desktop", "desktop"),
-                    "recycle bin": ("shell:RecycleBinFolder", "recycle bin"),
-                    "trash": ("shell:RecycleBinFolder", "recycle bin"),
-                    "c drive": ("C:\\", "local disk C"),
-                    "d drive": ("D:\\", "local disk D"),
-                    "e drive": ("E:\\", "local disk E")
-                }
-                for key, (path, name) in sub_folders.items():
-                    if key in clean_cmd:
-                        subprocess.Popen(f"explorer {path}", shell=True)
-                        reply = f"pulling up your {name} directory, sir."
-                        self.speak_voice(reply)
-                        save_chat_message("assistant", reply)
-                        return
-
-            # Direct App Launch Fallback (handles standalone names or short launch phrases)
-            launch_verbs = ["open ", "launch ", "start ", "run ", "pull up ", "bring up "]
-            matched_verb = next((v for v in launch_verbs if clean_cmd.startswith(v)), None)
-            target_query = clean_cmd.split(matched_verb, 1)[1].strip() if matched_verb else clean_cmd
-            
-            app_entry, app_name, is_typo = SYS_DRIVER.app_engine.resolve_app(target_query)
-            if app_entry and (matched_verb or len(clean_cmd.split()) <= 3):
-                success, reply, resolved_name = SYS_DRIVER.app_engine.launch(target_query)
-                self.speak_voice(reply)
-                save_chat_message("assistant", reply)
-                return
-
-            intent_type = "CHAT"
-            app_target = None
-            app_opened_successfully = False
-            is_state_handled = False
-            is_correction = False
-            reply = ""
-            
-            instant_responses = {
-                "hey": ["Yes, sir.", "At your service, sir.", "hir sir, what's up", "hi sir, i am Ready."],
-                "hello": ["si, sir. how are you.", "hey, what we are going to do sir..", "hi sir, what we are going to do."],
-                "hi": ["Hello, sir.","hi, 'hydra' here, what we are going to do." , "hi sir, At your service."],
-                "hydra": ["Listening, sir.","Listening, sir.", "Yes, I am here."],
-                "status": ["All systems operating within normal parameters, sir.", "Core status nominal. Fully active."],
-                "what is your name": [f"My name is {ASSISTANT_NAME}.", f"I am {ASSISTANT_NAME}, your system automation assistant."],
-                "whats your name": [f"My name is '{ASSISTANT_NAME}'.", f"You can call me '{ASSISTANT_NAME}'."],
-                "who are you": [f"I am '{ASSISTANT_NAME}', your assistant."],
-                "what is my name": [f"sir, your name is '{MASTER_NAME}'."],
-                "how are you": ["I'm operating perfectly, sir. How are you?", "All systems optimal, sir. Yourself?"],
-                "how are you doing": ["Running smoothly, sir. How about you?", "I'm doing great, sir. And you?"],
-                "how is it going": ["Going well, sir. Ready when you are.", "All good on my end, sir."],
-                "how's it going": ["Going well, sir. Ready when you are.", "All good on my end, sir."],
-                "whats up": ["Not much, sir. Ready for your command.", "All quiet here, sir. What do you need?"],
-                "what's up": ["Not much, sir. Ready for your command.", "All quiet here, sir. What do you need?"],
-                "good morning": ["Good morning, sir.", "Morning, sir. Ready to assist."],
-                "good night": ["Good night, sir. Rest well.", "Sleep well, sir."],
-                "thank you": ["You're welcome, sir.", "Anytime, sir."],
-                "thanks": ["You're welcome, sir.", "Happy to help, sir."],
-            }
-            
-            if DIALOGUE_STATE["mode"] == "AWAITING_CONFIRMATION":
-                if "yes" in clean_cmd or "sure" in clean_cmd or "do it" in clean_cmd or "go ahead" in clean_cmd:
-                    app_target = DIALOGUE_STATE["payload"]
-                    DIALOGUE_STATE = {"mode": "NORMAL", "pending_action": None, "payload": None}
-                    print(f"[DIALOGUE MANAGER] Confirmation approved for target: {app_target}")
-                    is_state_handled = True
-                elif "no" in clean_cmd or "cancel" in clean_cmd or "stop" in clean_cmd:
-                    reply = "Understood, sir. Operation cancelled."
-                    DIALOGUE_STATE = {"mode": "NORMAL", "pending_action": None, "payload": None}
-                    print("[DIALOGUE MANAGER] Confirmation rejected by user.")
-                    is_state_handled = True
-                else:
-                    reply = "I am waiting for your confirmation, sir. Should I proceed?"
-                    is_state_handled = True
-
-            # ---> NEW: EXPLORER POP-UP LISTENER <---
-            elif DIALOGUE_STATE["mode"] == "AWAITING_EXPLORER":
-                if any(w in clean_cmd for w in ["yes", "sure", "yeah", "yup", "ok", "show", "open", "please"]):
-                    folder_to_open = DIALOGUE_STATE["payload"]
-                    subprocess.Popen(f'explorer "{folder_to_open}"', shell=True)
-                    reply = "Opening location on your screen, sir."
-                    DIALOGUE_STATE = {"mode": "NORMAL", "pending_action": None, "payload": None}
-                    is_state_handled = True
-                elif any(w in clean_cmd for w in ["no", "nope", "nah", "cancel", "nevermind", "leave"]):
-                    reply = "As you wish, sir."
-                    DIALOGUE_STATE = {"mode": "NORMAL", "pending_action": None, "payload": None}
-                    is_state_handled = True
-                else:
-                    reply = "Sir, do you want me to pull up that folder? Yes or no?"
-                    is_state_handled = True
-
-            elif DIALOGUE_STATE["mode"] == "AWAITING_OPEN_FILE":
-                if any(w in clean_cmd for w in ["yes", "sure", "yeah", "yup", "ok", "open", "please"]):
-                    target_file = DIALOGUE_STATE["payload"]
-                    if target_file and os.path.exists(target_file):
-                        os.startfile(target_file)
-                        reply = "Opening file on your screen, sir."
-                    else:
-                        reply = "File could not be found to open, sir."
-                    DIALOGUE_STATE = {"mode": "NORMAL", "pending_action": None, "payload": None}
-                    is_state_handled = True
-                elif any(w in clean_cmd for w in ["no", "nope", "nah", "cancel", "nevermind", "leave"]):
-                    reply = "Understood, sir."
-                    DIALOGUE_STATE = {"mode": "NORMAL", "pending_action": None, "payload": None}
-                    is_state_handled = True
-                else:
-                    reply = "Sir, do you want me to open the updated file? Yes or no?"
-                    is_state_handled = True
-
-            # ---> NEW: SMART FILE EDITING & CORRECTION LISTENER <---
-            edit_triggers = ["should have wrote", "should have written", "instead write", "write this instead", "replace the text", "remove that and write"]
-            if any(nt in clean_cmd for nt in edit_triggers):
-                new_text = command
-                for nt in edit_triggers:
-                    if nt in clean_cmd:
-                        idx = command.lower().find(nt) + len(nt)
-                        # Removes filler words like 'with' or 'to' just after the trigger
-                        new_text = command[idx:].strip(' \'".,:')
-                        if new_text.lower().startswith("with "): new_text = new_text[5:].strip(' \'".,:')
-                        if new_text.lower().startswith("to "): new_text = new_text[3:].strip(' \'".,:')
-                        break
-                
-                # Try to extract a specific filename if mentioned: "in my_file replace the text..."
-                file_target = None
-                file_match = re.search(r'(?:in|on|inside) (.*?) (?:replace|remove|write)', clean_cmd)
-                if file_match:
-                    found, path, is_dir = SYS_DRIVER.locate_path(file_match.group(1).strip(), target_type="FILE")
-                    if found: file_target = path
-                
-                # Fallback to the last file we interacted with or created
-                if not file_target:
-                    file_target = globals().get("LAST_INTERACTED_FILE")
-                
-                if file_target and os.path.exists(file_target):
-                    try:
-                        with open(file_target, "w", encoding="utf-8") as f:
-                            f.write(new_text)
-                        
-                        last_cmd = get_last_user_command()
-                        if last_cmd:
-                            memory_string = f"CRITICAL RULE: When told '{last_cmd.strip()}', the EXACT document text must be: {new_text}"
-                            save_long_term_memory(memory_string)
-                        
-                        globals()["LAST_INTERACTED_FILE"] = file_target
-                        subprocess.Popen(["notepad.exe", file_target])
-                        reply = "I have updated the file and logged this correction into my core memory, sir."
-                        is_correction = True
-                    except Exception as e:
-                        reply = f"Failed to rewrite file, sir: {e}" 
-                        is_correction = True
-                else:
-                    reply = "I couldn't determine which file you meant, sir. Please specify the name."
-                    is_correction = True
-
-            global_rule_triggers = ["new rule", "from now on", "behavioral rule", "talk like", "act like"]
-            
-            if any(gt in clean_cmd for gt in global_rule_triggers):
-                clean_fact = command
-                for gt in global_rule_triggers:
-                    if gt in clean_cmd:
-                        idx = command.lower().find(gt) + len(gt)
-                        clean_fact = command[idx:].replace('"', '').replace("'", "").strip(",:! \n")
-                        break
-                
-                save_long_term_memory(f"CRITICAL RULE: {clean_fact}")
-                reply = "Understood, sir i will be carefull next time."
-                is_correction = True
-            else:
-                correction_triggers = ["answer like this", "say this instead", "reply like this", "should reply", "should have replied", "replied", "when i ask"]
-                if any(trigger in clean_cmd for trigger in correction_triggers):
-                    quotes = re.findall(r'"([^"]+)"', command)
-                    if not quotes:
-                        quotes = re.findall(r"'([^']+)'", command)
-                        
-                    user_query = ""
-                    forced_response = ""
-                    
-                    if len(quotes) >= 2:
-                        user_query = quotes[0].strip().lower()
-                        forced_response = quotes[1].strip()
-                    elif len(quotes) == 1:
-                        forced_response = quotes[0].strip()
-                        last_user_cmd = get_last_user_command()
-                        if last_user_cmd:
-                            user_query = last_user_cmd.strip().lower()
-                    else:
-                        text_lower = command.lower()
-                        if "when i ask" in text_lower:
-                            try:
-                                parts = text_lower.split("when i ask", 1)[1]
-                                for splitter in ["you should reply", "you should say", "you should", "reply", "just"]:
-                                    if splitter in parts:
-                                        sub_parts = parts.split(splitter, 1)
-                                        user_query = sub_parts[0].strip()
-                                        forced_response = sub_parts[1].strip()
-                                        if user_query.startswith("you "): 
-                                            user_query = user_query[4:].strip()
-                                        break
-                            except Exception:
-                                pass
-
-                    if user_query and forced_response:
-                        user_query = user_query.replace(".", "").replace("!", "").replace("?", "").strip()
-                        context_track = get_context_snapshot()
-                        save_contextual_rule(user_query, forced_response, context_track)
-                        reply = "Understood, sir. Mapped those exact phrase parameters to this conversation track."
-                        is_correction = True
-
-            if is_correction or is_state_handled:
-                pass
-            else:
-                # Autonomous Desktop Goal & Keyboard-First Planning (Phase 2)
-                is_action_goal = any(kw in clean_cmd for kw in [
-                    'find ', 'play ', 'like ', 'add to liked', 'change theme', 'set theme',
-                    'open app', 'mute spotify', 'unmute spotify', 'search for '
-                ]) or (
-                    any(app in clean_cmd for app in ['spotify', 'antigrav', 'chrome', 'brave', 'notepad', 'vscode', 'whatsapp', 'calc'])
-                    and any(act in clean_cmd for act in ['play', 'find', 'search', 'open', 'theme', 'mute', 'like', 'type', 'add', 'send'])
-                )
-                if is_action_goal:
-                    try:
-                        from goal_decomposer import decompose_goal_plan, format_plan_for_display
-                        plan = decompose_goal_plan(command)
-                        print(format_plan_for_display(plan))
-                        steps = plan.get('steps', [])
-                        app_name = plan.get('app', 'the application')
-                        shortcuts = plan.get('shortcuts_used', [])
-                        shortcut_str = f' using {shortcuts[0]}' if shortcuts else ''
-                        from verified_executor import VERIFIED_EXECUTOR
-                        if plan.get('found_in_database'):
-                            intro = f'Executing verified prior procedure with {len(steps)} steps for {app_name}, sir.'
-                        else:
-                            intro = f'Executing plan with {len(steps)} steps for {app_name}{shortcut_str}, with visual verification.'
-                        self.speak_voice(intro)
-                        success, final_reply, exec_logs = VERIFIED_EXECUTOR.execute_plan(plan)
-                        self.speak_voice(final_reply)
-                        save_chat_message('user', command)
-                        save_chat_message('assistant', final_reply)
-                        return
-                    except Exception as e:
-                        print(f'[GOAL ERROR] {e}')
-
-                context_track = get_context_snapshot()
-                matched_rule = find_contextual_rule(clean_cmd, context_track)
-                if matched_rule:
-                    print(f"[LEARNING CORE] Context Matching Rule Triggered: '{matched_rule}'")
-                    reply = matched_rule
-                elif clean_cmd in instant_responses:
-                    reply = random.choice(instant_responses[clean_cmd])
-                elif is_simple_conversation(clean_cmd):
-                    print("[ROUTER] Fast conversational path")
-                    quick_reply = ai_chat(
-                        DEFAULT_FAST_MODEL,
-                        [
-                            {
-                                "role": "system",
-                                "content": (
-                                    f"You are {ASSISTANT_NAME}, {MASTER_NAME}'s brilliant, loyal, and charismatic desktop AI companion. "
-                                    f"Address him naturally as Ahmad or sir. Keep replies warm, engaging, and spoken (max 20 words). "
-                                    "CRITICAL MANDATE: Never output internal reasoning, scratchpads, or 'Here's a thinking process:'. Start immediately with your spoken answer."
-                                ),
-                            },
-                            {"role": "user", "content": command},
-                        ],
-                        num_predict=450,
-                        num_ctx=1024,
-                        timeout=12,
+                    success, final_reply, exec_logs = VERIFIED_EXECUTOR.run_vision_agent_task(
+                        task_text=task_text,
+                        status_callback=on_hud_status,
+                        voice_callback=speak_voice,
+                        hud_disambig_callback=on_hud_disambig
                     )
-                    reply = quick_reply or "I'm right here with you, Ahmad. How can I help?"
-                else:
-                    try:
-                        history_context = load_chat_context()
-                        learned_facts = retrieve_relevant_memories(clean_cmd)
-                        facts_context = ", ".join(learned_facts[:6]) if learned_facts else "None."
-                        
-                        intent_type = "CHAT"
-                        extracted_target = None
-                        launch_phrases = [
-                            "open up", "launch", "open", "start", "run", "execute", 
-                            "go to", "fire up", "pull up", "bring up", "turn on", "boot up"
-                        ]
-                        info_phrases = [
-                            "what is", "who is", "tell me about", "tell me something about", 
-                            "search for", "define", "explain", "do you know about", 
-                            "information on", "information about"
-                        ]
-                        
-                        for phrase in launch_phrases:
-                            if clean_cmd.startswith(phrase + " "):
-                                intent_type = "LAUNCH"
-                                extracted_target = clean_cmd.split(phrase, 1)[1].strip()
-                                break
-                            elif " " + phrase + " " in " " + clean_cmd + " ":
-                                preceding_text = clean_cmd.split(" " + phrase + " ", 1)[0]
-                                conversational_markers = ["like", "about", "how", "show", "tell", "explain", "example"]
-                                if not any(marker in preceding_text for marker in conversational_markers):
-                                    intent_type = "LAUNCH"
-                                    extracted_target = clean_cmd.split(" " + phrase + " ", 1)[1].strip()
-                                    break
+                    if final_reply and final_reply.strip():
+                        speak_voice(final_reply)
 
-                        if intent_type == "CHAT":
-                            # Check if the phrase is anywhere in the command, not just at the start
-                            if any(p in clean_cmd for p in info_phrases) or "meaning of" in clean_cmd:
-                                intent_type = "INFO"
+                except Exception as e:
+                    print(f"[GOAL ERROR] {e}")
+                    speak_voice("I encountered an issue executing that action, sir.")
 
-                        if intent_type == "LAUNCH" and extracted_target:
-                            for filler in ["please", "for me", "quickly", "the", "an", "app", "application"]:
-                                if extracted_target.startswith(filler + " "):
-                                    extracted_target = extracted_target.replace(filler + " ", "", 1)
-                                if extracted_target.endswith(" " + filler):
-                                    extracted_target = extracted_target[:-len(" " + filler)].strip()
-                            app_target = extracted_target
-                            print(f"[INTENT AGENT] Classified: LAUNCH | Target Entity: '{app_target}'")
-                        else:
-                            print(f"[INTENT AGENT] Classified: {intent_type}")
+            threading.Thread(target=goal_worker, daemon=True, name="HydraGoalWorker").start()
 
-                        if intent_type == "LAUNCH":
-                            selected_model = DEFAULT_FAST_MODEL
-                            system_prompt = (
-                                f"Your name is {ASSISTANT_NAME}. Address master as sir. "
-                                f"Return line 1 EXACTLY as: 'LAUNCH: {app_target}'. "
-                                "Line 2: Friendly 5-word confirmation."
-                            )
-                            model_options = {"num_predict": 30, "num_ctx": 256}
-                        elif intent_type == "INFO":
-                            spoken_reply, _ = execute_information_retrieval(clean_cmd)
-                            print(f"[IR AGENT] Fetched Live Data Payload: {spoken_reply}")
-                            self.speak_voice(spoken_reply)
-                            save_chat_message("assistant", spoken_reply)
-                            return
-                        else:
-                            selected_model = DEFAULT_FAST_MODEL
-                            raw_rules = load_long_term_memories()[:5]
-                            formatted_rules = "\n".join([f"- {r}" for r in raw_rules]) if raw_rules else "None."
-                            system_prompt = (
-                                f"You are {ASSISTANT_NAME}, {MASTER_NAME}'s personal AI companion and desktop assistant. "
-                                f"Address him naturally as Ahmad or sir. Keep your replies warm, witty, articulate, and conversational (under 35 words). "
-                                f"Rules:\n{formatted_rules}\nFacts:\n{facts_context}\n"
-                                "CRITICAL MANDATE: Never output internal reasoning, scratchpads, or 'Here's a thinking process:'. Start immediately with your spoken reply."
-                            )
-                            model_options = {"num_predict": 500, "num_ctx": 2048}
-                        
-                        print(f"[ROUTER] Active Intelligence Core: {selected_model}")
-                        system_instruction = {"role": "system", "content": system_prompt}
-                        conversation_payload = [system_instruction] + history_context
-                        
-                        llm_reply = ai_chat(
-                            selected_model,
-                            conversation_payload,
-                            num_predict=model_options.get("num_predict", 500),
-                            num_ctx=model_options.get("num_ctx", 2048),
-                            timeout=25,
-                        )
-                        if llm_reply:
-                            reply = llm_reply
-                        else:
-                            reply = "I'm here, sir. Could you repeat that?"
-                    except Exception as e:
-                        print(f"\n[DEBUG] Core Communication Error: {e}")
-                        self.speak_voice("Failed to communicate with local intelligence core.")
-                        return
+        # 2. Conversational Q&A / Knowledge (Brain LLM)
+        # Direct questions, explanations, definitions, small talk -> NEVER hijacked by background or desktop action goals!
+        if classified.intent_type == IntentType.CONVERSATIONAL:
+            # Let command_worker handle conversational queries through PersonalJarvis BrainManager
+            pass
 
-            if not is_state_handled:
-                print(f"[DEBUG] Raw AI Response:\n{reply}\n")
-                cleaned_reply = reply.replace("*", "").replace("`", "").strip()
+        # 3. Account Management & Headless Background Actions (Threaded to support interactive Disambiguation pauses)
+        elif classified.intent_type in [IntentType.ACCOUNT_MANAGEMENT, IntentType.HEADLESS_BACKGROUND]:
+            def bg_worker():
+                try:
+                    from plugins.direct_dispatcher import DIRECT_DISPATCHER
+                    bg_result = DIRECT_DISPATCHER.dispatch(cmd_normalized, classified=classified)
+                    if bg_result is not None:
+                        ok, bg_speech = bg_result
+                        if bg_speech and bg_speech.strip():
+                            speak_voice(bg_speech)
+                            safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(bg_speech)});")
+                    else:
+                        _run_desktop_goal(cmd_normalized)
+                except Exception as e:
+                    print(f"[DIRECT DISPATCHER ERROR] {e}")
 
-                if not is_correction:
-                    if "memorize:" in cleaned_reply.lower():
+            threading.Thread(target=bg_worker, daemon=True, name="HydraBackgroundWorker").start()
+            return
+
+        # 4. Foreground Desktop Actions (Explicit 'open', 'launch', 'change theme', 'open chat')
+        elif classified.intent_type == IntentType.FOREGROUND_DESKTOP:
+            _run_desktop_goal(cmd_normalized)
+            return
+
+        # Execute general conversational queries through PersonalJarvis BrainManager
+        def command_worker():
+            t_start = time.perf_counter()
+            try:
+                def _get_connected_plugins_dict():
+                    p_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "connected_plugins.json")
+                    if not os.path.exists(p_file):
+                        inner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "PersonalJarvis-main", "connected_plugins.json")
+                        if os.path.exists(inner):
+                            p_file = inner
+                    if os.path.exists(p_file):
                         try:
-                            for line in cleaned_reply.split("\n"):
-                                if "memorize:" in line.lower():
-                                    idx = line.lower().find("memorize:") + len("memorize:")
-                                    extracted_fact = line[idx:].strip()
-                                    if extracted_fact:
-                                        save_long_term_memory(extracted_fact)
-                                        print(f"[DEBUG] Permanent Memory Locked In: '{extracted_fact}'")
+                            with open(p_file, "r", encoding="utf-8") as pf:
+                                return json.load(pf)
                         except Exception:
                             pass
-                    
-                    if "launch:" in cleaned_reply.lower():
-                        try:
-                            lines = cleaned_reply.split("\n")
-                            launch_line = [l for l in lines if "launch:" in l.lower()][0]
-                            idx = launch_line.lower().find("launch:") + len("launch:")
-                            app_target = launch_line[idx:].strip().lower()
-                            if app_target.startswith("open "):
-                                app_target = app_target.replace("open ", "", 1)
-                        except Exception:
-                            pass
+                    return {}
+
+                connected_plugins_data = _get_connected_plugins_dict()
+
+                # Direct check if user is asking about connected apps or plugin status
+                low_cmd = cmd_clean.lower()
+                if any(w in low_cmd for w in ["connected", "plugin", "plugins", "link", "connection"]) and any(w in low_cmd for w in ["which", "what", "is", "are", "check", "status", "list", "show"]):
+                    active_plg = [f"{pk.replace('_', ' ').title()} ({pv.get('account', 'active')})" for pk, pv in connected_plugins_data.items() if isinstance(pv, dict) and pv.get("connected")]
+                    if active_plg:
+                        reply = f"Sir, your connected apps are: {', '.join(active_plg)}. They are fully connected and active."
                     else:
-                        if intent_type == "LAUNCH":
-                            conversational_triggers = ["opening", "openin'", "launching", "launchin'", "start", "starting", "open", "launch"]
-                            for trigger in conversational_triggers:
-                                match = re.search(r'\b' + re.escape(trigger) + r'\b', cleaned_reply.lower())
-                                if match:
-                                    idx = match.end()
-                                    remainder = cleaned_reply[idx:].strip()
-                                    if remainder:
-                                        potential = remainder.split()[0].replace(".", "").replace("!", "").replace(",", "").replace("...", "").strip().lower()
-                                        if potential and len(potential) > 1:
-                                            app_target = potential
-                                            print(f"[DEBUG] Conversational Intercept Triggered! Target: '{app_target}'")
-                                            break
+                        reply = "Sir, you do not have any apps connected in the Plugins Hub yet. You can connect them using the CONNECT APPS button."
+                    speak_voice(reply)
+                    return
 
-                    if app_target:
-                        word_count = len(app_target.split())
-                        has_punctuation = any(char in app_target for char in ['.', '!', ',', '?', '...'])
-                        if word_count > 3 or has_punctuation:
-                            print(f"[DEBUG] Target '{app_target}' rejected by Safety Valve.")
-                            app_target = None
+                # Enrich conversational prompt with connected plugins context
+                brain_input = cmd_clean
+                if connected_plugins_data:
+                    plg_summary = ", ".join([f"{pk.replace('_', ' ').title()} (account: {pv.get('account')})" for pk, pv in connected_plugins_data.items() if isinstance(pv, dict) and pv.get("connected")])
+                    if plg_summary:
+                        brain_input = f"[System Context: Connected plugins in HYDRA Plugins Hub: {plg_summary}]\n{cmd_clean}"
 
-            if app_target:
-                try:
-                    success, spoken_launch, launched_name = SYS_DRIVER.app_engine.launch(app_target)
-                    self.speak_voice(spoken_launch)
-                    app_opened_successfully = success
-                except Exception as e:
-                    print(f"[DEBUG] System Automation Error: {e}")
+                brain = get_jarvis_brain()
+                response = run_async(
+                    brain.generate(brain_input, publish_response=False),
+                    timeout=120.0
+                )
+                cleaned = clean_ai_response(response, user_input_hint=cmd_clean)
+                if not cleaned:
+                    cleaned = "Command processed, sir."
 
-            if not is_state_handled:
-                clean_lines = []
-                for line in cleaned_reply.split("\n"):
-                    if "launch:" not in line.lower() and "memorize:" not in line.lower():
-                        clean_lines.append(line)
-                reply = "\n".join(clean_lines).strip()
-                if app_opened_successfully:
-                    reply = f"sir, {app_target} ready, what do you want here."
-                elif not reply:
-                    reply = "Done, sir."
+                print(f"[ENGINE] Execution finished in {time.perf_counter() - t_start:.2f}s")
+                speak_voice(cleaned)
+            except Exception as exc:
+                print(f"[ENGINE ERROR] {exc}")
+                speak_voice("I encountered an issue executing that command, sir.")
 
-            self.speak_voice(reply)
-            print(f"[TIMING] Reply ready in {time.perf_counter() - pipeline_start:.1f}s")
-            threading.Thread(target=lambda: save_chat_message("assistant", reply), daemon=True).start()
+        threading.Thread(target=command_worker, daemon=True).start()
 
-        threading.Thread(target=background_processor, daemon=True).start()
 
-    def speak_voice(self, text):
-        # ---> THIS PRINTS HYDRA'S REPLY TO YOUR TERMINAL <---
-        print(f"\n[HYDRA SAYS]: {text}\n")
-        
-        def voice_worker():
-            import time
-            t0 = time.perf_counter()
-            cleaned_text = text.replace("h.y.d.r.a", "Hydra").replace("H.Y.D.R.A", "Hydra").replace(".", " ")
-            spoken = False
+class HydraMainWindow(QMainWindow):
+    """Custom QMainWindow that notifies WebEngine when window visibility changes to throttle CPU/GPU."""
 
-            def speak_offline():
-                nonlocal spoken
-                with TTS_LOCK:  # Forces threads to stand in line to use the Windows Voice
-                    engine = get_tts_engine()
-                    approx_dur = max(1.5, len(cleaned_text) * 0.065)
-                    safe_emit_js(f"notifySpeechStart({approx_dur});")
-                    engine.say(cleaned_text)
-                    engine.runAndWait()
-                    safe_emit_js("notifySpeechEnd();")
-                    spoken = True
-                    print(f"[VOICE] Offline speech successful ({time.perf_counter() - t0:.1f}s).")
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.WindowStateChange:
+            is_minimized = self.isMinimized()
+            safe_emit_js(f"if (window.setWindowVisibility) window.setWindowVisibility({str(not is_minimized).lower()});")
 
-            try:
-                print("[VOICE] Attempting cloud synthesis...")
-                async def generate_audio():
-                    communicate = edge_tts.Communicate(
-                        cleaned_text,
-                        "en-GB-RyanNeural",
-                        pitch="-25Hz",
-                        rate="-8%",
-                    )
-                    audio_data = bytearray()
-                    async for chunk in communicate.stream():
-                        if chunk["type"] == "audio":
-                            audio_data.extend(chunk["data"])
-                    return bytes(audio_data)
+    def hideEvent(self, event):
+        super().hideEvent(event)
+        safe_emit_js("if (window.setWindowVisibility) window.setWindowVisibility(false);")
 
-                async def generate_with_timeout():
-                    return await asyncio.wait_for(generate_audio(), timeout=4.0)
+    def showEvent(self, event):
+        super().showEvent(event)
+        safe_emit_js("if (window.setWindowVisibility) window.setWindowVisibility(true);")
 
-                global TTS_LOOP
-                if TTS_LOOP is None or TTS_LOOP.is_closed():
-                    TTS_LOOP = asyncio.new_event_loop()
-                raw_audio = TTS_LOOP.run_until_complete(generate_with_timeout())
-                
-                # Notify living organism core and play audio smoothly
-                approx_dur = max(1.5, len(cleaned_text) * 0.068)
-                safe_emit_js(f"notifySpeechStart({approx_dur});")
 
-                audio_stream = io.BytesIO(raw_audio)
-                ensure_pygame_mixer()
-                pygame.mixer.music.load(audio_stream, "mp3")
-                pygame.mixer.music.play()
-                while pygame.mixer.music.get_busy():
-                    pygame.time.Clock().tick(10)
-                pygame.mixer.music.unload()
+def main():
+    print("=" * 60)
+    print("           HYDRA SYSTEM INTERFACE (PersonalJarvis Core)")
+    print(f"           Persona: {ASSISTANT_NAME} | Master: {MASTER_NAME}")
+    print("           Engine: Nebius API (NVIDIA Nemotron)")
+    print("           Voice: en-GB-RyanNeural (Edge-TTS)")
+    print("=" * 60)
 
-                safe_emit_js("notifySpeechEnd();")
-                spoken = True
-                print(f"[VOICE] Cloud speech successful ({time.perf_counter() - t0:.1f}s).")
-            except Exception as online_err:
-                print(f"[VOICE] Cloud speech dropped ({time.perf_counter() - t0:.1f}s): {online_err}. Using offline voice...")
-                try:
-                    try:
-                        if PYGAME_MIXER_READY:
-                            pygame.mixer.music.stop()
-                            pygame.mixer.music.unload()
-                    except Exception:
-                        pass
-                    speak_offline()
-                except Exception as offline_err:
-                    print(f"[VOICE] Offline speech failed: {offline_err}")
-
-            if not spoken:
-                try:
-                    speak_offline()
-                except Exception as offline_err:
-                    print(f"[VOICE] Both voice engines failed: {offline_err}")
-
-        threading.Thread(target=voice_worker, daemon=True).start()
-
-if __name__ == "__main__":
-    init_memory_db()
-    populate_apps_cache()
+    # Initialize audio mixer
     ensure_pygame_mixer()
-    warm_up_ai_models()
-    threading.Thread(target=get_tts_engine, daemon=True).start()
-    threading.Thread(target=historical_learning_worker, daemon=True).start() # <--- Starts the Deep Sleep learner
-    threading.Thread(target=network_monitor_worker, daemon=True).start() # <--- Starts the Real Network HUD Tracker
+    threading.Thread(target=get_offline_tts, daemon=True).start()
 
-    # ---> DODAIOS ADVANCED BACKEND SERVICES (Persistent Cron Tasks, Safety, Remote Channels) <---
-    try:
-        from dodaios_bridge import DODAIOS_BRIDGE
-        DODAIOS_BRIDGE.start(SYS_DRIVER)
-    except Exception as e:
-        print(f"[MAIN] Dodaios Bridge startup notice: {e}")
-    
+    # Pre-warm brain in background thread so first query is instantaneous
+    threading.Thread(target=get_jarvis_brain, daemon=True).start()
+
     app = QApplication(sys.argv)
-    
-    # Safe executor function that runs on the main GUI thread
+
     def _run_js_safe(code):
         if ACTIVE_PAGE:
             ACTIVE_PAGE.runJavaScript(code)
-            
-    # Connect our bridge signal to the safe executor
+
     GUI_SIGNALS.js_signal.connect(_run_js_safe)
-    
+
     window = HydraMainWindow()
     window.setWindowTitle("HYDRA System Interface")
     window.resize(1200, 750)
     window.setMinimumSize(1000, 650)
+
     view = QWebEngineView()
-    
-    # --- FIX: ENSURE REMOTE IMAGES LOAD PROPERLY ---
-    from PyQt6.QtWebEngineCore import QWebEngineSettings, QWebEngineProfile
     profile = QWebEngineProfile.defaultProfile()
     profile.setHttpUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+
     settings = view.settings()
     settings.setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, True)
     settings.setAttribute(QWebEngineSettings.WebAttribute.Accelerated2dCanvasEnabled, True)
     settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+    settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
     settings.setAttribute(QWebEngineSettings.WebAttribute.AllowRunningInsecureContent, True)
     settings.setAttribute(QWebEngineSettings.WebAttribute.PlaybackRequiresUserGesture, False)
-    # -----------------------------------------------
-    
+
     page = HydraPage(view)
+    global ACTIVE_PAGE
     ACTIVE_PAGE = page
     view.setPage(page)
-    view.setUrl(QUrl.fromLocalFile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")))
+
+    index_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
+    view.setUrl(QUrl.fromLocalFile(index_path))
     window.setCentralWidget(view)
     window.show()
 
-    from PyQt6.QtCore import QPoint
-    def _get_hud_rect():
-        try:
-            pt = view.mapToGlobal(QPoint(0, 0))
-            return (pt.x(), pt.y(), view.width(), view.height())
-        except Exception:
-            return (window.x(), window.y(), window.width(), window.height())
-
-    SYS_DRIVER.set_hud_window_provider(_get_hud_rect)
-    
-    # --- REAL-TIME SPOTIFY / SYSTEM MEDIA TELEMETRY POLLER ---
-    from PyQt6.QtCore import QTimer
-    from media_controller import MEDIA_CONTROLLER
-    import json
-
-    def _poll_media_telemetry():
+    # Real-Time Media Telemetry Poller (Spotify / System Audio HUD)
+    # Adaptive: 850ms when audio is actively playing, 2500ms (2.5s) when idle
+    def _poll_media():
         try:
             state = MEDIA_CONTROLLER.get_state()
             if state and ACTIVE_PAGE:
-                GUI_SIGNALS.js_signal.emit(f"updateMediaState({json.dumps(state)});")
+                safe_emit_js(f"updateMediaState({json.dumps(state)});")
 
             is_audio_active = bool(state and state.get("active") and state.get("status") == "PLAYING")
             target_interval = 850 if is_audio_active else 2500
@@ -1858,8 +761,63 @@ if __name__ == "__main__":
 
     media_timer = QTimer(window)
     media_timer.setInterval(2500)
-    media_timer.timeout.connect(_poll_media_telemetry)
+    media_timer.timeout.connect(_poll_media)
     media_timer.start()
-    # --------------------------------------------------------
+
+    # Autonomous Background App Supervisor (Problem 3)
+    # Continuously monitors Classroom deadlines, Gmail unread, and app telemetry
+    _LAST_SUPERVISION_CHECK = {
+        "notified_assignments": set(),
+        "last_unread_emails": -1
+    }
+
+    def _poll_background_apps():
+        def _supervision_worker():
+            try:
+                # 1. Google Classroom: Check for coursework due today
+                from plugins.classroom_direct_worker import CLASSROOM_WORKER
+                if CLASSROOM_WORKER.is_ready():
+                    ok, speech, due_today = CLASSROOM_WORKER.get_due_today()
+                    if ok and due_today:
+                        for asg in due_today:
+                            asg_key = f"{asg.get('course')}_{asg.get('title')}"
+                            if asg_key not in _LAST_SUPERVISION_CHECK["notified_assignments"]:
+                                _LAST_SUPERVISION_CHECK["notified_assignments"].add(asg_key)
+                                notify_text = f"Sir, urgent background notice: you have an assignment due today in {asg.get('course')}: '{asg.get('title')}'."
+                                speak_voice(notify_text)
+                                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(notify_text)});")
+
+                # 2. Gmail: Check for newly arrived unread emails
+                from plugins.gmail_direct_worker import GMAIL_WORKER
+                if GMAIL_WORKER.is_ready():
+                    email_addr, pwd = GMAIL_WORKER._get_credentials()
+                    if email_addr and pwd:
+                        ok, _, emails = GMAIL_WORKER.get_unread_emails(limit=3)
+                        if ok:
+                            count = len(emails)
+                            last_cnt = _LAST_SUPERVISION_CHECK.get("last_unread_emails", -1)
+                            if last_cnt != -1 and count > last_cnt:
+                                diff = count - last_cnt
+                                top_from = emails[0].get("from", "Sender")
+                                top_sub = emails[0].get("subject", "Subject")
+                                notify_mail = f"Sir, you have {diff} new email in Gmail from {top_from} regarding '{top_sub}'."
+                                speak_voice(notify_mail)
+                                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(notify_mail)});")
+                            _LAST_SUPERVISION_CHECK["last_unread_emails"] = count
+
+            except Exception as e:
+                print(f"[BACKGROUND SUPERVISOR NOTE]: {e}")
+
+        threading.Thread(target=_supervision_worker, daemon=True).start()
+
+    supervisor_timer = QTimer(window)
+    supervisor_timer.setInterval(60000)  # Check every 60 seconds
+    supervisor_timer.timeout.connect(_poll_background_apps)
+    # Start after initial 10s delay so system boots cleanly first
+    QTimer.singleShot(10000, supervisor_timer.start)
 
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()

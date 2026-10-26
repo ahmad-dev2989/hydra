@@ -25,6 +25,9 @@ VK_MEDIA_NEXT_TRACK = 0xB0
 VK_MEDIA_PREV_TRACK = 0xB1
 VK_MEDIA_STOP = 0xB2
 VK_MEDIA_PLAY_PAUSE = 0xB3
+VK_VOLUME_MUTE = 0xAD
+VK_VOLUME_DOWN = 0xAE
+VK_VOLUME_UP = 0xAF
 KEYEVENTF_KEYUP = 0x0002
 
 
@@ -203,7 +206,7 @@ class MediaController:
 
     def toggle_play_pause(self):
         """Toggles play/pause on current session or falls back to hardware media key."""
-        res = self._run_coroutine(self._async_toggle_play_pause(), timeout=1.5)
+        res = self._run_coroutine(self._async_toggle_play_pause(), timeout=0.4)
         if not res:
             _send_media_key(VK_MEDIA_PLAY_PAUSE)
         return True
@@ -234,7 +237,7 @@ class MediaController:
 
     def next_track(self):
         """Skips to next track."""
-        res = self._run_coroutine(self._async_next(), timeout=1.5)
+        res = self._run_coroutine(self._async_next(), timeout=0.4)
         if not res:
             _send_media_key(VK_MEDIA_NEXT_TRACK)
         return True
@@ -251,7 +254,7 @@ class MediaController:
 
     def prev_track(self):
         """Skips to previous track."""
-        res = self._run_coroutine(self._async_prev(), timeout=1.5)
+        res = self._run_coroutine(self._async_prev(), timeout=0.4)
         if not res:
             _send_media_key(VK_MEDIA_PREV_TRACK)
         return True
@@ -268,20 +271,26 @@ class MediaController:
 
     def seek(self, target_seconds):
         """Seeks to playback position in seconds."""
-        res = self._run_coroutine(self._async_seek(target_seconds), timeout=1.5)
+        res = self._run_coroutine(self._async_seek(target_seconds), timeout=0.5)
         return bool(res)
 
-    async def _async_seek(self, target_seconds):
-        try:
-            manager = await SMTCManager.request_async()
-            curr = manager.get_current_session()
-            if curr:
-                # Target in 100-nanosecond ticks
-                ticks = int(target_seconds * 10_000_000)
-                return await curr.try_change_playback_position_async(ticks)
-        except Exception:
-            pass
-        return False
+    def volume_up(self, steps=2):
+        """Increases system/media master volume."""
+        for _ in range(steps):
+            _send_media_key(VK_VOLUME_UP)
+            time.sleep(0.01)
+        return True
+
+    def volume_down(self, steps=2):
+        """Decreases system/media master volume."""
+        for _ in range(steps):
+            _send_media_key(VK_VOLUME_DOWN)
+            time.sleep(0.01)
+        return True
+
+    def toggle_mute(self):
+        """Toggles audio mute state."""
+        return _send_media_key(VK_VOLUME_MUTE)
 
 
 # Singleton instance

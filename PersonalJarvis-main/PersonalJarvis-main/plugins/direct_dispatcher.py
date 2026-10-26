@@ -65,10 +65,15 @@ class DirectBackgroundDispatcher:
             params = classified.parameters or {}
 
             # Standalone Transport
-            if action in ["transport", "next_track", "prev_track", "pause", "resume"] or low in ["pause", "resume", "stop", "next", "skip", "previous", "prev", "unpause", "mute", "unmute"]:
+            if action in ["transport", "next_track", "prev_track", "pause", "resume", "volume", "current_track"] or low in ["pause", "resume", "stop", "next", "skip", "previous", "prev", "unpause", "mute", "unmute"]:
                 print(f"[DIRECT DISPATCHER] Routing transport '{action}' ({low}) to Spotify Direct Background Worker...")
                 ok, speech, _ = SPOTIFY_WORKER.execute_task(action, cmd_clean, **params)
                 return ok, speech
+
+            # For Spotify: ANY other action (specific tracks, search, playlist, library) MUST NOT be handled by headless background
+            if target_app == "spotify":
+                print(f"[DIRECT DISPATCHER] Spotify action '{action}' is not pure transport. Returning None to trigger Dynamic Vision Agent.")
+                return None
 
             # Route through Transparent Fallback Engine
             if target_app and target_app in self.workers:

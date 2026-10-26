@@ -2011,7 +2011,7 @@
   },
   "store": {
     "name": "Store",
-    "target": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsStore_22609.1401.5.0_x64__8wekyb3d8bbwe\\store.exe",
+    "target": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsStore_22609.1401.6.0_x64__8wekyb3d8bbwe\\store.exe",
     "type": "EXE",
     "exe_name": "store.exe"
   },
@@ -2098,5 +2098,59 @@
     "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\httpx.exe",
     "type": "EXE",
     "exe_name": "httpx.exe"
+  },
+  "copilot": {
+    "name": "Copilot",
+    "target": "shell:AppsFolder\\Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe!Microsoft.MicrosoftOfficeHub",
+    "type": "UWP",
+    "exe_name": "Copilot.exe"
+  },
+  "jarvis-review-eval": {
+    "name": "jarvis-review-eval",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\jarvis-review-eval.exe",
+    "type": "EXE",
+    "exe_name": "jarvis-review-eval.exe"
+  },
+  "jarvis-review-gc": {
+    "name": "jarvis-review-gc",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\jarvis-review-gc.exe",
+    "type": "EXE",
+    "exe_name": "jarvis-review-gc.exe"
+  },
+  "jarvis": {
+    "name": "jarvis",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\jarvis.exe",
+    "type": "EXE",
+    "exe_name": "jarvis.exe"
+  },
+  "jarvisctl": {
+    "name": "jarvisctl",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\jarvisctl.exe",
+    "type": "EXE",
+    "exe_name": "jarvisctl.exe"
+  },
+  "jctl": {
+    "name": "jctl",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\jctl.exe",
+    "type": "EXE",
+    "exe_name": "jctl.exe"
+  },
+  "mss": {
+    "name": "mss",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\mss.exe",
+    "type": "EXE",
+    "exe_name": "mss.exe"
+  },
+  "personal-jarvis": {
+    "name": "personal-jarvis",
+    "target": "C:\\Users\\ahmad\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\personal-jarvis.exe",
+    "type": "EXE",
+    "exe_name": "personal-jarvis.exe"
+  },
+  "copilotapp": {
+    "name": "Copilotapp",
+    "target": "C:\\Program Files (x86)\\Microsoft\\Copilot\\Application\\copilotapp.exe",
+    "type": "EXE",
+    "exe_name": "copilotapp.exe"
   }
 }
