@@ -849,6 +849,207 @@ class GmailDirectWorker(BaseDirectWorker):
         return False, speech, []
 
     # =========================================================================
+    # Phase 4.3: University & Custom Topic Filtering
+    # =========================================================================
+
+    def _filter_via_api(
+        self,
+        token: str,
+        target_domain: str = "",
+        topic: str = "",
+        limit: int = 5,
+        is_university: bool = False
+    ) -> Optional[Tuple[bool, str, List[Dict[str, Any]]]]:
+        """Filters emails via Gmail REST API."""
+        import requests
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+        q_parts = []
+        if target_domain:
+            q_parts.append(f"from:{target_domain}")
+        if topic:
+            q_parts.append(topic)
+        q_str = " ".join(q_parts) if q_parts else "in:inbox"
+
+        try:
+            resp = requests.get(
+                "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+                headers=headers,
+                params={"q": q_str, "maxResults": limit},
+                timeout=4.0
+            )
+            if resp.status_code != 200:
+                return None
+            messages = resp.json().get("messages", [])
+            label = "university emails from FAST" if is_university or "cfd.nu.edu.pk" in target_domain else (f"emails regarding '{topic}'" if topic else f"emails from {target_domain}")
+            if not messages:
+                return True, f"Sir, I checked your inbox and found no {label}.", []
+
+            results = []
+            for m in messages:
+                mid = m.get("id")
+                m_resp = requests.get(
+                    f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{mid}",
+                    headers=headers,
+                    params={"format": "full"},
+                    timeout=3.0
+                )
+                if m_resp.status_code == 200:
+                    data = m_resp.json()
+                    payload = data.get("payload", {})
+                    hdrs = {h.get("name"): h.get("value") for h in payload.get("headers", [])}
+                    clean_from = re.sub(r"<.*?>", "", hdrs.get("From", "Unknown Sender")).strip().strip('"')
+                    snippet = data.get("snippet", "")
+                    results.append({
+                        "from": clean_from or "Sender",
+                        "subject": hdrs.get("Subject", "No Subject"),
+                        "date": hdrs.get("Date", ""),
+                        "body": snippet
+                    })
+
+            if not results:
+                return True, f"Sir, I checked your inbox and found no {label}.", []
+
+            count = len(results)
+            top = results[0]
+            body_phrase = f", which says: \"{top['body']}\"" if top.get("body") else ""
+            if is_university or "cfd.nu.edu.pk" in target_domain:
+                if topic:
+                    prefix = f"Sir, I found {count} university email(s) from FAST regarding '{topic}'."
+                else:
+                    prefix = f"Sir, I found {count} university email(s) from FAST National University."
+                speech = f"{prefix} The newest is from {top['from']} with subject '{top['subject']}'{body_phrase}."
+            elif topic:
+                speech = f"Sir, I found {count} email(s) regarding '{topic}'. The newest is from {top['from']} with subject '{top['subject']}'{body_phrase}."
+            else:
+                speech = f"Sir, I found {count} email(s) matching your filter. The newest is from {top['from']} regarding '{top['subject']}'{body_phrase}."
+
+            return True, speech, results
+        except Exception as e:
+            print(f"[GMAIL API FILTER NOTICE] {e}")
+            return None
+
+    def filter_emails(
+        self,
+        domain_or_sender: Optional[str] = None,
+        topic: Optional[str] = None,
+        is_university: bool = False,
+        limit: int = 5
+    ) -> Tuple[bool, str, List[Dict[str, Any]]]:
+        """
+        Phase 4.3: Filters emails by university domain (@cfd.nu.edu.pk, @nu.edu.pk) or custom topics (e.g. 'exam', 'fees', 'deadline')
+        and notifies the user with body snippet details.
+        """
+        email_addr, password = self._get_credentials()
+        if not email_addr:
+            return False, "Sir, your Gmail account is not connected yet in Plugins Hub.", []
+
+        # Determine target domain or sender
+        target_domain = ""
+        if is_university or (domain_or_sender and any(u in domain_or_sender.lower() for u in ["university", "fast", "campus", "cfd.nu.edu.pk", "nu.edu.pk"])):
+            target_domain = "cfd.nu.edu.pk"
+        elif domain_or_sender:
+            if "@" in domain_or_sender:
+                target_domain = domain_or_sender.strip().lstrip("@")
+            else:
+                resolved = _resolve_contact_email(domain_or_sender)
+                target_domain = resolved if "@" in resolved else domain_or_sender.strip()
+
+        clean_topic = topic.strip() if topic else ""
+
+        # Tier 1: Gmail REST API
+        sess = VAULT_MGR.load_google_session() or {}
+        token = sess.get("token") or sess.get("access_token") or os.environ.get("GMAIL_TOKEN")
+        if token:
+            api_res = self._filter_via_api(token, target_domain=target_domain, topic=clean_topic, limit=limit, is_university=is_university)
+            if api_res is not None:
+                return api_res
+
+        # Tier 2: Native IMAP4_SSL
+        if email_addr and password:
+            try:
+                t0 = time.perf_counter()
+                mail = imaplib.IMAP4_SSL("imap.gmail.com", 993, timeout=6.0)
+                mail.login(email_addr, password)
+                mail.select("INBOX", readonly=True)
+
+                crit_parts = []
+                if target_domain:
+                    crit_parts.append(f'FROM "{target_domain}"')
+                if clean_topic:
+                    crit_parts.append(f'(OR SUBJECT "{clean_topic}" BODY "{clean_topic}")')
+
+                search_crit = " ".join(crit_parts) if crit_parts else "ALL"
+                status, search_data = mail.search(None, search_crit)
+                if status != "OK" or not search_data or not search_data[0]:
+                    mail.logout()
+                    label = "university emails from FAST" if is_university or "cfd.nu.edu.pk" in target_domain else (f"emails regarding '{clean_topic}'" if clean_topic else f"emails from {target_domain}")
+                    return True, f"Sir, I checked your inbox and found no {label}.", []
+
+                msg_ids = search_data[0].split()
+                if not msg_ids:
+                    mail.logout()
+                    label = "university emails from FAST" if is_university or "cfd.nu.edu.pk" in target_domain else (f"emails regarding '{clean_topic}'" if clean_topic else f"emails from {target_domain}")
+                    return True, f"Sir, I checked your inbox and found no {label}.", []
+
+                recent_ids = msg_ids[-limit:]
+                emails_summary = []
+
+                for mid in reversed(recent_ids):
+                    res, data = mail.fetch(mid, "(RFC822)")
+                    if res == "OK" and data and isinstance(data[0], tuple):
+                        msg = email.message_from_bytes(data[0][1])
+                        subj = _decode_mime(msg.get("Subject", "No Subject"))
+                        from_hdr = _decode_mime(msg.get("From", "Unknown Sender"))
+                        date_hdr = _decode_mime(msg.get("Date", ""))
+                        clean_sender = re.sub(r"<.*?>", "", from_hdr).strip().strip('"')
+                        body_snippet = _extract_body_snippet(msg, max_chars=180)
+
+                        emails_summary.append({
+                            "from": clean_sender,
+                            "subject": subj,
+                            "date": date_hdr,
+                            "body": body_snippet
+                        })
+
+                mail.logout()
+                latency = (time.perf_counter() - t0) * 1000
+
+                if not emails_summary:
+                    label = "university emails from FAST" if is_university or "cfd.nu.edu.pk" in target_domain else (f"emails regarding '{clean_topic}'" if clean_topic else f"emails from {target_domain}")
+                    return True, f"Sir, I checked your inbox and found no {label}.", []
+
+                count = len(emails_summary)
+                top = emails_summary[0]
+                body_phrase = f", which says: \"{top['body']}\"" if top.get("body") else ""
+
+                if is_university or "cfd.nu.edu.pk" in target_domain:
+                    if clean_topic:
+                        prefix = f"Sir, I found {count} university email(s) from FAST regarding '{clean_topic}'."
+                    else:
+                        prefix = f"Sir, I found {count} university email(s) from FAST National University."
+                    speech = f"{prefix} The newest is from {top['from']} with subject '{top['subject']}'{body_phrase}."
+                elif clean_topic:
+                    if count == 1:
+                        speech = f"Sir, I found 1 email regarding '{clean_topic}' from {top['from']} with subject '{top['subject']}'{body_phrase}."
+                    else:
+                        other_items = [f"{e['from']} on '{e['subject']}'" for e in emails_summary[1:]]
+                        speech = f"Sir, I found {count} emails regarding '{clean_topic}'. The newest is from {top['from']}: '{top['subject']}'{body_phrase} Others include {', and '.join(other_items)}."
+                else:
+                    speech = f"Sir, I found {count} email(s) matching your filter. The newest is from {top['from']} regarding '{top['subject']}'{body_phrase}."
+
+                print(f"[GMAIL FILTER] Filtered {count} email(s) in {latency:.1f}ms.")
+                return True, speech, emails_summary
+
+            except Exception as e:
+                print(f"[GMAIL FILTER ERROR] {e}")
+                # Fall through
+
+        # Tier 3: Honest reporting
+        label = "university emails from FAST" if is_university or "cfd.nu.edu.pk" in target_domain else (f"emails regarding '{clean_topic}'" if clean_topic else f"emails from {target_domain}")
+        speech = f"Sir, filtering your {label} in the background requires a Gmail App Password configured in the Plugins Hub."
+        return False, speech, []
+
+    # =========================================================================
     # Unified Intent Dispatcher
     # =========================================================================
 
@@ -934,7 +1135,36 @@ class GmailDirectWorker(BaseDirectWorker):
             ok, speech, emails = self.read_incoming_emails(sender=sender_cand)
             return ok, speech, {"emails": emails, "sender": sender_cand, "count": len(emails)}
 
-        # 3. Search Email Task
+        # 3. Filter Emails Task (Phase 4.3: University & Custom Topic Filtering)
+        if task_type in ["filter", "filter_emails", "university_emails"] or any(w in low for w in [
+            "university email", "university emails", "fast email", "fast emails", "campus email", "college email",
+            "filter email", "filter emails", "emails about", "emails regarding", "emails for", "email about", "email regarding"
+        ]):
+            is_uni = kwargs.get("is_university") or any(w in low for w in ["university", "fast", "campus", "college", "cfd.nu.edu.pk", "nu.edu.pk"])
+
+            topic_str = kwargs.get("topic", "")
+            if not topic_str:
+                m_top = re.search(r'\b(?:about|regarding|topic|on|for)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:from|on|via|in)\s+gmail|\s*$)', raw_query, re.IGNORECASE)
+                if m_top:
+                    cand = m_top.group(1).strip()
+                    if cand.lower() not in ["university", "fast", "gmail", "inbox", "email", "emails", "me", "my email", "my emails"]:
+                        topic_str = cand
+
+            domain_cand = kwargs.get("domain", "")
+            if not domain_cand:
+                if is_uni:
+                    domain_cand = "cfd.nu.edu.pk"
+                else:
+                    m_dom = re.search(r'\b(?:from|by|domain)\s+([a-zA-Z0-9_.+-]+(?:@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)?|[a-zA-Z\s]+?)(?:\s+(?:on|via|in)\s+gmail|\s*$)', raw_query, re.IGNORECASE)
+                    if m_dom:
+                        cand = m_dom.group(1).strip()
+                        if cand.lower() not in ["gmail", "inbox", "email", "emails", "fast", "university"]:
+                            domain_cand = cand
+
+            ok, speech, emails = self.filter_emails(domain_or_sender=domain_cand, topic=topic_str, is_university=is_uni)
+            return ok, speech, {"emails": emails, "topic": topic_str, "domain": domain_cand, "is_university": is_uni, "count": len(emails)}
+
+        # 4. Search Email Task
         if task_type == "search" or any(w in low for w in ["search email", "find email", "search mail", "find mail"]):
             m_q = re.search(r"(?:for|about|from|regarding)\s+(.+)", low)
             query_str = m_q.group(1).strip() if m_q else "update"

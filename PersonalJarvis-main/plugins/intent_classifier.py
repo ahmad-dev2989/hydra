@@ -522,7 +522,16 @@ def classify_command(raw_text: str) -> IntentResult:
         r"\b(?:latest|incoming|new)\s+(?:email|emails|mail)\b"
     ]) and not is_email_send
 
-    if target_app == "gmail" or any(re.search(rf"\b{w}\b", low) for w in ["email", "emails", "inbox"]) or is_email_send or is_email_read:
+    is_email_filter = any(re.search(pat, low) for pat in [
+        r"\b(?:university|fast|campus|college)\s+emails?\b",
+        r"\bemails?\s+from\s+(?:the\s+)?(?:university|fast|campus|college)\b",
+        r"\b(?:filter|check|find|search)\s+(?:my\s+)?(?:university|fast|campus|college)\s+emails?\b",
+        r"\b(?:filter|check|find|search)\s+(?:my\s+)?(?:emails?|mails?)\s+(?:about|regarding|topic|on)\b",
+        r"\b(?:emails?|mails?)\s+(?:about|regarding)\s+[a-zA-Z0-9\s]+",
+        r"\b(?:cfd\.nu\.edu\.pk|nu\.edu\.pk)\b"
+    ]) and not is_email_send and not is_email_read
+
+    if target_app == "gmail" or any(re.search(rf"\b{w}\b", low) for w in ["email", "emails", "inbox"]) or is_email_send or is_email_read or is_email_filter:
         if is_email_send:
             try:
                 from .gmail_direct_worker import parse_email_command
@@ -545,6 +554,31 @@ def classify_command(raw_text: str) -> IntentResult:
                 action="send_email",
                 parameters=params,
                 reasoning=f"Gmail background send email to '{parsed_to or 'recipient'}'"
+            )
+        elif is_email_filter:
+            is_uni = any(w in low for w in ["university", "fast", "campus", "college", "cfd.nu.edu.pk", "nu.edu.pk"])
+
+            topic_cand = ""
+            m_top = re.search(r'\b(?:about|regarding|topic|on|for)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:from|on|via|in)\s+gmail|\s*$)', clean_text, re.IGNORECASE)
+            if m_top:
+                cand = m_top.group(1).strip()
+                if cand.lower() not in ["university", "fast", "gmail", "inbox", "email", "emails", "me", "my email", "my emails"]:
+                    topic_cand = cand
+
+            domain_cand = "cfd.nu.edu.pk" if is_uni else ""
+            if not domain_cand:
+                m_dom = re.search(r'\b(?:from|by|domain)\s+([a-zA-Z0-9_.+-]+(?:@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)?|[a-zA-Z\s]+?)(?:\s+(?:on|via|in)\s+gmail|\s*$)', clean_text, re.IGNORECASE)
+                if m_dom:
+                    cand = m_dom.group(1).strip()
+                    if cand.lower() not in ["gmail", "inbox", "email", "emails", "fast", "university"]:
+                        domain_cand = cand
+
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="gmail",
+                action="filter_emails",
+                parameters={"domain": domain_cand, "topic": topic_cand, "is_university": is_uni},
+                reasoning=f"Gmail background email filtering (is_uni={is_uni}, topic='{topic_cand}', domain='{domain_cand}')"
             )
         elif is_email_read:
             m_from = re.search(r'\b(?:from|by)\s+([a-zA-Z0-9_.+-]+(?:@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)?|[a-zA-Z\s]+?)(?:\s+(?:on|via|in)\s+gmail|\s*$)', clean_text, re.IGNORECASE)
