@@ -50,9 +50,16 @@ def _decode_mime(val: str) -> str:
 
 
 def _resolve_contact_email(name_or_email: str) -> str:
-    """Resolves contact name to email from contacts.json if known."""
+    """Resolves contact name to email from contacts.json if known with flexible normalization."""
     clean = name_or_email.strip()
     if "@" in clean:
+        m = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', clean)
+        if m:
+            return m.group(0)
+        return clean
+
+    norm_query = re.sub(r'[\s_]+', ' ', clean.lower()).strip()
+    if not norm_query:
         return clean
 
     # Check contacts files
@@ -62,9 +69,24 @@ def _resolve_contact_email(name_or_email: str) -> str:
                 import json
                 with open(cp, "r", encoding="utf-8") as f:
                     cdata = json.load(f)
-                low_k = clean.lower()
+
+                # 1. Exact or normalized key match
                 for k, v in cdata.items():
-                    if k.lower() == low_k and v:
+                    norm_k = re.sub(r'[\s_]+', ' ', str(k).lower()).strip()
+                    if norm_k == norm_query and v:
+                        if isinstance(v, dict):
+                            email_val = str(v.get("email", "")).strip()
+                            if "@" in email_val:
+                                return email_val
+                        elif "@" in str(v):
+                            return str(v).strip()
+
+                # 2. Token-subset match (e.g. 'asim' in 'professor asim' or vice-versa)
+                for k, v in cdata.items():
+                    norm_k = re.sub(r'[\s_]+', ' ', str(k).lower()).strip()
+                    k_tokens = set(norm_k.split())
+                    q_tokens = set(norm_query.split())
+                    if q_tokens and (q_tokens.issubset(k_tokens) or k_tokens.issubset(q_tokens)):
                         if isinstance(v, dict):
                             email_val = str(v.get("email", "")).strip()
                             if "@" in email_val:
@@ -78,7 +100,7 @@ def _resolve_contact_email(name_or_email: str) -> str:
 
 def _save_contact_email(name: str, email_addr: str):
     """Persists contact email into candidate contacts files."""
-    clean_n = name.strip().lower()
+    clean_n = re.sub(r'[\s]+', '_', name.strip().lower())
     clean_e = email_addr.strip()
     if not clean_n or "@" not in clean_e:
         return
@@ -101,6 +123,60 @@ def _save_contact_email(name: str, email_addr: str):
                 json.dump(cdata, f, indent=2)
         except Exception:
             pass
+
+
+def parse_email_command(raw_query: str) -> Tuple[str, str, str]:
+    """
+    Extracts recipient contact name/email, subject line, and body message from natural commands.
+    Examples:
+        - 'send an email to Professor Asim regarding meeting saying I will join at 3pm'
+          -> ('Professor Asim', 'meeting', 'I will join at 3pm')
+        - 'send email to ahmadfarooq29898@gmail.com with subject Update saying all done'
+          -> ('ahmadfarooq29898@gmail.com', 'Update', 'all done')
+        - 'email to Ahmad saying hello sir'
+          -> ('Ahmad', '', 'hello sir')
+    """
+    text = raw_query.strip()
+    text = re.sub(r'^(?:hydra|jarvis)\s*[,:]?\s*', '', text, flags=re.IGNORECASE).strip()
+    text = re.sub(r'^(?:please\s+|can\s+you\s+|could\s+you\s+)', '', text, flags=re.IGNORECASE).strip()
+
+    # 1. Extract body
+    body = ''
+    m_body = re.search(r'\b(?:saying|that|with\s+(?:the\s+)?message|with\s+(?:the\s+)?text|message\s+body|body)\s*[:]?\s*(.+)$', text, re.IGNORECASE)
+    if m_body:
+        body = m_body.group(1).strip()
+        rest = text[:m_body.start()].strip()
+    else:
+        rest = text
+
+    # 2. Extract subject
+    subject = ''
+    m_subj = re.search(r'\b(?:with\s+(?:the\s+)?subject|subject\s+is|subject|regarding|about)\s*[:]?\s*(.+)$', rest, re.IGNORECASE)
+    if m_subj:
+        subject = m_subj.group(1).strip()
+        rest = rest[:m_subj.start()].strip()
+
+    # 3. Extract recipient from rest
+    recipient = ''
+    m_to = re.search(r'\b(?:to|unto)\s+(.+)$', rest, re.IGNORECASE)
+    if m_to:
+        recipient = m_to.group(1).strip()
+    else:
+        m_verb = re.search(r'\b(?:send\s+an?\s+email|send\s+mail|email|mail|compose\s+email|dispatch\s+email)\s+(.+)$', rest, re.IGNORECASE)
+        if m_verb:
+            recipient = m_verb.group(1).strip()
+        else:
+            recipient = rest.strip()
+
+    # Clean recipient
+    recipient = re.sub(r'^(?:an?\s+)?(?:email|mail|message)\s*', '', recipient, flags=re.IGNORECASE).strip()
+    recipient = re.sub(r'\s+(?:on|via)\s+gmail$', '', recipient, flags=re.IGNORECASE).strip()
+    strip_chars = " '\"`"
+    recipient = recipient.strip(strip_chars)
+    subject = subject.strip(strip_chars)
+    body = body.strip(strip_chars)
+
+    return recipient, subject, body
 
 
 class GmailDirectWorker(BaseDirectWorker):
@@ -550,16 +626,20 @@ class GmailDirectWorker(BaseDirectWorker):
         low = raw_query.lower().strip()
 
         # 1. Send Email Task
-        if task_type == "send" or any(w in low for w in ["send email", "send an email", "send mail", "email to", "mail to"]):
+        if task_type in ["send", "send_email"] or any(w in low for w in ["send email", "send an email", "send mail", "email to", "mail to", "compose email", "write email", "dispatch email"]):
             try:
                 from disambiguation_manager import DISAMBIGUATION_MGR
             except ImportError:
                 DISAMBIGUATION_MGR = None
 
-            # Extract recipient
-            m_to = re.search(r"(?:to|unto)\s+([a-zA-Z0-9_.+-]+(?:@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)?|[a-zA-Z]+)", raw_query, re.IGNORECASE)
-            to_target = m_to.group(1).strip() if m_to else kwargs.get("to", "")
-            if not to_target or to_target.lower() in ["email", "mail", "someone", "recipient"]:
+            parsed_to, parsed_subj, parsed_body = parse_email_command(raw_query)
+
+            to_target = kwargs.get("to") or parsed_to
+            subj_text = kwargs.get("subject") or parsed_subj
+            body_text = kwargs.get("body") or parsed_body
+
+            # Disambiguate recipient if missing
+            if not to_target or to_target.lower() in ["email", "mail", "someone", "recipient", "an email", "a mail"]:
                 if DISAMBIGUATION_MGR:
                     ok, to_ans = DISAMBIGUATION_MGR.ask_user(
                         "Sir, who would you like me to send this email to?",
@@ -570,33 +650,41 @@ class GmailDirectWorker(BaseDirectWorker):
             if not to_target:
                 return False, "Email sending was cancelled because no recipient was specified, sir.", {}
 
-            # Extract body
-            m_body = re.search(r"(?:saying|message|body|that)\s+(.+)", raw_query, re.IGNORECASE)
-            body_text = m_body.group(1).strip() if m_body else kwargs.get("body", "")
-            if not body_text and DISAMBIGUATION_MGR:
-                ok, body_ans = DISAMBIGUATION_MGR.ask_user(
-                    f"Sir, what message or body would you like me to include in the email to {to_target}?",
-                    options=["Hello, this is Ahmad.", "Please review the attached project updates.", "Let's schedule a meeting."],
-                    barrier_type="dynamic"
-                )
-                body_text = body_ans.strip() if ok else ""
+            # Resolve email address
+            resolved_email = _resolve_contact_email(to_target)
+            if "@" not in resolved_email:
+                if DISAMBIGUATION_MGR:
+                    ok, email_ans = DISAMBIGUATION_MGR.ask_user(
+                        f"Sir, I found '{to_target}' in your contacts, but no email address is linked. What is their email address?",
+                        barrier_type="dynamic"
+                    )
+                    if ok and "@" in email_ans:
+                        resolved_email = email_ans.strip()
+                        _save_contact_email(to_target, resolved_email)
+
+            if not resolved_email or "@" not in resolved_email:
+                return False, f"Sir, I could not resolve a valid email address for {to_target}. Please specify their email address.", {}
+
+            # Disambiguate body if missing
+            if not body_text:
+                if DISAMBIGUATION_MGR:
+                    ok, body_ans = DISAMBIGUATION_MGR.ask_user(
+                        f"Sir, what message or body would you like me to include in the email to {to_target}?",
+                        options=["Hello, this is Ahmad.", "Please review the attached project updates.", "Let's schedule a meeting."],
+                        barrier_type="dynamic"
+                    )
+                    body_text = body_ans.strip() if ok else ""
 
             if not body_text:
                 return False, f"Email to {to_target} was cancelled because no message body was provided, sir.", {}
 
-            # Extract subject
-            m_subj = re.search(r"(?:subject|regarding|about)\s+([a-zA-Z0-9\s]+?)(?:saying|message|body|$)", raw_query, re.IGNORECASE)
-            subj_text = m_subj.group(1).strip() if m_subj else kwargs.get("subject", "")
-            if not subj_text and DISAMBIGUATION_MGR:
-                ok, subj_ans = DISAMBIGUATION_MGR.ask_user(
-                    "Sir, what subject would you like for this email?",
-                    options=["HYDRA Project Update", "Important Notification", "General Inquiry"],
-                    barrier_type="dynamic"
-                )
-                subj_text = subj_ans.strip() if ok else "HYDRA Update"
+            # Subject fallback
+            clean_subj = subj_text.strip() if subj_text else "Message from HYDRA"
 
-            clean_subj = subj_text or "HYDRA Update"
-            ok, speech, meta = self.send_email(to_target, clean_subj, body_text)
+            ok, speech, meta = self.send_email(resolved_email, clean_subj, body_text)
+            if ok:
+                meta["recipient_name"] = to_target
+                meta["resolved_email"] = resolved_email
             return ok, speech, meta
 
         # 2. Search Email Task

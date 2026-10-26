@@ -504,16 +504,39 @@ def classify_command(raw_text: str) -> IntentResult:
             )
 
     # 5.3 Gmail Actions
-    if target_app == "gmail" or any(re.search(rf"\b{w}\b", low) for w in ["email", "emails", "inbox"]):
-        if any(re.search(rf"\b{w}\b", low) for w in ["send", "write", "compose", "dispatch"]):
-            m_to = re.search(r"(?:to|unto)\s+([a-zA-Z0-9_.+-]+(?:@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)?|[a-zA-Z]+)", low)
-            recipient = m_to.group(1) if m_to else ""
+    is_email_send = any(re.search(pat, low) for pat in [
+        r"\b(?:send|write|compose|dispatch)\s+(?:an?\s+)?(?:email|mail)\b",
+        r"\b(?:email|mail)\s+(?:to|unto)\b",
+        r"\b(?:email|mail)\s+[a-zA-Z0-9_.+-]+(?:\s+(?:saying|that|with|about|regarding)\b)",
+        r"\b(?:send|write|compose|dispatch)\s+[a-zA-Z0-9_.+-]+@\b"
+    ]) or (
+        (target_app == "gmail" or any(re.search(rf"\b{w}\b", low) for w in ["email", "emails", "inbox", "mail"]))
+        and any(re.search(rf"\b{w}\b", low) for w in ["send", "write", "compose", "dispatch"])
+    )
+
+    if target_app == "gmail" or any(re.search(rf"\b{w}\b", low) for w in ["email", "emails", "inbox"]) or is_email_send:
+        if is_email_send:
+            try:
+                from .gmail_direct_worker import parse_email_command
+                parsed_to, parsed_subj, parsed_body = parse_email_command(clean_text)
+            except Exception:
+                parsed_to, parsed_subj, parsed_body = "", "", ""
+                m_to = re.search(r"(?:to|unto)\s+([a-zA-Z0-9_.+-]+(?:@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)?|[a-zA-Z\s]+?)(?:\s+(?:regarding|about|with|saying|that)|$)", clean_text, re.IGNORECASE)
+                if m_to:
+                    parsed_to = m_to.group(1).strip()
+
+            params = {"to": parsed_to}
+            if parsed_subj:
+                params["subject"] = parsed_subj
+            if parsed_body:
+                params["body"] = parsed_body
+
             return IntentResult(
                 intent_type=IntentType.HEADLESS_BACKGROUND,
                 target_app="gmail",
                 action="send_email",
-                parameters={"to": recipient},
-                reasoning="Gmail background send email"
+                parameters=params,
+                reasoning=f"Gmail background send email to '{parsed_to or 'recipient'}'"
             )
         elif any(re.search(rf"\b{w}\b", low) for w in ["search", "find", "look for"]):
             return IntentResult(
