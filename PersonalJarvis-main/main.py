@@ -376,8 +376,8 @@ class HydraPage(QWebEnginePage):
         if message.startswith("HYDRA_CMD:"):
             command = message[10:].strip()
             self.process_hydra_command(command)
-        elif message.startswith("HYDRA_OPEN_URL:"):
-            url = message[15:].strip()
+        elif message.startswith("HYDRA_OPEN_URL:") or message.startswith("HYDRA_BROWSER:"):
+            url = message.split(":", 1)[1].strip()
             if url:
                 print(f"[HYDRA BROWSER] Opening URL: {url}")
                 webbrowser.open(url)
