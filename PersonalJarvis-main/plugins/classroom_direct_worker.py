@@ -591,8 +591,24 @@ class ClassroomDirectWorker(BaseDirectWorker):
     # Unified Intent Dispatcher
     # =========================================================================
 
+    @staticmethod
+    def is_visual_materials_search(query: str) -> bool:
+        """Determines if a classroom query requires visual foreground browser navigation (Phase 3.4)."""
+        low = query.lower().strip()
+        if any(w in low for w in ["slide", "slides", "lecture note", "lecture notes", "ppt", "powerpoint", "presentation", "presentations", "syllabus"]):
+            if not any(w in low for w in ["download", "save file", "save handout"]):
+                return True
+        if any(w in low for w in ["classroom", "google classroom"]) and any(w in low for w in ["search for", "find", "look for", "show me", "browse"]):
+            if not any(w in low for w in ["download", "save file", "due today", "urgent", "deadline", "how many", "enrolled", "announcements"]):
+                return True
+        return False
+
     def execute_task(self, task_type: str, raw_query: str, **kwargs) -> Tuple[bool, str, Dict[str, Any]]:
         low = raw_query.lower().strip()
+
+        # Visual materials and slides search must be routed to foreground Vision AI
+        if task_type == "visual_search_materials" or self.is_visual_materials_search(raw_query):
+            return False, "This visual material search requires navigating Google Classroom in your browser with Vision AI.", {"requires_foreground": True, "app": "google_classroom"}
 
         # 0. Enrolled Classes Check
         if task_type == "enrolled_classes" or any(w in low for w in ["how many classes", "how many courses", "enrolled classes", "enrolled courses", "my classes", "my courses", "list classes", "classes i am", "classes am i"]):

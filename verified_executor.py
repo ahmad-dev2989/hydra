@@ -491,6 +491,16 @@ def _generate_humanized_completion_speech(task_text: str = "", app_name: str = "
             return f"Sir, I checked your {app_name}. {first_sent}"
         return f"Sir, I've checked your {app_name} for you."
 
+    # Rule 2b: Slides / Materials / Lecture notes search tasks (Phase 3.4)
+    if any(w in t_low for w in ["slide", "slides", "lecture note", "lecture notes", "ppt", "powerpoint", "presentation", "syllabus"]):
+        clean_obs = re.sub(r'^(?:observation:?\s*)+', '', (observation or ""), flags=re.I).strip()
+        if clean_obs and len(clean_obs) > 8:
+            first_sent = clean_obs.split(". ")[0].strip()
+            if not first_sent.endswith("."):
+                first_sent += "."
+            return f"Sir, I found your material on {app_name}. {first_sent}"
+        return f"Sir, I've located the requested slides for you in {app_name}."
+
     # Rule 3: Theme / Appearance change tasks
     if any(w in t_low for w in ["theme", "theem", "dark mode", "light mode", "color theme"]):
         theme_variations = [
@@ -1283,10 +1293,17 @@ class VerifiedStepExecutor:
             if q and q not in ["song", "video", "music", "track"]:
                 return q
         # search ...
-        m = re.search(r"search\s+(?:for\s+)?(.+?)(?:\s+(?:on|in)\s+(?:youtube|spotify|brave|chrome)|$)", low)
+        m = re.search(r"search\s+(?:for\s+)?(.+?)(?:\s+(?:on|in)\s+(?:youtube|spotify|brave|chrome|classroom|google classroom)|$)", low)
         if m:
             q = m.group(1).strip()
-            q = re.sub(r"\s+(?:on|in)\s+(?:youtube|spotify|brave|chrome).*$", "", q).strip()
+            q = re.sub(r"\s+(?:on|in)\s+(?:youtube|spotify|brave|chrome|classroom|google classroom).*$", "", q).strip()
+            if q:
+                return q
+        # find/look for slides or notes in classroom
+        m = re.search(r"(?:find|look for|show me)\s+(?:the\s+)?(.+?)(?:\s+(?:on|in)\s+(?:classroom|google classroom)|$)", low)
+        if m:
+            q = m.group(1).strip()
+            q = re.sub(r"\s+(?:on|in)\s+(?:classroom|google classroom).*$", "", q).strip()
             if q:
                 return q
         return ""
@@ -1326,7 +1343,7 @@ class VerifiedStepExecutor:
             low_t = task_text.lower()
             if any(k in low_t for k in ["gmail", "email", "mail", "inbox"]):
                 app_name = "Gmail"
-            elif any(k in low_t for k in ["classroom", "assignment", "homework"]):
+            elif any(k in low_t for k in ["classroom", "assignment", "homework", "coursework", "slide", "slides", "lecture note", "lecture notes"]):
                 app_name = "Google Classroom"
             elif "youtube" in low_t:
                 app_name = "YouTube"
@@ -1553,7 +1570,16 @@ class VerifiedStepExecutor:
                 "        - In OBSERVATION: describe clearly the unread emails, assignment titles, due dates, or status visible on screen (e.g. 'Found 2 unread emails from ...' or 'Found 1 assignment due tomorrow: ...' or 'No unread emails present in inbox').\n"
                 "        - In REASONING: state that the required information has been retrieved from the screen.\n"
                 "        - In ACTION: complete()\n"
-                "7. GOAL COMPLETION:\n"
+                "7. GOOGLE CLASSROOM VISUAL MATERIAL & SLIDES SEARCH (Phase 3.4):\n"
+                "   -> When your goal is to find, browse, or view lecture slides, presentations, PPTs, lecture notes, or syllabus:\n"
+                "      * Step 1: If on Classroom home page, click the target course card or class name (e.g. 'Algorithms', 'Operating Systems').\n"
+                "      * Step 2: Once inside the course, click the 'Classwork' tab at the top to see topics and materials.\n"
+                "      * Step 3: Scroll down if the topic or week's lecture is lower on the page: ACTION: scroll(direction='down')\n"
+                "      * Step 4: Click the matching topic, lecture, or material item to expand it.\n"
+                "      * Step 5: Once the target slides, presentation, or PDF link is visible on screen:\n"
+                "        - Click the slide/presentation attachment or link to open it: ACTION: click(x=<slide_attachment_x>, y=<slide_attachment_y>)\n"
+                "        - Once the slides / document viewer is open or clearly displayed: ACTION: complete()\n"
+                "8. GOAL COMPLETION:\n"
                 "   -> Output ACTION: complete() ONLY when the entire user goal is visibly completed on screen.\n\n"
                 "Output format MUST be EXACTLY 3 lines:\n"
                 "OBSERVATION: <what you observe on screen>\n"

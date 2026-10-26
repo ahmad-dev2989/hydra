@@ -261,6 +261,13 @@ def is_foreground_command(text: str) -> bool:
         if any(w in low for w in ["play", "search", "liked", "first song", "top song", "find", "listen", "playlist", "stream", "queue"]):
             return True
 
+    # Google Classroom visual materials, slides, lecture notes, syllabus, or UI navigation (Phase 3.4)
+    if any(re.search(rf"\b{re.escape(w)}\b", low) for w in ["classroom", "google classroom", "gclassroom"]):
+        if any(w in low for w in ["slide", "slides", "lecture note", "lecture notes", "ppt", "powerpoint", "presentation", "presentations", "syllabus"]) or any(w in low for w in ["show me", "look for", "search", "find", "browse"]):
+            # Pure headless downloads and status checks remain in background
+            if not any(w in low for w in ["download", "save file", "save handout", "due today", "urgent", "deadline", "how many classes", "enrolled classes", "announcements"]):
+                return True
+
     # Check UI manipulation patterns
     for pat in UI_MANIPULATION_PATTERNS:
         if re.search(pat, low):
@@ -354,13 +361,17 @@ def classify_command(raw_text: str) -> IntentResult:
             action = "change_profile"
         elif re.search(r"\bplay\b", low):
             action = "play_media_foreground"
+        elif (target_app == "google_classroom" or any(w in low for w in ["classroom", "google classroom"])) and (any(w in low for w in ["slide", "slides", "lecture note", "lecture notes", "notes", "ppt", "powerpoint", "presentation", "presentations", "syllabus"]) or any(w in low for w in ["search", "find", "look for", "show me", "browse"])):
+            target_app = "google_classroom"
+            action = "visual_search_materials"
+            params["query"] = clean_text
 
         return IntentResult(
             intent_type=IntentType.FOREGROUND_DESKTOP,
             target_app=target_app,
             action=action,
             parameters=params,
-            reasoning="Explicit foreground launch or UI manipulation detected"
+            reasoning=f"Foreground visual action '{action}' for {target_app or 'desktop app'}"
         )
 
     # 5. Headless Background Task Execution
