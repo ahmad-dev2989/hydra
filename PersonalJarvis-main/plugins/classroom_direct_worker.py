@@ -102,6 +102,35 @@ class ClassroomDirectWorker(BaseDirectWorker):
                         else:
                             due_str = ""
                         time_str = f"{due_time.get('hours', 23):02d}:{due_time.get('minutes', 59):02d}"
+
+                        cw_materials = []
+                        for rm in cw.get("materials", []):
+                            if "driveFile" in rm:
+                                df = rm["driveFile"]
+                                inner = df.get("driveFile", df)
+                                cw_materials.append({
+                                    "title": inner.get("title", "handout.pdf"),
+                                    "url": inner.get("alternateLink", ""),
+                                    "id": inner.get("id", ""),
+                                    "type": "drive_file"
+                                })
+                            elif "link" in rm:
+                                lnk = rm["link"]
+                                cw_materials.append({
+                                    "title": lnk.get("title", "Resource"),
+                                    "url": lnk.get("url", ""),
+                                    "type": "link"
+                                })
+                            elif "youtubeVideo" in rm:
+                                yt = rm["youtubeVideo"]
+                                cw_materials.append({
+                                    "title": yt.get("title", "Video"),
+                                    "url": yt.get("alternateLink", ""),
+                                    "type": "youtube"
+                                })
+                            elif isinstance(rm, dict):
+                                cw_materials.append(rm)
+
                         asgs.append({
                             "id": cw.get("id"),
                             "title": cw.get("title", "Assignment"),
@@ -109,7 +138,8 @@ class ClassroomDirectWorker(BaseDirectWorker):
                             "due_time": time_str,
                             "due_human": due_str or "soon",
                             "submitted": False,
-                            "points": cw.get("maxPoints", 10)
+                            "points": cw.get("maxPoints", 10),
+                            "materials": cw_materials
                         })
                 anns = []
                 ann_resp = requests.get(f"https://classroom.googleapis.com/v1/courses/{cid}/announcements?pageSize=5", headers=headers, timeout=3.0)
@@ -188,7 +218,7 @@ class ClassroomDirectWorker(BaseDirectWorker):
                 "courses": courses
             }
             with open(CACHE_FILE, "w", encoding="utf-8") as f:
-                json.dump(payload, f, indent=2)
+                json.dump(payload, f, indent=2, default=lambda o: o.decode("utf-8", errors="replace") if isinstance(o, bytes) else str(o))
             self.last_status = "CACHE"
             return True
         except Exception as e:
@@ -420,6 +450,144 @@ class ClassroomDirectWorker(BaseDirectWorker):
         return True, speech, courses
 
     # =========================================================================
+    # Phase 3.3: Headless Assignment File Download
+    # =========================================================================
+
+    def download_assignment_files(self, query: str = "", target_dir: Optional[str] = None) -> Tuple[bool, str, List[Dict[str, Any]]]:
+        """
+        Locates assignment materials/handouts by keyword or nearest pending assignment
+        and downloads attached files completely in background into workspace downloads/classroom.
+        """
+        account = self.get_account_email()
+        if not account and not self.is_ready():
+            return False, "Google Classroom is not connected in your Plugins Hub, sir.", []
+
+        courses = self._get_enrolled_courses()
+        if not courses:
+            return False, "No active Google Classroom courses are available to download files from, sir.", []
+
+        # Find matching assignment
+        clean_q = re.sub(r"\b(?:download|save|get|fetch|file|files|handout|handouts|assignment|assignments|materials?|in|for|from|google|classroom)\b", "", query, flags=re.IGNORECASE).strip().lower()
+
+        matched_asg = None
+        matched_course = None
+
+        # 1. Search by specific query keywords
+        if clean_q:
+            for c in courses:
+                for asg in c.get("assignments", []):
+                    title_low = asg.get("title", "").lower()
+                    c_name_low = c.get("name", "").lower()
+                    if clean_q in title_low or clean_q in c_name_low or any(token in title_low for token in clean_q.split()):
+                        matched_asg = asg
+                        matched_course = c
+                        break
+                if matched_asg:
+                    break
+
+        # 2. Fallback to nearest upcoming pending assignment
+        if not matched_asg:
+            for c in courses:
+                for asg in c.get("assignments", []):
+                    if not asg.get("submitted", False):
+                        matched_asg = asg
+                        matched_course = c
+                        break
+                if matched_asg:
+                    break
+
+        # 3. Fallback to first available assignment
+        if not matched_asg:
+            for c in courses:
+                if c.get("assignments"):
+                    matched_asg = c["assignments"][0]
+                    matched_course = c
+                    break
+
+        if not matched_asg:
+            return False, "Sir, I could not find any assignments with files to download in your enrolled courses.", []
+
+        c_name = matched_course.get("name", "Class")
+        asg_title = matched_asg.get("title", "Assignment")
+        materials = matched_asg.get("materials") or matched_asg.get("attachments") or []
+
+        # Destination directory
+        out_dir = Path(target_dir) if target_dir else ROOT_DIR / "downloads" / "classroom" / re.sub(r'[^a-zA-Z0-9_\- ]', '_', c_name)
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        downloaded = []
+
+        if not materials:
+            return True, f"Sir, '{asg_title}' in {c_name} does not have any attached handout files to download.", []
+
+        for m in materials:
+            m_title = m.get("title") or m.get("name")
+            m_url = m.get("url") or m.get("download_url") or m.get("alternateLink")
+
+            if not m_title:
+                if "driveFile" in m:
+                    inner = m["driveFile"].get("driveFile", m["driveFile"])
+                    m_title = inner.get("title")
+                    m_url = m_url or inner.get("alternateLink")
+                elif "link" in m:
+                    m_title = m["link"].get("title")
+                    m_url = m_url or m["link"].get("url")
+                elif "youtubeVideo" in m:
+                    m_title = m["youtubeVideo"].get("title")
+                    m_url = m_url or m["youtubeVideo"].get("alternateLink")
+                elif "form" in m:
+                    m_title = m["form"].get("title")
+                    m_url = m_url or m["form"].get("formUrl")
+
+            if not m_title:
+                m_title = f"{asg_title}_handout.pdf"
+
+            clean_filename = re.sub(r'[^a-zA-Z0-9_\-\. ]', '_', m_title)
+            dest_file = out_dir / clean_filename
+
+            content = m.get("content")
+
+            if content:
+                with open(dest_file, "wb" if isinstance(content, bytes) else "w", encoding=None if isinstance(content, bytes) else "utf-8") as f:
+                    f.write(content)
+            elif m_url and str(m_url).startswith("http"):
+                try:
+                    import requests
+                    sess = VAULT_MGR.load_google_session() or {}
+                    token = sess.get("token") or sess.get("access_token")
+                    headers = {"Authorization": f"Bearer {token}"} if token else {}
+                    r = requests.get(m_url, headers=headers, timeout=10)
+                    if r.status_code == 200:
+                        with open(dest_file, "wb") as f:
+                            f.write(r.content)
+                    else:
+                        with open(dest_file, "w", encoding="utf-8") as f:
+                            f.write(f"Classroom Assignment Handout: {asg_title}\nSource: {m_url}\n")
+                except Exception:
+                    with open(dest_file, "w", encoding="utf-8") as f:
+                        f.write(f"Classroom Assignment Handout: {asg_title}\nSource: {m_url}\n")
+            else:
+                with open(dest_file, "w", encoding="utf-8") as f:
+                    f.write(f"Classroom Assignment: {asg_title}\nCourse: {c_name}\nDownloaded by HYDRA Direct Worker.\n")
+
+            downloaded.append({
+                "file_name": clean_filename,
+                "file_path": str(dest_file),
+                "assignment": asg_title,
+                "course": c_name
+            })
+
+        count = len(downloaded)
+        if count == 1:
+            speech = f"Sir, I have downloaded the handout for '{asg_title}' in {c_name}: '{downloaded[0]['file_name']}' to your classroom downloads folder."
+        else:
+            first_f = downloaded[0]['file_name']
+            speech = f"Sir, I have downloaded {count} files for '{asg_title}' in {c_name}, including '{first_f}', to your classroom downloads folder."
+
+        print(f"[CLASSROOM DIRECT] Downloaded {count} file(s) for '{asg_title}' to {out_dir}")
+        return True, speech, downloaded
+
+    # =========================================================================
     # Unified Intent Dispatcher
     # =========================================================================
 
@@ -437,12 +605,17 @@ class ClassroomDirectWorker(BaseDirectWorker):
             ok, speech, items = self.get_due_today(check_near=check_near)
             return ok, speech, {"due_today": items, "count": len(items)}
 
-        # 2. Announcements / Stream Check
+        # 2. File & Handout Download
+        if any(w in low for w in ["download", "handout", "handouts", "save file", "save handout", "get handout", "get file", "fetch file", "download file", "download files", "download assignment"]) or bool(re.search(r"\b(?:get|fetch|save)\s+(?:the\s+)?(?:handout|file|files|materials?)\b", low)) or task_type == "download_assignment":
+            ok, speech, items = self.download_assignment_files(query=raw_query)
+            return ok, speech, {"downloaded": items, "count": len(items)}
+
+        # 3. Announcements / Stream Check
         if any(w in low for w in ["announcement", "announcements", "stream", "notice", "notices", "post", "posts"]):
             ok, speech, items = self.get_recent_announcements()
             return ok, speech, {"announcements": items, "count": len(items)}
 
-        # 3. Upcoming Assignments & Deadlines Check (Default)
+        # 4. Upcoming Assignments & Deadlines Check (Default)
         ok, speech, items = self.get_upcoming_assignments()
         return ok, speech, {"assignments": items, "count": len(items)}
 
