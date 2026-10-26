@@ -21,6 +21,25 @@ ROOT_DIR = CURRENT_DIR.parent
 CACHE_FILE = ROOT_DIR / "data" / "vault" / "classroom_cache.json"
 
 
+def _format_time_natural(t_str: str) -> str:
+    """Formats 24h clock string (e.g. 23:59) into natural spoken time (e.g. 11:59 PM)."""
+    if not t_str:
+        return "11:59 PM"
+    try:
+        parts = t_str.split(":")
+        h = int(parts[0])
+        m = int(parts[1]) if len(parts) > 1 else 0
+        if h == 23 and m >= 55:
+            return "11:59 PM"
+        period = "AM" if h < 12 else "PM"
+        h12 = 12 if (h == 12 or h == 0) else h % 12
+        if m == 0:
+            return f"{h12}:00 {period}"
+        return f"{h12}:{m:02d} {period}"
+    except Exception:
+        return t_str
+
+
 class ClassroomDirectWorker(BaseDirectWorker):
     """
     Direct Google Classroom background worker executing in < 300ms.
@@ -246,12 +265,13 @@ class ClassroomDirectWorker(BaseDirectWorker):
         return True, speech, pending
 
     # =========================================================================
-    # Phase 3.2: Due Today Immediate Alert
+    # Phase 3.2: Due Today & Urgent Near-Deadline Alerts
     # =========================================================================
 
-    def get_due_today(self) -> Tuple[bool, str, List[Dict[str, Any]]]:
+    def get_due_today(self, check_near: bool = False) -> Tuple[bool, str, List[Dict[str, Any]]]:
         """
-        Immediate check for coursework due before 11:59 PM today.
+        Immediate check for coursework due before 11:59 PM today or upcoming near deadlines.
+        Truthfully alerts user without opening any browser or app window.
         """
         account = self.get_account_email()
         if not account and not self.is_ready():
@@ -260,31 +280,74 @@ class ClassroomDirectWorker(BaseDirectWorker):
         courses = self._get_enrolled_courses()
         if not courses:
             if self.last_status == "ZERO_COURSES":
-                return True, f"Sir, you are not enrolled in any active Google Classroom courses, so there is nothing due today.", []
+                return True, "Sir, you are not enrolled in any active Google Classroom courses, so there are no pending deadlines.", []
             elif self.last_status == "AUTH_ERROR":
-                return False, f"Sir, I could not check due assignments because the Google Classroom API returned an authorization error.", []
+                return False, f"Sir, I could not check due deadlines because the Google Classroom API returned an authorization error ({self.last_error}).", []
+            elif self.last_status in ["NO_TOKEN", "NO_SESSION", "NOT_SYNCED"]:
+                return False, f"Sir, Google Classroom coursework for {account or 'your account'} has not synchronized yet. Please connect via Plugins Hub.", []
             else:
-                return False, f"Sir, Google Classroom courses could not be accessed to check today's coursework.", []
+                return False, "Sir, Google Classroom courses could not be accessed to check today's coursework.", []
 
-        today_str = datetime.now().strftime("%Y-%m-%d")
+        now = datetime.now()
+        today_str = now.strftime("%Y-%m-%d")
+        tomorrow_str = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+
         due_today = []
+        due_tomorrow = []
 
         for c in courses:
             for asg in c.get("assignments", []):
-                if not asg.get("submitted", False) and asg.get("due_date") == today_str:
-                    due_today.append({
-                        "course": c["name"],
-                        "title": asg["title"],
-                        "due_time": asg.get("due_time", "23:59")
-                    })
+                if not asg.get("submitted", False):
+                    asg_date = asg.get("due_date", "")
+                    raw_time = asg.get("due_time", "23:59")
+                    nat_time = _format_time_natural(raw_time)
 
-        if not due_today:
-            speech = f"Sir, you have no assignments due today across your {len(courses)} enrolled courses."
-            return True, speech, []
+                    item = {
+                        "course": c.get("name", "Class"),
+                        "title": asg.get("title", "Assignment"),
+                        "due_date": asg_date,
+                        "due_time": raw_time,
+                        "due_time_natural": nat_time
+                    }
 
-        item = due_today[0]
-        speech = f"Sir, you have an urgent assignment due today before {item['due_time']} in {item['course']}: '{item['title']}'."
-        return True, speech, due_today
+                    if asg_date == today_str:
+                        item["due_human"] = f"today before {nat_time}" if nat_time != "11:59 PM" else "tonight at 11:59 PM"
+                        due_today.append(item)
+                    elif asg_date == tomorrow_str:
+                        item["due_human"] = f"tomorrow at {nat_time}"
+                        due_tomorrow.append(item)
+
+        # 1. Urgent deadlines due today
+        if due_today:
+            if len(due_today) == 1:
+                item = due_today[0]
+                speech = f"Sir, you have an urgent deadline pending: '{item['title']}' in {item['course']} is due {item['due_human']}."
+            else:
+                first = due_today[0]
+                second = due_today[1]
+                speech = (
+                    f"Sir, you have {len(due_today)} urgent assignments due today: "
+                    f"'{first['title']}' in {first['course']} ({first['due_human']}), "
+                    f"and '{second['title']}' in {second['course']} ({second['due_human']})."
+                )
+            return True, speech, due_today
+
+        # 2. If checking near deadlines (or query specifically asks for near/deadlines)
+        if check_near and due_tomorrow:
+            if len(due_tomorrow) == 1:
+                item = due_tomorrow[0]
+                speech = f"Sir, you have no assignments due today, but you have an upcoming deadline pending: '{item['title']}' in {item['course']} is due {item['due_human']}."
+            else:
+                first = due_tomorrow[0]
+                speech = f"Sir, no assignments are due today, but you have {len(due_tomorrow)} deadlines due tomorrow, starting with '{first['title']}' in {first['course']}."
+            return True, speech, due_tomorrow
+
+        # 3. No urgent deadlines
+        if check_near:
+            speech = f"Sir, you have no urgent deadlines pending today, tonight, or tomorrow across your {len(courses)} enrolled courses."
+        else:
+            speech = f"Sir, you have no assignments due today or tonight across your {len(courses)} enrolled courses."
+        return True, speech, []
 
     # =========================================================================
     # Phase 3.3: Recent Announcements & Stream Inspection
@@ -368,9 +431,10 @@ class ClassroomDirectWorker(BaseDirectWorker):
             ok, speech, items = self.get_enrolled_classes_summary()
             return ok, speech, {"courses": items, "count": len(items)}
 
-        # 1. Due Today / Urgent Check
-        if "today" in low or task_type == "due_today":
-            ok, speech, items = self.get_due_today()
+        # 1. Due Today / Urgent Check / Near Deadlines
+        if any(w in low for w in ["today", "urgent", "tonight", "deadline", "deadlines", "near", "due soon", "pending deadline", "due tomorrow", "submission due"]) or task_type == "due_today":
+            check_near = any(w in low for w in ["near", "deadline", "deadlines", "soon", "tomorrow"])
+            ok, speech, items = self.get_due_today(check_near=check_near)
             return ok, speech, {"due_today": items, "count": len(items)}
 
         # 2. Announcements / Stream Check

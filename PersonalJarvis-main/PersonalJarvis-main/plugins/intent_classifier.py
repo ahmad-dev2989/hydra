@@ -394,7 +394,8 @@ def classify_command(raw_text: str) -> IntentResult:
         "assignment", "assignments", "coursework", "classwork", "homework",
         "how many classes", "how many courses", "enrolled classes", "enrolled courses",
         "my classes", "my courses", "classes i am", "classes am i", "enrolled in",
-        "announcement", "announcements", "class stream", "classroom stream", "notice", "notices"
+        "announcement", "announcements", "class stream", "classroom stream", "notice", "notices",
+        "deadline", "deadlines", "due soon", "due today", "due tonight", "due tomorrow", "pending deadline"
     ]
     if target_app == "google_classroom" or any(w in low for w in classroom_triggers):
         action = "check_assignments"
@@ -404,7 +405,7 @@ def classify_command(raw_text: str) -> IntentResult:
             "what classes", "which classes", "list courses", "enrolled in"
         ]):
             action = "enrolled_classes"
-        elif any(w in low for w in ["today", "urgent", "tonight"]):
+        elif any(w in low for w in ["today", "urgent", "tonight", "deadline", "deadlines", "near", "due soon", "pending deadline", "due tomorrow"]):
             action = "due_today"
         elif any(w in low for w in ["announcement", "announcements", "stream", "notice"]):
             action = "announcements"
