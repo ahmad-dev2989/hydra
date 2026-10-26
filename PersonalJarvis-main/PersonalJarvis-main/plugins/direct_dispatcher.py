@@ -65,7 +65,12 @@ class DirectBackgroundDispatcher:
             params = classified.parameters or {}
 
             # Standalone Transport
-            if action in ["transport", "next_track", "prev_track", "pause", "resume", "volume", "current_track"] or low in ["pause", "resume", "stop", "next", "skip", "previous", "prev", "unpause", "mute", "unmute"]:
+            if target_app == "youtube" and action in ["transport", "pause", "resume", "stop"]:
+                print(f"[DIRECT DISPATCHER] Routing YouTube transport '{action}' ({low}) to YouTube Direct Background Worker...")
+                ok, speech, _ = YOUTUBE_WORKER.execute_task(action, cmd_clean, **params)
+                return ok, speech
+
+            if (action in ["transport", "next_track", "prev_track", "pause", "resume", "volume", "current_track"] or low in ["pause", "resume", "stop", "next", "skip", "previous", "prev", "unpause", "mute", "unmute"]) and target_app != "youtube":
                 print(f"[DIRECT DISPATCHER] Routing transport '{action}' ({low}) to Spotify Direct Background Worker...")
                 ok, speech, _ = SPOTIFY_WORKER.execute_task(action, cmd_clean, **params)
                 return ok, speech

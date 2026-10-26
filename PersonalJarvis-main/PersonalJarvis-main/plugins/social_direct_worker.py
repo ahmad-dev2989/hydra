@@ -40,42 +40,101 @@ class YouTubeDirectWorker(BaseDirectWorker):
             or bool(os.environ.get("YOUTUBE_API_KEY"))
         )
 
-    def search_video(self, query: str) -> Tuple[bool, str, Dict[str, Any]]:
+    def search_video(self, query: str, limit: int = 5) -> Tuple[bool, str, Dict[str, Any]]:
         clean_q = query.strip()
         if not clean_q:
             return False, "Please specify a video title or search query for YouTube, sir.", {}
 
-        # 1. Try live scrape of YouTube search results
+        # 1. Primary Strategy: Live HTML search with ytInitialData JSON extraction
         try:
             import urllib.request
             import urllib.parse
             enc_q = urllib.parse.quote(clean_q)
             url = f"https://www.youtube.com/results?search_query={enc_q}"
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-            with urllib.request.urlopen(req, timeout=3.5) as resp:
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept-Language": "en-US,en;q=0.9"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=4.5) as resp:
                 html = resp.read().decode("utf-8", errors="ignore")
 
-            m_id = re.search(r'"videoId":"([a-zA-Z0-9_-]{11})"', html)
-            m_title = re.search(r'"title":{"runs":\[{"text":"(.*?)"}\]', html)
-            m_channel = re.search(r'"ownerText":{"runs":\[{"text":"(.*?)"', html)
-            if m_id and m_title:
-                v_id = m_id.group(1)
-                v_title = m_title.group(1)
-                v_channel = m_channel.group(1) if m_channel else "YouTube"
-                v_url = f"https://www.youtube.com/watch?v={v_id}"
-                speech = f"Sir, I found '{v_title}' by {v_channel} on YouTube."
-                return True, speech, {"title": v_title, "channel": v_channel, "url": v_url, "id": v_id}
+            m_json = re.search(r'var ytInitialData\s*=\s*({.*?});(?:</script>|var )', html)
+            if not m_json:
+                m_json = re.search(r'ytInitialData\s*=\s*({.*?});</script>', html)
+
+            if m_json:
+                data = json.loads(m_json.group(1))
+                contents = data.get("contents", {}).get("twoColumnSearchResultsRenderer", {}).get("primaryContents", {}).get("sectionListRenderer", {}).get("contents", [])
+                results = []
+                for sec in contents:
+                    for item in sec.get("itemSectionRenderer", {}).get("contents", []):
+                        vr = item.get("videoRenderer")
+                        if vr:
+                            v_id = vr.get("videoId")
+                            title_runs = vr.get("title", {}).get("runs", [])
+                            title = "".join(r.get("text", "") for r in title_runs).strip()
+                            channel_runs = vr.get("ownerText", {}).get("runs", [])
+                            channel = "".join(r.get("text", "") for r in channel_runs).strip() or "YouTube"
+                            view_text = vr.get("viewCountText", {}).get("simpleText", "")
+                            length_text = vr.get("lengthText", {}).get("simpleText", "")
+                            if v_id and title:
+                                results.append({
+                                    "id": v_id,
+                                    "title": title,
+                                    "channel": channel,
+                                    "views": view_text,
+                                    "length": length_text,
+                                    "url": f"https://www.youtube.com/watch?v={v_id}"
+                                })
+                if results:
+                    top = results[0]
+                    view_suffix = f" with {top['views']}" if top.get("views") else ""
+                    dur_suffix = f" ({top['length']})" if top.get("length") else ""
+                    speech = f"Sir, I found '{top['title']}' by {top['channel']}{view_suffix}{dur_suffix} on YouTube."
+                    return True, speech, {
+                        "id": top["id"],
+                        "title": top["title"],
+                        "channel": top["channel"],
+                        "url": top["url"],
+                        "views": top.get("views", ""),
+                        "length": top.get("length", ""),
+                        "results": results[:limit]
+                    }
         except Exception as e:
             print(f"[YOUTUBE LIVE SEARCH NOTICE] {e}")
 
-        # 2. Try YouTube Data API v3 if API key configured
+        # 2. Secondary Strategy: Regex fallback on raw search HTML
+        try:
+            v_ids = re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})"', html)
+            titles = re.findall(r'"title":{"runs":\[{"text":"(.*?)"}\]', html)
+            channels = re.findall(r'"ownerText":{"runs":\[{"text":"(.*?)"', html)
+            if v_ids and titles:
+                v_id = v_ids[0]
+                v_title = titles[0]
+                v_channel = channels[0] if channels else "YouTube"
+                v_url = f"https://www.youtube.com/watch?v={v_id}"
+                speech = f"Sir, I found '{v_title}' by {v_channel} on YouTube."
+                return True, speech, {
+                    "id": v_id,
+                    "title": v_title,
+                    "channel": v_channel,
+                    "url": v_url,
+                    "results": [{"id": v_id, "title": v_title, "channel": v_channel, "url": v_url}]
+                }
+        except Exception:
+            pass
+
+        # 3. Tertiary Strategy: YouTube Data API v3 if key configured
         api_key = os.environ.get("YOUTUBE_API_KEY")
         if api_key:
             try:
                 import requests
                 resp = requests.get(
                     "https://www.googleapis.com/youtube/v3/search",
-                    params={"part": "snippet", "q": clean_q, "type": "video", "maxResults": 1, "key": api_key},
+                    params={"part": "snippet", "q": clean_q, "type": "video", "maxResults": limit, "key": api_key},
                     timeout=3.5
                 )
                 if resp.status_code == 200:
@@ -87,62 +146,258 @@ class YouTubeDirectWorker(BaseDirectWorker):
                         v_channel = item.get("snippet", {}).get("channelTitle", "YouTube")
                         v_url = f"https://www.youtube.com/watch?v={v_id}"
                         speech = f"Sir, I found '{v_title}' by {v_channel} on YouTube."
-                        return True, speech, {"title": v_title, "channel": v_channel, "url": v_url, "id": v_id}
+                        return True, speech, {
+                            "id": v_id,
+                            "title": v_title,
+                            "channel": v_channel,
+                            "url": v_url,
+                            "results": [{"id": v_id, "title": v_title, "channel": v_channel, "url": v_url}]
+                        }
             except Exception:
                 pass
 
         return False, f"Sir, I was unable to retrieve live search results for '{clean_q}' on YouTube at this moment.", {}
 
-    def play_audio(self, query: str) -> Tuple[bool, str, Dict[str, Any]]:
-        clean_q = query.strip()
-        ok, _, item = self.search_video(clean_q)
-        v_url = item.get("url") if ok else f"https://www.youtube.com/results?search_query={urllib.parse.quote(clean_q)}"
-        v_title = item.get("title", clean_q)
+    def search_channel(self, channel_query: str) -> Tuple[bool, str, Dict[str, Any]]:
+        clean_ch = channel_query.strip()
+        if not clean_ch:
+            return False, "Please specify a channel name or handle for YouTube, sir.", {}
 
+        # 1. Primary Strategy: Search with channel filter
         try:
-            import webbrowser
-            webbrowser.open(v_url)
-            speech = f"Sir, opening '{v_title}' on YouTube in your browser for playback."
-            return True, speech, {"action": "open_browser", "url": v_url, "title": v_title}
-        except Exception as e:
-            return False, f"Could not launch YouTube playback in browser: {e}", {}
+            import urllib.request
+            import urllib.parse
+            enc_q = urllib.parse.quote(clean_ch)
+            url = f"https://www.youtube.com/results?search_query={enc_q}&sp=EgIQAg%253D%253D"
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept-Language": "en-US,en;q=0.9"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=4.5) as resp:
+                html = resp.read().decode("utf-8", errors="ignore")
 
-    def get_trending(self) -> Tuple[bool, str, List[Dict[str, Any]]]:
+            m_json = re.search(r'var ytInitialData\s*=\s*({.*?});(?:</script>|var )', html)
+            if not m_json:
+                m_json = re.search(r'ytInitialData\s*=\s*({.*?});</script>', html)
+
+            if m_json:
+                data = json.loads(m_json.group(1))
+                contents = data.get("contents", {}).get("twoColumnSearchResultsRenderer", {}).get("primaryContents", {}).get("sectionListRenderer", {}).get("contents", [])
+                for sec in contents:
+                    for item in sec.get("itemSectionRenderer", {}).get("contents", []):
+                        cr = item.get("channelRenderer")
+                        if cr:
+                            ch_id = cr.get("channelId", "")
+                            title = cr.get("title", {}).get("simpleText", clean_ch)
+                            handle = cr.get("subscriberCountText", {}).get("simpleText", "")
+                            sub_count = (
+                                cr.get("videoCountText", {}).get("simpleText")
+                                or cr.get("videoCountText", {}).get("accessibility", {}).get("accessibilityData", {}).get("label")
+                                or ""
+                            )
+                            if not sub_count and "subscriber" in handle.lower():
+                                sub_count = handle
+                                handle = ""
+
+                            sub_str = f" has {sub_count}" if sub_count else " is active"
+                            handle_str = f" ({handle})" if handle else ""
+                            ch_url = f"https://www.youtube.com/channel/{ch_id}" if ch_id else f"https://www.youtube.com/results?search_query={enc_q}"
+                            speech = f"Sir, {title}{handle_str}{sub_str} on YouTube."
+                            return True, speech, {
+                                "title": title,
+                                "handle": handle,
+                                "subscribers": sub_count,
+                                "channel_id": ch_id,
+                                "url": ch_url
+                            }
+        except Exception as e:
+            print(f"[YOUTUBE CHANNEL SEARCH NOTICE] {e}")
+
+        # 2. Secondary Strategy: YouTube Data API v3 if key configured
+        api_key = os.environ.get("YOUTUBE_API_KEY")
+        if api_key:
+            try:
+                import requests
+                resp = requests.get(
+                    "https://www.googleapis.com/youtube/v3/search",
+                    params={"part": "snippet", "q": clean_ch, "type": "channel", "maxResults": 1, "key": api_key},
+                    timeout=3.5
+                )
+                if resp.status_code == 200:
+                    items = resp.json().get("items", [])
+                    if items:
+                        item = items[0]
+                        ch_id = item.get("id", {}).get("channelId")
+                        title = item.get("snippet", {}).get("title", clean_ch)
+                        # Fetch channel statistics
+                        stat_resp = requests.get(
+                            "https://www.googleapis.com/youtube/v3/channels",
+                            params={"part": "statistics", "id": ch_id, "key": api_key},
+                            timeout=3.0
+                        )
+                        subs = "several"
+                        if stat_resp.status_code == 200:
+                            s_items = stat_resp.json().get("items", [])
+                            if s_items:
+                                sub_raw = int(s_items[0].get("statistics", {}).get("subscriberCount", 0))
+                                if sub_raw >= 1_000_000:
+                                    subs = f"{sub_raw / 1_000_000:.1f}M subscribers"
+                                elif sub_raw >= 1_000:
+                                    subs = f"{sub_raw / 1_000:.1f}K subscribers"
+                                else:
+                                    subs = f"{sub_raw} subscribers"
+                        speech = f"Sir, {title} has {subs} on YouTube."
+                        return True, speech, {
+                            "title": title,
+                            "subscribers": subs,
+                            "channel_id": ch_id,
+                            "url": f"https://www.youtube.com/channel/{ch_id}"
+                        }
+            except Exception:
+                pass
+
+        return False, f"Sir, I could not find channel analytics for '{clean_ch}' on YouTube.", {}
+
+    def get_trending(self, limit: int = 3) -> Tuple[bool, str, List[Dict[str, Any]]]:
+        # 1. Strategy 1: Data API v3 if key configured
         api_key = os.environ.get("YOUTUBE_API_KEY")
         if api_key:
             try:
                 import requests
                 resp = requests.get(
                     "https://www.googleapis.com/youtube/v3/videos",
-                    params={"part": "snippet", "chart": "mostPopular", "regionCode": "US", "maxResults": 3, "key": api_key},
+                    params={"part": "snippet", "chart": "mostPopular", "regionCode": "US", "maxResults": limit, "key": api_key},
                     timeout=4.0
                 )
                 if resp.status_code == 200:
                     items = resp.json().get("items", [])
                     if items:
-                        parsed = [{"title": it["snippet"]["title"], "channel": it["snippet"]["channelTitle"]} for it in items]
-                        speech = f"Sir, the top trending video on YouTube is '{parsed[0]['title']}' by {parsed[0]['channel']}."
+                        parsed = [{"title": it["snippet"]["title"], "channel": it["snippet"]["channelTitle"], "url": f"https://www.youtube.com/watch?v={it['id']}"} for it in items]
+                        first = parsed[0]
+                        sec = f", followed by '{parsed[1]['title']}'" if len(parsed) > 1 else ""
+                        speech = f"Sir, the top trending video on YouTube is '{first['title']}' by {first['channel']}{sec}."
                         return True, speech, parsed
             except Exception:
                 pass
-        return False, "Sir, retrieving live YouTube trending videos requires a YOUTUBE_API_KEY configured in your Plugins Hub.", []
+
+        # 2. Strategy 2: Live HTML search for trending query
+        ok, _, data = self.search_video("trending videos", limit=limit)
+        if ok and data.get("results"):
+            results = data["results"][:limit]
+            first = results[0]
+            sec = f", followed by '{results[1]['title']}'" if len(results) > 1 else ""
+            speech = f"Sir, the top trending video on YouTube is '{first['title']}' by {first['channel']}{sec}."
+            return True, speech, results
+
+        return False, "Sir, retrieving live YouTube trending videos is currently unavailable.", []
+
+    def play_video(self, query: str) -> Tuple[bool, str, Dict[str, Any]]:
+        clean_q = query.strip()
+        if not clean_q or clean_q.lower() in ["youtube", "video", "videos"]:
+            # General YouTube launch
+            try:
+                import webbrowser
+                webbrowser.open("https://www.youtube.com")
+                return True, "Sir, opening YouTube in your browser.", {"action": "open_browser", "url": "https://www.youtube.com"}
+            except Exception as e:
+                return False, f"Could not open YouTube in browser: {e}", {}
+
+        # Headlessly resolve the exact top video
+        ok, _, item = self.search_video(clean_q)
+        if ok and item.get("url"):
+            v_url = item["url"]
+            v_title = item.get("title", clean_q)
+            v_channel = item.get("channel", "YouTube")
+        else:
+            import urllib.parse
+            v_url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(clean_q)}"
+            v_title = clean_q
+            v_channel = "YouTube"
+
+        try:
+            import webbrowser
+            webbrowser.open(v_url)
+            speech = f"Sir, playing '{v_title}' by {v_channel} on YouTube."
+            return True, speech, {
+                "action": "play",
+                "url": v_url,
+                "title": v_title,
+                "channel": v_channel,
+                "id": item.get("id", "")
+            }
+        except Exception as e:
+            return False, f"Could not launch YouTube playback in browser: {e}", {}
+
+    def transport(self, action: str) -> Tuple[bool, str, Dict[str, Any]]:
+        """Controls browser/media playback transport using Windows native media keys."""
+        act_clean = action.lower().strip()
+        try:
+            import ctypes
+            # Virtual-Key codes
+            VK_MEDIA_PLAY_PAUSE = 0xB3
+            VK_MEDIA_STOP = 0xB2
+            VK_VOLUME_MUTE = 0xAD
+
+            if any(w in act_clean for w in ["stop"]):
+                vk = VK_MEDIA_STOP
+                speech = "Sir, playback stopped."
+            elif any(w in act_clean for w in ["mute", "unmute"]):
+                vk = VK_VOLUME_MUTE
+                speech = "Sir, media volume toggled."
+            elif any(w in act_clean for w in ["pause"]):
+                vk = VK_MEDIA_PLAY_PAUSE
+                speech = "Sir, playback paused."
+            elif any(w in act_clean for w in ["resume", "unpause", "play"]):
+                vk = VK_MEDIA_PLAY_PAUSE
+                speech = "Sir, playback resumed."
+            else:
+                vk = VK_MEDIA_PLAY_PAUSE
+                speech = "Sir, media transport toggled."
+
+            # Key down and up
+            ctypes.windll.user32.keybd_event(vk, 0, 0, 0)
+            time.sleep(0.04)
+            ctypes.windll.user32.keybd_event(vk, 0, 2, 0)
+            return True, speech, {"action": "transport", "control": act_clean}
+        except Exception as e:
+            return False, f"Could not dispatch media control key: {e}", {}
 
     def execute_task(self, task_type: str, raw_query: str, **kwargs) -> Tuple[bool, str, Dict[str, Any]]:
         low = raw_query.lower()
-        if any(w in low for w in ["play", "listen", "stream"]):
-            m = re.search(r'\b(?:play|listen to|stream)\s+(.+)', raw_query, re.IGNORECASE)
-            q = m.group(1) if m else raw_query
-            q = re.sub(r'\s+(?:on|via|from)?\s*youtube\b.*$', '', q, flags=re.IGNORECASE).strip()
-            return self.play_audio(q)
-        elif any(w in low for w in ["trending", "popular", "top"]):
+
+        # 1. Channel analytics / subscriber check
+        if task_type == "channel_stats" or any(w in low for w in ["subscriber", "subscribers", "subs", "channel stats", "channel details"]):
+            m = re.search(r'\b(?:how many subscribers (?:does|has)?|subscribers of|channel stats (?:of|for)?|subs (?:of|for)?)\s+([a-zA-Z0-9_\s]+?)(?:\s+(?:have|on|in|via)\s+youtube|\s*$)', raw_query, re.IGNORECASE)
+            ch_cand = m.group(1).strip() if m else raw_query
+            ch_cand = re.sub(r'\s+(?:on|via|from)?\s*youtube\b.*$', '', ch_cand, flags=re.IGNORECASE).strip()
+            ch_cand = re.sub(r'^(?:how many subscribers (?:does|has)?|who is|what is|tell me)\s+', '', ch_cand, flags=re.IGNORECASE).strip()
+            return self.search_channel(ch_cand)
+
+        # 2. Trending query
+        if task_type == "trending" or any(w in low for w in ["trending", "popular", "top videos"]):
             ok, speech, items = self.get_trending()
             return ok, speech, {"trending": items}
-        else:
-            m = re.search(r'\b(?:search|find|lookup)\s+(.+)', raw_query, re.IGNORECASE)
+
+        # 3. Transport control
+        if task_type == "transport" or any(w in low for w in ["pause", "resume", "stop", "unpause"]):
+            return self.transport(low)
+
+        # 4. Playback command
+        if task_type == "play_video" or any(w in low for w in ["play", "listen", "stream", "watch", "put on"]):
+            m = re.search(r'\b(?:play|listen to|stream|watch|put on)\s+(.+)', raw_query, re.IGNORECASE)
             q = m.group(1) if m else raw_query
             q = re.sub(r'\s+(?:on|via|from)?\s*youtube\b.*$', '', q, flags=re.IGNORECASE).strip()
-            ok, speech, data = self.search_video(q)
-            return ok, speech, data
+            return self.play_video(q)
+
+        # 5. Search video command
+        m = re.search(r'\b(?:search|find|lookup|look up|show me)\s+(.+)', raw_query, re.IGNORECASE)
+        q = m.group(1) if m else raw_query
+        q = re.sub(r'\s+(?:on|via|from)?\s*youtube\b.*$', '', q, flags=re.IGNORECASE).strip()
+        ok, speech, data = self.search_video(q)
+        return ok, speech, data
 
 
 # =============================================================================

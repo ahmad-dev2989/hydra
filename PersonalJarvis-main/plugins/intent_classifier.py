@@ -186,7 +186,8 @@ def is_conversational_inquiry(text: str) -> bool:
                 r"\bannouncements?\b", r"\bstream\b", r"\bcoursework\b",
                 r"\bsay\b", r"\bsays\b", r"\bsaid\b", r"\bsaying\b",
                 r"\bsent\b", r"\bwrote\b", r"\bwritten\b",
-                r"\bcall\b", r"\bcalls\b", r"\bcalling\b", r"\bring\b", r"\bdial\b"
+                r"\bcall\b", r"\bcalls\b", r"\bcalling\b", r"\bring\b", r"\bdial\b",
+                r"\btrending\b", r"\bsubscribers?\b", r"\bviews?\b"
             ]
             if not any(re.search(act, low) for act in action_exceptions):
                 return True
@@ -798,11 +799,69 @@ def classify_command(raw_text: str) -> IntentResult:
 
     # 5.6 YouTube Actions
     if target_app == "youtube":
+        # 1. Channel stats / subscriber count
+        if any(w in low for w in ["subscriber", "subscribers", "subs", "channel stats", "channel details"]):
+            m = re.search(r'\b(?:how many subscribers (?:does|has)?|subscribers of|channel stats (?:of|for)?|subs (?:of|for)?)\s+([a-zA-Z0-9_\s]+?)(?:\s+(?:have|on|in|via)\s+youtube|\s*$)', clean_text, re.IGNORECASE)
+            ch_cand = m.group(1).strip() if m else clean_text
+            ch_cand = re.sub(r'\s+(?:on|via|from)?\s*youtube\b.*$', '', ch_cand, flags=re.IGNORECASE).strip()
+            ch_cand = re.sub(r'^(?:how many subscribers (?:does|has)?|who is|what is|tell me)\s+', '', ch_cand, flags=re.IGNORECASE).strip()
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="youtube",
+                action="channel_stats",
+                parameters={"channel": ch_cand},
+                reasoning=f"YouTube channel analytics/subscriber check for '{ch_cand}'"
+            )
+
+        # 2. Trending videos
+        if any(w in low for w in ["trending", "popular", "top videos"]):
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="youtube",
+                action="trending",
+                reasoning="YouTube trending videos query"
+            )
+
+        # 3. Media transport control
+        if any(w in low for w in ["pause", "resume", "stop", "unpause", "mute", "unmute"]):
+            cmd_action = "transport"
+            if "pause" in low:
+                cmd_action = "pause"
+            elif any(w in low for w in ["resume", "unpause"]):
+                cmd_action = "resume"
+            elif "stop" in low:
+                cmd_action = "stop"
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="youtube",
+                action="transport",
+                parameters={"command": cmd_action},
+                reasoning=f"YouTube playback transport: {cmd_action}"
+            )
+
+        # 4. Playback command
+        if any(re.search(rf"\b{w}\b", low) for w in ["play", "listen", "stream", "watch", "put on"]):
+            m = re.search(r'\b(?:play|listen to|stream|watch|put on)\s+(.+)', clean_text, re.IGNORECASE)
+            q = m.group(1).strip() if m else clean_text
+            q = re.sub(r'\s+(?:on|via|from)?\s*youtube\b.*$', '', q, flags=re.IGNORECASE).strip()
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="youtube",
+                action="play_video",
+                parameters={"query": q},
+                reasoning=f"YouTube video playback: '{q}'"
+            )
+
+        # 5. Search video command
+        m = re.search(r'\b(?:search|find|lookup|look up|show me)\s+(.+)', clean_text, re.IGNORECASE)
+        q = m.group(1).strip() if m else clean_text
+        q = re.sub(r'\s+(?:on|via|from)?\s*youtube\b.*$', '', q, flags=re.IGNORECASE).strip()
         return IntentResult(
             intent_type=IntentType.HEADLESS_BACKGROUND,
             target_app="youtube",
-            action="play_or_search",
-            reasoning="YouTube background action"
+            action="search_video",
+            parameters={"query": q},
+            reasoning=f"YouTube video search: '{q}'"
         )
 
     # 5.7 Canva Actions

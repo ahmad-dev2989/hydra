@@ -169,6 +169,14 @@ class FallbackEngine:
 
         # 2. Try Web URL in browser
         if url:
+            if target_info.get("name") == "YouTube" and query:
+                m = re.search(r'\b(?:for|about|search|find|play|watch|see|show)\s+(.+)', query, re.IGNORECASE)
+                if m:
+                    import urllib.parse
+                    clean_q = re.sub(r'\s+(?:on|in|via)?\s*youtube\b.*$', '', m.group(1), flags=re.IGNORECASE).strip()
+                    if clean_q:
+                        url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(clean_q)}"
+
             try:
                 webbrowser.open(url)
                 print(f"[FALLBACK ENGINE] Opened web URL: '{url}' for {name}")
