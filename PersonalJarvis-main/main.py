@@ -23,6 +23,7 @@ import json
 import asyncio
 import threading
 import webbrowser
+import unicodedata
 
 # Qt Configuration
 os.environ["QT_LOGGING_RULES"] = "qt.qpa.*=false"
@@ -192,17 +193,82 @@ def get_offline_tts():
             print(f"[OFFLINE TTS INIT ERROR] {e}")
     return TTS_ENGINE
 
+def prepare_text_for_speech(text: str) -> str:
+    """
+    Cleans and prepares text for Edge-TTS and offline speech engines:
+    1. Removes all Unicode emojis, pictographs, symbols, and variation selectors
+       so that TTS engines never read out emoji descriptions (e.g. 'smiling face with eyes closed').
+    2. Strips text emoticons (like :), :D, ;), :(, xD).
+    3. Strips special formatting characters (*, _, ~, #, `, |, ^, <, >, {, }, [, ]).
+    4. Handles acronyms (H.Y.D.R.A. -> Hydra) without destroying sentence full stops.
+    5. Preserves full stops (.), question marks (?), exclamation marks (!) with clean spacing
+       so the voice engine pauses naturally on full stops instead of running through.
+    """
+    if not text:
+        return ""
+
+    s = text.strip()
+
+    # 1. Normalize acronyms and abbreviations before punctuation processing
+    s = re.sub(r'\b[Hh]\.[Yy]\.[Dd]\.[Rr]\.[Aa]\.?', 'Hydra', s)
+    s = re.sub(r'\bHYDRA\b', 'Hydra', s)
+    s = re.sub(r'\be\.g\.,?', 'for example,', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bi\.e\.,?', 'that is,', s, flags=re.IGNORECASE)
+    s = re.sub(r'\bvs\.,?', 'versus', s, flags=re.IGNORECASE)
+    s = re.sub(r'\betc\.,?', 'etcetera', s, flags=re.IGNORECASE)
+
+    # 2. Strip Unicode emojis, pictographs, symbols, and variation selectors
+    cleaned_chars = []
+    for c in s:
+        cp = ord(c)
+        cat = unicodedata.category(c)
+        if (
+            cp >= 0x1F000
+            or (0x2600 <= cp <= 0x27BF)
+            or (0xFE00 <= cp <= 0xFE0F)
+            or (0x200D <= cp <= 0x200F)
+            or (0x2300 <= cp <= 0x23FF)
+            or (0x2B00 <= cp <= 0x2BFF)
+            or cat in ('So', 'Sk', 'Cn')
+        ):
+            continue
+        cleaned_chars.append(c)
+    s = "".join(cleaned_chars)
+
+    # 3. Strip text emoticons (like :), :D, ;), :(, :-), xD, :P)
+    s = re.sub(r'(^|\s)[:;=xX8][\-~]?[)D(\]\[pP/\\*oO@](?=\s|$|[.,!?])', ' ', s)
+
+    # 4. Strip special formatting characters that TTS reads awkwardly
+    s = re.sub(r'[*_~`#|\\^<>{}\[\]=~+@$%/]', ' ', s)
+
+    # 5. Normalize dashes, hyphens, and ellipses
+    s = re.sub(r'--+|—|–', ', ', s)
+    s = re.sub(r'\.{2,}', '. ', s)
+    s = re.sub(r'!{2,}', '! ', s)
+    s = re.sub(r'\?{2,}', '? ', s)
+
+    # 6. Ensure full stops, question marks, and exclamation marks are strictly followed by a space
+    # (Do NOT replace '.' with ' ' - full stops are essential for sentence cadence and stopping!)
+    s = re.sub(r'\s*([.!?])\s*', r'\1 ', s)
+    s = re.sub(r'\s*,\s*', ', ', s)
+
+    # 7. Collapse whitespace and strip
+    return re.sub(r'\s+', ' ', s).strip()
+
 def speak_voice(text: str):
     """Speaks text using Hydra's online Ryan voice, animating the living HUD organism."""
     cleaned_text = clean_ai_response(text)
     if not cleaned_text:
         return
 
+    spoken_text = prepare_text_for_speech(cleaned_text)
+    if not spoken_text:
+        return
+
     print(f"\n[HYDRA SAYS]: {cleaned_text}\n")
 
     def voice_worker():
         t0 = time.perf_counter()
-        spoken_text = cleaned_text.replace("h.y.d.r.a", "Hydra").replace("H.Y.D.R.A", "Hydra").replace(".", " ")
         spoken = False
 
         def speak_offline():

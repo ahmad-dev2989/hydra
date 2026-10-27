@@ -3,6 +3,7 @@ import re
 import json
 import sqlite3
 import time
+import unicodedata
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from openai import OpenAI
@@ -485,11 +486,13 @@ class HydraConversationalEngine:
             "RULES:\n"
             "1. Speak naturally like a clever, supportive friend ('natural_friend' style).\n"
             "2. Never use corporate filler ('I am an AI', 'How can I assist you?').\n"
-            "3. If user shares stress, validate and show genuine warmth first.\n"
-            "4. If playful, use clever banter or light humor.\n"
-            "5. If user asks what something is (e.g. 'what is spotify'), give a sharp, engaging explanation as a friend.\n"
-            "6. Answer directly in 1-3 conversational sentences (maximum 50 words) suitable for real-time speech.\n"
-            "7. Output ONLY your direct spoken answer. No internal thinking scratchpads or formatting.\n"
+            "3. Do NOT include emojis, emoticons, or special symbols (no smiley faces, stars, hashtags, or asterisks) anywhere in your reply. Speak in clean, plain English.\n"
+            "4. Use clear, standard sentence punctuation with full stops (periods) and commas so your voice pauses naturally when spoken.\n"
+            "5. If user shares stress, validate and show genuine warmth first.\n"
+            "6. If playful, use clever banter or light humor.\n"
+            "7. If user asks what something is (e.g. 'what is spotify'), give a sharp, engaging explanation as a friend.\n"
+            "8. Answer directly in 1-3 conversational sentences (maximum 50 words) suitable for real-time speech.\n"
+            "9. Output ONLY your direct spoken answer. No internal thinking scratchpads or formatting.\n"
             f"{f'FEW-SHOT EXAMPLES FROM TRAINING DATASET:{exemplar_text}' if exemplar_text else ''}"
         )
 
@@ -522,12 +525,12 @@ class HydraConversationalEngine:
                     continue
 
         if exemplars:
-            return exemplars[0]["reply"]
+            return self._clean_llm_response(exemplars[0]["reply"])
 
         return "I'm right here with you. What's on your mind?"
 
     def _clean_llm_response(self, text: str) -> str:
-        """Strips any thinking process, scratchpad markers, and unwanted metadata."""
+        """Strips any thinking process, scratchpad markers, emojis, and special characters."""
         if not text:
             return ""
         s = text.strip()
@@ -559,7 +562,41 @@ class HydraConversationalEngine:
 
         s = re.sub(r"^\s*HYDRA:\s*", "", s, flags=re.IGNORECASE)
         s = re.sub(r"^[\"']|[\"']$", "", s).strip()
-        return s.strip()
+
+        # Strip all Unicode emojis and pictographs
+        cleaned_chars = []
+        for c in s:
+            cp = ord(c)
+            cat = unicodedata.category(c)
+            if (
+                cp >= 0x1F000
+                or (0x2600 <= cp <= 0x27BF)
+                or (0xFE00 <= cp <= 0xFE0F)
+                or (0x200D <= cp <= 0x200F)
+                or (0x2300 <= cp <= 0x23FF)
+                or (0x2B00 <= cp <= 0x2BFF)
+                or cat in ('So', 'Sk', 'Cn')
+            ):
+                continue
+            cleaned_chars.append(c)
+        s = "".join(cleaned_chars)
+
+        # Strip text emoticons (like :), :D, ;), :(, xD)
+        s = re.sub(r'(^|\s)[:;=xX8][\-~]?[)D(\]\[pP/\\*oO@](?=\s|$|[.,!?])', ' ', s)
+
+        # Strip markdown and special symbols
+        s = re.sub(r'[*_~`#|\\^<>{}\[\]=~+@$%/]', ' ', s)
+
+        # Normalize dashes and ellipses
+        s = re.sub(r'--+|—|–', ', ', s)
+        s = re.sub(r'\.{2,}', '. ', s)
+        s = re.sub(r'!{2,}', '! ', s)
+        s = re.sub(r'\?{2,}', '? ', s)
+
+        # Ensure sentence punctuation has clean spacing (preserve '.', '!', '?')
+        s = re.sub(r'\s*([.!?])\s*', r'\1 ', s)
+        s = re.sub(r'\s*,\s*', ', ', s)
+        return re.sub(r'\s+', ' ', s).strip()
 
 
 # Singleton global instance
