@@ -61,20 +61,6 @@ FALLBACK_TARGETS: Dict[str, Dict[str, Any]] = {
         "protocol": "whatsapp://",
         "requires_browser": False
     },
-    "canva": {
-        "name": "Canva",
-        "url_template": "https://www.canva.com/create/",
-        "default_url": "https://www.canva.com/",
-        "protocol": None,
-        "requires_browser": True
-    },
-    "discord": {
-        "name": "Discord",
-        "url_template": "https://discord.com/channels/@me",
-        "default_url": "https://discord.com/app",
-        "protocol": "discord://",
-        "requires_browser": False
-    },
     "github": {
         "name": "GitHub",
         "url_template": "https://github.com/{account}",
@@ -169,6 +155,14 @@ class FallbackEngine:
 
         # 2. Try Web URL in browser
         if url:
+            if target_info.get("name") == "YouTube" and query:
+                m = re.search(r'\b(?:for|about|search|find|play|watch|see|show)\s+(.+)', query, re.IGNORECASE)
+                if m:
+                    import urllib.parse
+                    clean_q = re.sub(r'\s+(?:on|in|via)?\s*youtube\b.*$', '', m.group(1), flags=re.IGNORECASE).strip()
+                    if clean_q:
+                        url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(clean_q)}"
+
             try:
                 webbrowser.open(url)
                 print(f"[FALLBACK ENGINE] Opened web URL: '{url}' for {name}")
@@ -259,13 +253,17 @@ class FallbackEngine:
         if DISAMBIGUATION_MGR:
             # Extract clean reason summary from worker speech
             clean_reason = reason.strip()
+            # Strip any leading 'Sir, ' to prevent "Sir, Sir, ..."
+            clean_reason = re.sub(r'^(?:sir,?\s*)+', '', clean_reason, flags=re.IGNORECASE).strip()
             if not clean_reason:
                 clean_reason = f"live background access for {app_name} is not available"
 
             # Clean speech for concise question
-            prompt_q = f"Sir, {clean_reason} Would you like me to open {app_name} on your screen?"
-            if "Would you like me to open" not in clean_reason:
-                prompt_q = f"Sir, {clean_reason}. Would you like me to open {app_name} on your screen?"
+            if "Would you like me to open" in clean_reason:
+                prompt_q = f"Sir, {clean_reason}"
+            else:
+                punct = "" if clean_reason.endswith((".", "!", "?")) else "."
+                prompt_q = f"Sir, {clean_reason}{punct} Would you like me to open {app_name} on your screen?"
 
             ok_ans, ans = DISAMBIGUATION_MGR.ask_user(
                 prompt_q,

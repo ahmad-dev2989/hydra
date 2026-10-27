@@ -15,8 +15,6 @@ from .spotify_direct_worker import SPOTIFY_WORKER
 from .whatsapp_direct_worker import WHATSAPP_WORKER
 from .social_direct_worker import (
     YOUTUBE_WORKER,
-    CANVA_WORKER,
-    DISCORD_WORKER,
     GITHUB_WORKER,
     LINKEDIN_WORKER
 )
@@ -32,8 +30,6 @@ class DirectBackgroundDispatcher:
             "spotify": SPOTIFY_WORKER,
             "whatsapp": WHATSAPP_WORKER,
             "youtube": YOUTUBE_WORKER,
-            "canva": CANVA_WORKER,
-            "discord": DISCORD_WORKER,
             "github": GITHUB_WORKER,
             "linkedin": LINKEDIN_WORKER
         }
@@ -65,7 +61,12 @@ class DirectBackgroundDispatcher:
             params = classified.parameters or {}
 
             # Standalone Transport
-            if action in ["transport", "next_track", "prev_track", "pause", "resume", "volume", "current_track"] or low in ["pause", "resume", "stop", "next", "skip", "previous", "prev", "unpause", "mute", "unmute"]:
+            if target_app == "youtube" and action in ["transport", "pause", "resume", "stop"]:
+                print(f"[DIRECT DISPATCHER] Routing YouTube transport '{action}' ({low}) to YouTube Direct Background Worker...")
+                ok, speech, _ = YOUTUBE_WORKER.execute_task(action, cmd_clean, **params)
+                return ok, speech
+
+            if (action in ["transport", "next_track", "prev_track", "pause", "resume", "volume", "current_track"] or low in ["pause", "resume", "stop", "next", "skip", "previous", "prev", "unpause", "mute", "unmute"]) and target_app != "youtube":
                 print(f"[DIRECT DISPATCHER] Routing transport '{action}' ({low}) to Spotify Direct Background Worker...")
                 ok, speech, _ = SPOTIFY_WORKER.execute_task(action, cmd_clean, **params)
                 return ok, speech
@@ -119,7 +120,7 @@ class DirectBackgroundDispatcher:
         if not target_app or any(w in low for w in ["which accounts", "what accounts", "list accounts", "connected accounts", "show accounts"]):
             if not target_app:
                 all_status = []
-                for a_id in ["gmail", "google_classroom", "spotify", "whatsapp", "github", "linkedin", "canva", "discord"]:
+                for a_id in ["gmail", "google_classroom", "spotify", "whatsapp", "github", "linkedin"]:
                     accs = VAULT_MGR.get_all_accounts(a_id)
                     if accs:
                         act = next((a["account"] for a in accs if a.get("active")), accs[0]["account"])

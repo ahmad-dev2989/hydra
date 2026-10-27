@@ -4,16 +4,6 @@
         "account": "f240004@cfd.nu.edu.pk",
         "accounts": [
             {
-                "account": "f240004@cfd.nu.edu.pk",
-                "label": "Account 5",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                },
-                "active": true
-            },
-            {
                 "account": "test.ahmad.pilot@gmail.com",
                 "label": "Primary",
                 "authType": "google_session",
@@ -52,86 +42,16 @@
                     "verified": true
                 },
                 "active": false
-            }
-        ],
-        "authType": "google_session",
-        "data": {
-            "session_enc": "google_session.enc",
-            "verified": true
-        }
-    },
-    "youtube": {
-        "connected": true,
-        "account": "f240004@cfd.nu.edu.pk",
-        "accounts": [
+            },
             {
                 "account": "f240004@cfd.nu.edu.pk",
-                "label": "Account 6",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                },
-                "active": true
-            },
-            {
-                "account": "ahmadfarooq29898@gmail.com",
-                "label": "Personal",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                },
-                "active": false
-            },
-            {
-                "account": "test.ahmad.pilot@gmail.com",
-                "label": "Primary",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                },
-                "active": false
-            },
-            {
-                "account": "test.pilot@gmail.com",
-                "label": "Account 2",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                },
-                "active": false
-            },
-            {
-                "account": "student.demo@fast.edu.pk",
-                "label": "Account 3",
-                "authType": "google_session",
-                "data": {
-                    "session_enc": "google_session.enc",
-                    "verified": true
-                },
-                "active": false
-            },
-            {
-                "account": "ahmad@gmail.com",
-                "label": {
-                    "verified": true
-                },
-                "authType": "google_session",
-                "data": {},
-                "active": false
-            },
-            {
-                "account": "ahmad.pilot@gmail.com",
                 "label": "Account 5",
                 "authType": "google_session",
                 "data": {
                     "session_enc": "google_session.enc",
                     "verified": true
                 },
-                "active": false
+                "active": true
             }
         ],
         "authType": "google_session",
@@ -265,30 +185,9 @@
             "country": ""
         }
     },
-    "github": {
-        "connected": true,
-        "account": "ahmad-dev2989",
-        "accounts": [
-            {
-                "account": "ahmad-dev2989",
-                "label": {
-                    "verified": true
-                },
-                "authType": "pat",
-                "data": {
-                    "verified": true
-                },
-                "active": true
-            }
-        ],
-        "authType": "pat",
-        "data": {
-            "verified": true
-        }
-    },
     "whatsapp": {
         "connected": true,
-        "account": "Connected WhatsApp Device (+92-300-1234567)",
+        "account": "WhatsApp Linked Device",
         "accounts": [
             {
                 "account": "WhatsApp Linked Device",
@@ -298,7 +197,7 @@
                     "session_enc": "session.enc",
                     "verified": true
                 },
-                "active": false
+                "active": true
             },
             {
                 "account": "Connected WhatsApp Device",
@@ -328,7 +227,7 @@
                     "session_enc": "session.enc",
                     "verified": true
                 },
-                "active": true
+                "active": false
             }
         ],
         "authType": "whatsapp_qr",
@@ -342,20 +241,57 @@
         "account": "f240004@cfd.nu.edu.pk",
         "accounts": [
             {
-                "account": "f240004@cfd.nu.edu.pk",
+                "account": "ahmadfarooq29898@gmail.com",
+                "active": false,
                 "label": "Primary",
                 "authType": "google",
+                "connectedAt": "26/10/2026 11:07 pm",
                 "data": {
                     "extra": "",
-                    "country": ""
-                },
-                "active": true
+                    "country": "",
+                    "password": "ysts qyrm nxgl bebw"
+                }
+            },
+            {
+                "account": "f240004@cfd.nu.edu.pk",
+                "active": true,
+                "label": "Secondary",
+                "authType": "account",
+                "connectedAt": "26/10/2026 11:16 pm",
+                "data": {
+                    "password": "rapy sowu odaz xmmj",
+                    "verified": true
+                }
+            }
+        ],
+        "authType": "account",
+        "data": {
+            "password": "rapy sowu odaz xmmj",
+            "verified": true
+        }
+    },
+    "youtube": {
+        "connected": true,
+        "account": "ahmadfarooq29898@gmail.com",
+        "accounts": [
+            {
+                "account": "ahmadfarooq29898@gmail.com",
+                "active": true,
+                "label": "Primary",
+                "authType": "google",
+                "connectedAt": "27/10/2026 05:42 pm",
+                "data": {
+                    "extra": "",
+                    "country": "",
+                    "password": "sskd iiqi wcvb cvig"
+                }
             }
         ],
         "authType": "google",
         "data": {
             "extra": "",
-            "country": ""
+            "country": "",
+            "password": "sskd iiqi wcvb cvig"
         }
     }
 }

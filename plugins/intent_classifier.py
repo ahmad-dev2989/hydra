@@ -39,8 +39,6 @@ APP_ALIASES = {
     "whatsapp": ["whatsapp", "whatsap", "watsapp", "watsp"],
     "github": ["github", "git hub"],
     "youtube": ["youtube", "yt"],
-    "canva": ["canva", "canwa"],
-    "discord": ["discord"],
     "linkedin": ["linkedin"],
     "chrome": ["chrome", "google chrome"],
     "brave": ["brave", "brave browser"],
@@ -77,8 +75,8 @@ TYPO_MAP = {
     "whatsap": "whatsapp",
     "watsapp": "whatsapp",
     "watsp": "whatsapp",
-    "canwa": "canva",
-    "canv": "canva",
+    "vedio": "video",
+    "vedios": "videos",
 }
 
 
@@ -186,7 +184,11 @@ def is_conversational_inquiry(text: str) -> bool:
                 r"\bannouncements?\b", r"\bstream\b", r"\bcoursework\b",
                 r"\bsay\b", r"\bsays\b", r"\bsaid\b", r"\bsaying\b",
                 r"\bsent\b", r"\bwrote\b", r"\bwritten\b",
-                r"\bcall\b", r"\bcalls\b", r"\bcalling\b", r"\bring\b", r"\bdial\b"
+                r"\bcall\b", r"\bcalls\b", r"\bcalling\b", r"\bring\b", r"\bdial\b",
+                r"\btrending\b", r"\bsubscribers?\b", r"\bviews?\b",
+                r"\brepos?(?:itories)?\b", r"\bstatus\b", r"\bstars?\b", r"\bforks?\b",
+                r"\bpull\s+requests?\b", r"\bprs?\b", r"\bissues?\b", r"\bpost\b",
+                r"\bdraft\b", r"\binvitation\b", r"\binvites?\b", r"\bnetwork\b"
             ]
             if not any(re.search(act, low) for act in action_exceptions):
                 return True
@@ -308,13 +310,13 @@ def classify_command(raw_text: str) -> IntentResult:
             action="close_panel",
             reasoning="Matched close panel directive"
         )
-    if any(w in low for w in ["dark mode", "night mode", "dark theme"]) and not any(app in low for app in ["whatsapp", "chrome", "spotify", "discord", "vscode"]):
+    if any(w in low for w in ["dark mode", "night mode", "dark theme"]) and not any(app in low for app in ["whatsapp", "chrome", "spotify", "vscode"]):
         return IntentResult(
             intent_type=IntentType.BUILTIN_UI,
             action="hud_theme_query",
             reasoning="HUD theme query"
         )
-    if any(w in low for w in ["light mode", "day mode", "light theme"]) and not any(app in low for app in ["whatsapp", "chrome", "spotify", "discord", "vscode"]):
+    if any(w in low for w in ["light mode", "day mode", "light theme"]) and not any(app in low for app in ["whatsapp", "chrome", "spotify", "vscode"]):
         return IntentResult(
             intent_type=IntentType.BUILTIN_UI,
             action="hud_theme_query",
@@ -504,16 +506,97 @@ def classify_command(raw_text: str) -> IntentResult:
             )
 
     # 5.3 Gmail Actions
-    if target_app == "gmail" or any(re.search(rf"\b{w}\b", low) for w in ["email", "emails", "inbox"]):
-        if any(re.search(rf"\b{w}\b", low) for w in ["send", "write", "compose", "dispatch"]):
-            m_to = re.search(r"(?:to|unto)\s+([a-zA-Z0-9_.+-]+(?:@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)?|[a-zA-Z]+)", low)
-            recipient = m_to.group(1) if m_to else ""
+    is_email_send = any(re.search(pat, low) for pat in [
+        r"\b(?:send|write|compose|dispatch)\s+(?:an?\s+)?(?:email|mail)\b",
+        r"\b(?:email|mail)\s+(?:to|unto)\b",
+        r"\b(?:email|mail)\s+[a-zA-Z0-9_.+-]+(?:\s+(?:saying|that|with|about|regarding)\b)",
+        r"\b(?:send|write|compose|dispatch)\s+[a-zA-Z0-9_.+-]+@\b"
+    ]) or (
+        (target_app == "gmail" or any(re.search(rf"\b{w}\b", low) for w in ["email", "emails", "inbox", "mail"]))
+        and any(re.search(rf"\b{w}\b", low) for w in ["send", "write", "compose", "dispatch"])
+    )
+
+    is_email_read = any(re.search(pat, low) for pat in [
+        r"\bread\s+(?:my\s+)?(?:incoming\s+|new\s+|latest\s+)?(?:email|emails|mail)\b",
+        r"\bread\s+(?:the\s+)?(?:email|emails|mail)\s+(?:from|by)\b",
+        r"\bwhat\s+(?:does|did)\s+(?:the\s+)?(?:email|mail)\s+(?:from|by)\b",
+        r"\bwhat\s+(?:does|did)\s+[a-zA-Z0-9_.+-]+\s+(?:say|write)\s+in\s+(?:the\s+)?(?:email|mail)\b",
+        r"\b(?:latest|incoming|new)\s+(?:email|emails|mail)\b"
+    ]) and not is_email_send
+
+    is_email_filter = any(re.search(pat, low) for pat in [
+        r"\b(?:university|fast|campus|college)\s+emails?\b",
+        r"\bemails?\s+from\s+(?:the\s+)?(?:university|fast|campus|college)\b",
+        r"\b(?:filter|check|find|search)\s+(?:my\s+)?(?:university|fast|campus|college)\s+emails?\b",
+        r"\b(?:filter|check|find|search)\s+(?:my\s+)?(?:emails?|mails?)\s+(?:about|regarding|topic|on)\b",
+        r"\b(?:emails?|mails?)\s+(?:about|regarding)\s+[a-zA-Z0-9\s]+",
+        r"\b(?:cfd\.nu\.edu\.pk|nu\.edu\.pk)\b"
+    ]) and not is_email_send and not is_email_read
+
+    if target_app == "gmail" or any(re.search(rf"\b{w}\b", low) for w in ["email", "emails", "inbox", "mail", "mails"]) or is_email_send or is_email_read or is_email_filter:
+        if is_email_send:
+            try:
+                from .gmail_direct_worker import parse_email_command
+                parsed_to, parsed_subj, parsed_body = parse_email_command(clean_text)
+            except Exception:
+                parsed_to, parsed_subj, parsed_body = "", "", ""
+                m_to = re.search(r"(?:to|unto)\s+([a-zA-Z0-9_.+-]+(?:@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)?|[a-zA-Z\s]+?)(?:\s+(?:regarding|about|with|saying|that)|$)", clean_text, re.IGNORECASE)
+                if m_to:
+                    parsed_to = m_to.group(1).strip()
+
+            params = {"to": parsed_to}
+            if parsed_subj:
+                params["subject"] = parsed_subj
+            if parsed_body:
+                params["body"] = parsed_body
+
             return IntentResult(
                 intent_type=IntentType.HEADLESS_BACKGROUND,
                 target_app="gmail",
                 action="send_email",
-                parameters={"to": recipient},
-                reasoning="Gmail background send email"
+                parameters=params,
+                reasoning=f"Gmail background send email to '{parsed_to or 'recipient'}'"
+            )
+        elif is_email_filter:
+            is_uni = any(w in low for w in ["university", "fast", "campus", "college", "cfd.nu.edu.pk", "nu.edu.pk"])
+
+            topic_cand = ""
+            m_top = re.search(r'\b(?:about|regarding|topic|on|for)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:from|on|via|in)\s+gmail|\s*$)', clean_text, re.IGNORECASE)
+            if m_top:
+                cand = m_top.group(1).strip()
+                if cand.lower() not in ["university", "fast", "gmail", "inbox", "email", "emails", "me", "my email", "my emails"]:
+                    topic_cand = cand
+
+            domain_cand = "cfd.nu.edu.pk" if is_uni else ""
+            if not domain_cand:
+                m_dom = re.search(r'\b(?:from|by|domain)\s+([a-zA-Z0-9_.+-]+(?:@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)?|[a-zA-Z\s]+?)(?:\s+(?:on|via|in)\s+gmail|\s*$)', clean_text, re.IGNORECASE)
+                if m_dom:
+                    cand = m_dom.group(1).strip()
+                    if cand.lower() not in ["gmail", "inbox", "email", "emails", "fast", "university"]:
+                        domain_cand = cand
+
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="gmail",
+                action="filter_emails",
+                parameters={"domain": domain_cand, "topic": topic_cand, "is_university": is_uni},
+                reasoning=f"Gmail background email filtering (is_uni={is_uni}, topic='{topic_cand}', domain='{domain_cand}')"
+            )
+        elif is_email_read:
+            m_from = re.search(r'\b(?:from|by)\s+([a-zA-Z0-9_.+-]+(?:@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)?|[a-zA-Z\s]+?)(?:\s+(?:on|via|in)\s+gmail|\s*$)', clean_text, re.IGNORECASE)
+            sender = ""
+            if m_from:
+                cand = m_from.group(1).strip()
+                cand = re.sub(r'\s+(?:say|says|said|saying|state|states|stated|stating|about|regarding)\b.*$', '', cand, flags=re.IGNORECASE).strip()
+                if cand.lower() not in ["gmail", "inbox", "email", "emails", "my email", "my emails"]:
+                    sender = cand
+
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="gmail",
+                action="read_emails",
+                parameters={"sender": sender},
+                reasoning=f"Gmail background read incoming emails" + (f" from '{sender}'" if sender else "")
             )
         elif any(re.search(rf"\b{w}\b", low) for w in ["search", "find", "look for"]):
             return IntentResult(
@@ -691,65 +774,168 @@ def classify_command(raw_text: str) -> IntentResult:
     # 5.5 GitHub Actions
     if target_app == "github":
         if any(w in low for w in ["create repo", "create a repo", "new repo", "create repository"]):
-            m_name = re.search(r"(?:named|name|called)\s+([a-zA-Z0-9_.-]+)", low)
-            repo_name = m_name.group(1) if m_name else ""
+            m_name = re.search(r"(?:named|name|called)\s+([a-zA-Z0-9_.-]+)", clean_text, re.IGNORECASE)
+            repo_name = m_name.group(1).strip() if m_name else ""
+            vis = "private" if "private" in low else ("public" if "public" in low else "")
             return IntentResult(
                 intent_type=IntentType.HEADLESS_BACKGROUND,
                 target_app="github",
                 action="create_repo",
-                parameters={"repo_name": repo_name},
-                reasoning="GitHub background create repo"
+                parameters={"repo_name": repo_name, "visibility": vis},
+                reasoning=f"GitHub create repository: '{repo_name}' ({vis or 'public'})"
             )
         elif any(w in low for w in ["pull request", "pr", "prs", "review"]):
             return IntentResult(
                 intent_type=IntentType.HEADLESS_BACKGROUND,
                 target_app="github",
                 action="check_prs",
-                reasoning="GitHub background PR check"
+                reasoning="GitHub pull requests check"
+            )
+        elif any(w in low for w in ["status", "details", "stars", "issues", "commits"]):
+            m_repo = re.search(r'\b(?:status of|details of|stars of|issues on|issues in|commits on|repo|repository)\s+([a-zA-Z0-9_.-]+)', clean_text, re.IGNORECASE)
+            repo_cand = m_repo.group(1).strip() if m_repo else "hydra"
+            if repo_cand.lower() in ["github", "my", "the", "a"]:
+                repo_cand = "hydra"
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="github",
+                action="repo_status",
+                parameters={"repo_name": repo_cand},
+                reasoning=f"GitHub repository status check for '{repo_cand}'"
+            )
+        elif any(w in low for w in ["list repos", "my repos", "my repositories", "what repos", "which repos", "show repos"]):
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="github",
+                action="list_repos",
+                reasoning="GitHub list user repositories"
             )
         else:
             return IntentResult(
                 intent_type=IntentType.HEADLESS_BACKGROUND,
                 target_app="github",
                 action="check_notifications",
-                reasoning="GitHub background notifications"
+                reasoning="GitHub notifications check"
             )
 
     # 5.6 YouTube Actions
     if target_app == "youtube":
+        # 1. Channel stats / subscriber count
+        if any(w in low for w in ["subscriber", "subscribers", "subs", "channel stats", "channel details"]):
+            m = re.search(r'\b(?:how many subscribers (?:does|has)?|subscribers of|channel stats (?:of|for)?|subs (?:of|for)?)\s+([a-zA-Z0-9_\s]+?)(?:\s+(?:have|on|in|via)\s+youtube|\s*$)', clean_text, re.IGNORECASE)
+            ch_cand = m.group(1).strip() if m else clean_text
+            ch_cand = re.sub(r'\s+(?:on|via|from)?\s*youtube\b.*$', '', ch_cand, flags=re.IGNORECASE).strip()
+            ch_cand = re.sub(r'^(?:how many subscribers (?:does|has)?|who is|what is|tell me)\s+', '', ch_cand, flags=re.IGNORECASE).strip()
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="youtube",
+                action="channel_stats",
+                parameters={"channel": ch_cand},
+                reasoning=f"YouTube channel analytics/subscriber check for '{ch_cand}'"
+            )
+
+        # 2. Trending videos
+        if any(w in low for w in ["trending", "popular", "top videos"]):
+            m_top = re.search(r'\btrending\s+(?:videos?|vedios?|clips?)?\s*(?:on|about|in|for)?\s*(.+)', clean_text, re.IGNORECASE)
+            topic = m_top.group(1).strip() if m_top else ""
+            if topic:
+                topic = re.sub(r'\b(?:on|via|from)?\s*youtube\b.*$', '', topic, flags=re.IGNORECASE).strip()
+            if topic.lower() in ["", "youtube", "yt", "videos", "vedios", "video", "vedio"]:
+                topic = ""
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="youtube",
+                action="trending",
+                parameters={"topic": topic} if topic else {},
+                reasoning=f"YouTube trending videos query (topic: '{topic}')" if topic else "YouTube trending videos query"
+            )
+
+        # 3. Media transport control
+        if any(w in low for w in ["pause", "resume", "stop", "unpause", "mute", "unmute"]):
+            cmd_action = "transport"
+            if "pause" in low:
+                cmd_action = "pause"
+            elif any(w in low for w in ["resume", "unpause"]):
+                cmd_action = "resume"
+            elif "stop" in low:
+                cmd_action = "stop"
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="youtube",
+                action="transport",
+                parameters={"command": cmd_action},
+                reasoning=f"YouTube playback transport: {cmd_action}"
+            )
+
+        # 4. Playback command
+        if any(re.search(rf"\b{w}\b", low) for w in ["play", "listen", "stream", "watch", "put on"]):
+            m = re.search(r'\b(?:play|listen to|stream|watch|put on)\s+(.+)', clean_text, re.IGNORECASE)
+            q = m.group(1).strip() if m else clean_text
+            q = re.sub(r'\s+(?:on|via|from)?\s*youtube\b.*$', '', q, flags=re.IGNORECASE).strip()
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="youtube",
+                action="play_video",
+                parameters={"query": q},
+                reasoning=f"YouTube video playback: '{q}'"
+            )
+
+        # 5. Search video command
+        m = re.search(r'\b(?:search|find|lookup|look up|show me)\s+(.+)', clean_text, re.IGNORECASE)
+        q = m.group(1).strip() if m else clean_text
+        q = re.sub(r'\s+(?:on|via|from)?\s*youtube\b.*$', '', q, flags=re.IGNORECASE).strip()
         return IntentResult(
             intent_type=IntentType.HEADLESS_BACKGROUND,
             target_app="youtube",
-            action="play_or_search",
-            reasoning="YouTube background action"
+            action="search_video",
+            parameters={"query": q},
+            reasoning=f"YouTube video search: '{q}'"
         )
 
-    # 5.7 Canva Actions
-    if target_app == "canva":
-        return IntentResult(
-            intent_type=IntentType.HEADLESS_BACKGROUND,
-            target_app="canva",
-            action="check_designs",
-            reasoning="Canva background action"
-        )
-
-    # 5.8 Discord Actions
-    if target_app == "discord":
-        return IntentResult(
-            intent_type=IntentType.HEADLESS_BACKGROUND,
-            target_app="discord",
-            action="check_mentions",
-            reasoning="Discord background action"
-        )
-
-    # 5.9 LinkedIn Actions
+    # 5.7 LinkedIn Actions
     if target_app == "linkedin":
-        return IntentResult(
-            intent_type=IntentType.HEADLESS_BACKGROUND,
-            target_app="linkedin",
-            action="check_notifications",
-            reasoning="LinkedIn background action"
-        )
+        if any(w in low for w in ["draft", "post", "write", "publish", "share"]):
+            # Pattern 1: (draft|post|share|write) (a post)? (on|to|in) linkedin (saying|that|about|with)?[: ] (content)
+            m1 = re.search(r'\b(?:draft|post|share|write)\s+(?:a\s+)?(?:post\s+)?(?:on|to|in)\s+linkedin\s*(?:saying|that|about|with)?[:\s]+(.+)', clean_text, re.IGNORECASE)
+            # Pattern 2: (draft|post|share|write) (content) (on|to|in) linkedin
+            m2 = re.search(r'\b(?:draft|post|share|write)\s+(.+?)\s+(?:on|to|in)\s+linkedin\b', clean_text, re.IGNORECASE)
+            if m1:
+                content = m1.group(1).strip().strip('"\'')
+            elif m2:
+                content = m2.group(1).strip().strip('"\'')
+            else:
+                m3 = re.search(r'\b(?:draft|post|write|share)\s+(.+)', clean_text, re.IGNORECASE)
+                content = m3.group(1).strip() if m3 else clean_text
+                content = re.sub(r'\s+(?:on|to|via)?\s*linkedin\b.*$', '', content, flags=re.IGNORECASE).strip().strip('"\'')
+
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="linkedin",
+                action="draft_post",
+                parameters={"content": content},
+                reasoning=f"LinkedIn post draft: '{content[:40]}...'"
+            )
+        elif any(w in low for w in ["message", "messages", "inbox", "dm", "dms"]):
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="linkedin",
+                action="check_messages",
+                reasoning="LinkedIn messages inbox"
+            )
+        elif any(w in low for w in ["network", "invitation", "invitations", "connections", "connect", "invites"]):
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="linkedin",
+                action="view_network",
+                reasoning="LinkedIn network invitations"
+            )
+        else:
+            return IntentResult(
+                intent_type=IntentType.HEADLESS_BACKGROUND,
+                target_app="linkedin",
+                action="check_notifications",
+                reasoning="LinkedIn background notifications"
+            )
 
     # If general action verbs exist without explicit app (e.g. "play starboy")
     if re.search(r"\b(?:play|listen to)\s+(.+)", low):

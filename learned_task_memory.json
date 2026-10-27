@@ -832,15 +832,23 @@
     "steps": [
       {
         "step": 1,
-        "observation": "Spotify is open with the \"Laapata\" album already displayed in the right panel. The album cover shows \"LAAPATA\" with a road scene. The playback controls at the bottom show 0:00, indicating nothing is currently playing.",
-        "reasoning": "The album \"Laapata\" is already visible and selected in the right panel. To play it, I should click on the album artwork or title area to start playback.",
-        "action": "click(x=0.866, y=0.367)\n<<<END_THINKING>>>",
-        "result": "Clicked at (2216, 528)"
+        "action": "open_app('Spotify')",
+        "target": "Spotify",
+        "details": "Open and focus Spotify",
+        "observation": "Ensure Spotify is active"
+      },
+      {
+        "step": 2,
+        "action": "double_click(x=0.15, y=0.28)",
+        "target": "",
+        "details": "The search has already been performed, so the next step is to play the song by double-clicking on the first \"Laapata\" song result to start playback.",
+        "observation": "Spotify is open with search results for \"laapata\" displayed, showing multiple songs with that title including \"Laapata\" by King as the first result in the list.",
+        "visual_template": "visual_templates/spotify_play_laapata_on_spotify/step_1_352_371.png"
       }
     ],
     "verified_by": "nvidia/Nemotron-3.5-Super-VL",
-    "success_count": 1,
-    "last_verified_timestamp": 1792748061.468611
+    "success_count": 3,
+    "last_verified_timestamp": 1793040301.504895
   },
   "spotify:play_din_guzra_on_spotify": {
     "id": "spotify:play_din_guzra_on_spotify",
@@ -1999,5 +2007,82 @@
     "verified_by": "nvidia/Nemotron-3.5-Super-VL",
     "success_count": 1,
     "last_verified_timestamp": 1792996578.511068
+  },
+  "spotify:play_laapata_jokha_on_spotify": {
+    "id": "spotify:play_laapata_jokha_on_spotify",
+    "application": "spotify",
+    "intent": "PLAY LAAPATA JOKHA ON SPOTIFY",
+    "steps": [
+      {
+        "step": 1,
+        "action": "open_app('Spotify')",
+        "target": "Spotify",
+        "details": "Open and focus Spotify",
+        "observation": "Ensure Spotify is active"
+      },
+      {
+        "step": 2,
+        "action": "hotkey('ctrl', 'l')",
+        "target": "",
+        "details": "To play a specific song \"laapata jokha\", I need to first focus the search bar using Ctrl+L, then type the song name and search for it.",
+        "observation": "Spotify is open showing the Liked Songs playlist with a song currently playing. The search bar at the top shows \"What do you want to play?\"."
+      },
+      {
+        "step": 3,
+        "action": "type_text('laapata jokha', press_enter=True)",
+        "target": "",
+        "details": "The search bar is already focused from the previous Ctrl+L",
+        "observation": "Spotify is open with the search bar at the top showing \"What do you want to play?\" and recent searches dropdown visible including \"Laapata\" by Jokha, Talha Anjum. The playback is currently active with \"Rangeen | Coke Studio Nu.WAV\" playing."
+      },
+      {
+        "step": 4,
+        "action": "double_click(x=0.517, y=0.181)",
+        "target": "",
+        "details": "The search query has been entered and results are visible; the next step is to double-click on the top song result to start playback of \"laapata jokha\".",
+        "observation": "Spotify is open with search results for \"laapata jokha\" displayed in the center panel, showing song rows that can be selected to play.",
+        "visual_template": "visual_templates/spotify_play_laapata_jokha_on_spotify/step_3_1291_228.png"
+      },
+      {
+        "step": 5,
+        "action": "double_click(x=0.145, y=0.287)",
+        "target": "",
+        "details": "The search has already been completed and results are visible, so the next step is to click on the first matching song \"Laapata\" by Jokhay, Talha Anjum to start playback of the requested track.",
+        "observation": "Spotify is open with search results for \"laapata jokha\" displayed, showing multiple songs including \"Laapata\" by Jokhay, Talha Anjum as the first result, while \"Rangeen | Coke Studio Nu.WAV\" is currently playing at the bottom.",
+        "visual_template": "visual_templates/spotify_play_laapata_jokha_on_spotify/step_4_339_381.png"
+      },
+      {
+        "step": 6,
+        "action": "type_text('laapata jokha', x=0.5, y=0.035, press_enter=True)",
+        "target": "",
+        "details": "To play \"laapata jokha\", I need to click the search bar and type the song name. Using type_text with coordinates will focus the search field and enter the text in one atomic",
+        "observation": "Spotify is open and currently playing \"Rangeen | Coke Studio Nu.WAV\". The search bar at the top center shows placeholder text \"What do you want to play?\" and needs to be focused to enter the search query."
+      },
+      {
+        "step": 7,
+        "action": "double_click(x=0.145, y=0.544)",
+        "target": "",
+        "details": "The search has been completed and the target song is visible on screen; double-clicking on the song row will start playback immediately to fulfill the goal.",
+        "observation": "Spotify is open with search results for \"laapata jokha\" displayed, showing the song \"Laapata\" by Jokhay, Talha Anjum as the first result in the track list.",
+        "visual_template": "visual_templates/spotify_play_laapata_jokha_on_spotify/step_6_339_751.png"
+      },
+      {
+        "step": 8,
+        "action": "type_text('laapata jokha', press_enter=True)",
+        "target": "",
+        "details": "To play \"laapata jokha\" on Spotify, I need to search for the song using the search bar at the top of the interface.",
+        "observation": "Spotify is open and currently playing \"Rangeen | Coke Studio Nu.WAV\". The search bar at the top shows \"What do you want to play?\" and is ready for input."
+      },
+      {
+        "step": 9,
+        "action": "click(x=0.09, y=0.405)",
+        "target": "",
+        "details": "The goal is to play \"laapata jokha\" on Spotify, and the song is already displayed on screen. Clicking the green play button will start playback of this song.",
+        "observation": "Spotify is open showing the song \"Laapata\" by Jokhay, Talha Anjum as the main content, with the song visible in the track list and a green play button available on the left side of the interface.",
+        "visual_template": "visual_templates/spotify_play_laapata_jokha_on_spotify/step_8_198_551.png"
+      }
+    ],
+    "verified_by": "nvidia/Nemotron-3.5-Super-VL",
+    "success_count": 2,
+    "last_verified_timestamp": 1793040453.2264192
   }
 }

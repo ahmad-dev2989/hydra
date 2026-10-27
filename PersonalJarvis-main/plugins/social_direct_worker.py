@@ -259,7 +259,32 @@ class YouTubeDirectWorker(BaseDirectWorker):
 
         return False, f"Sir, I could not find channel analytics for '{clean_ch}' on YouTube.", {}
 
-    def get_trending(self, limit: int = 3) -> Tuple[bool, str, List[Dict[str, Any]]]:
+    def get_trending(self, topic: str = "", limit: int = 3) -> Tuple[bool, str, List[Dict[str, Any]]]:
+        clean_topic = topic.strip()
+        if clean_topic.lower() in ["youtube", "yt", "videos", "vedios", "video", "vedio"]:
+            clean_topic = ""
+
+        if clean_topic:
+            # Topic-specific trending search (e.g., "trending machine learning")
+            ok, _, data = self.search_video(f"trending {clean_topic}", limit=limit)
+            if ok and data.get("results"):
+                results = data["results"][:limit]
+                first = results[0]
+                t1 = re.sub(r'[\U00010000-\U0010ffff]', '', first['title']).strip()
+                view_str = f" with {first['views']}" if first.get("views") else ""
+                sec = ""
+                if len(results) > 1:
+                    t2 = re.sub(r'[\U00010000-\U0010ffff]', '', results[1]['title']).strip()
+                    sec = f", followed by '{t2}'"
+                speech = f"Sir, the top trending {clean_topic} video on YouTube is '{t1}' by {first['channel']}{view_str}{sec}."
+                return True, speech, results
+            elif ok and data.get("title"):
+                first = data
+                t1 = re.sub(r'[\U00010000-\U0010ffff]', '', first['title']).strip()
+                speech = f"Sir, I found trending {clean_topic} video '{t1}' by {first.get('channel', 'YouTube')} on YouTube."
+                return True, speech, [first]
+
+        # General YouTube Trending
         # 1. Strategy 1: Data API v3 if key configured
         api_key = os.environ.get("YOUTUBE_API_KEY")
         if api_key:
@@ -273,7 +298,7 @@ class YouTubeDirectWorker(BaseDirectWorker):
                 if resp.status_code == 200:
                     items = resp.json().get("items", [])
                     if items:
-                        parsed = [{"title": it["snippet"]["title"], "channel": it["snippet"]["channelTitle"], "url": f"https://www.youtube.com/watch?v={it['id']}"} for it in items]
+                        parsed = [{"title": re.sub(r'[\U00010000-\U0010ffff]', '', it["snippet"]["title"]).strip(), "channel": it["snippet"]["channelTitle"], "url": f"https://www.youtube.com/watch?v={it['id']}"} for it in items]
                         first = parsed[0]
                         sec = f", followed by '{parsed[1]['title']}'" if len(parsed) > 1 else ""
                         speech = f"Sir, the top trending video on YouTube is '{first['title']}' by {first['channel']}{sec}."
@@ -286,8 +311,12 @@ class YouTubeDirectWorker(BaseDirectWorker):
         if ok and data.get("results"):
             results = data["results"][:limit]
             first = results[0]
-            sec = f", followed by '{results[1]['title']}'" if len(results) > 1 else ""
-            speech = f"Sir, the top trending video on YouTube is '{first['title']}' by {first['channel']}{sec}."
+            t1 = re.sub(r'[\U00010000-\U0010ffff]', '', first['title']).strip()
+            sec = ""
+            if len(results) > 1:
+                t2 = re.sub(r'[\U00010000-\U0010ffff]', '', results[1]['title']).strip()
+                sec = f", followed by '{t2}'"
+            speech = f"Sir, the top trending video on YouTube is '{t1}' by {first['channel']}{sec}."
             return True, speech, results
 
         return False, "Sir, retrieving live YouTube trending videos is currently unavailable.", []
@@ -376,7 +405,16 @@ class YouTubeDirectWorker(BaseDirectWorker):
 
         # 2. Trending query
         if task_type == "trending" or any(w in low for w in ["trending", "popular", "top videos"]):
-            ok, speech, items = self.get_trending()
+            topic = kwargs.get("topic") or ""
+            if not topic:
+                m_top = re.search(r'\btrending\s+(?:videos?|vedios?|clips?)?\s*(?:on|about|in|for)?\s*(.+)', raw_query, re.IGNORECASE)
+                if m_top:
+                    topic = m_top.group(1).strip()
+            if topic:
+                topic = re.sub(r'\b(?:on|via|from)?\s*youtube\b.*$', '', topic, flags=re.IGNORECASE).strip()
+            if topic.lower() in ["", "youtube", "yt", "videos", "vedios", "video", "vedio"]:
+                topic = ""
+            ok, speech, items = self.get_trending(topic=topic)
             return ok, speech, {"trending": items}
 
         # 3. Transport control

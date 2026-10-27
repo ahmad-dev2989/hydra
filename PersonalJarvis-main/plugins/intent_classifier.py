@@ -75,6 +75,8 @@ TYPO_MAP = {
     "whatsap": "whatsapp",
     "watsapp": "whatsapp",
     "watsp": "whatsapp",
+    "vedio": "video",
+    "vedios": "videos",
 }
 
 
@@ -834,11 +836,18 @@ def classify_command(raw_text: str) -> IntentResult:
 
         # 2. Trending videos
         if any(w in low for w in ["trending", "popular", "top videos"]):
+            m_top = re.search(r'\btrending\s+(?:videos?|vedios?|clips?)?\s*(?:on|about|in|for)?\s*(.+)', clean_text, re.IGNORECASE)
+            topic = m_top.group(1).strip() if m_top else ""
+            if topic:
+                topic = re.sub(r'\b(?:on|via|from)?\s*youtube\b.*$', '', topic, flags=re.IGNORECASE).strip()
+            if topic.lower() in ["", "youtube", "yt", "videos", "vedios", "video", "vedio"]:
+                topic = ""
             return IntentResult(
                 intent_type=IntentType.HEADLESS_BACKGROUND,
                 target_app="youtube",
                 action="trending",
-                reasoning="YouTube trending videos query"
+                parameters={"topic": topic} if topic else {},
+                reasoning=f"YouTube trending videos query (topic: '{topic}')" if topic else "YouTube trending videos query"
             )
 
         # 3. Media transport control

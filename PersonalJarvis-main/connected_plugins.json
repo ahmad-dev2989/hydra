@@ -1,23 +1,4 @@
 {
-    "github": {
-        "connected": true,
-        "account": "ahmad-dev2989",
-        "accounts": [
-            {
-                "account": "ahmad-dev2989",
-                "label": {
-                    "verified": true
-                },
-                "authType": "pat",
-                "data": {
-                    "verified": true
-                },
-                "active": true
-            }
-        ],
-        "authType": "pat",
-        "data": {}
-    },
     "linkedin": {
         "connected": true,
         "account": "ahmad-pro",
@@ -243,6 +224,31 @@
         "data": {
             "session_enc": "google_session.enc",
             "verified": true
+        }
+    },
+    "youtube": {
+        "connected": true,
+        "account": "ahmadfarooq29898@gmail.com",
+        "accounts": [
+            {
+                "account": "ahmadfarooq29898@gmail.com",
+                "active": true,
+                "label": "Primary",
+                "authType": "google",
+                "connectedAt": "27/10/2026 05:42 pm",
+                "data": {
+                    "extra": "",
+                    "country": "",
+                    "password": "sskd iiqi wcvb cvig"
+                }
+            }
+        ],
+        "connectedAt": "27/10/2026 05:42 pm",
+        "authType": "google",
+        "data": {
+            "extra": "",
+            "country": "",
+            "password": "sskd iiqi wcvb cvig"
         }
     }
 }
