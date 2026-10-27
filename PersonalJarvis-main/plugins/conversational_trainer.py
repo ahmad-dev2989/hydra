@@ -73,6 +73,20 @@ class ConversationalKnowledgeTrainer:
         if self._conn is None:
             self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
             self._conn.row_factory = sqlite3.Row
+            try:
+                cur = self._conn.cursor()
+                cur.execute("""
+                CREATE TABLE IF NOT EXISTS session_conversation_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp REAL,
+                    role TEXT,
+                    content TEXT
+                );
+                """)
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_session_time ON session_conversation_history(timestamp);")
+                self._conn.commit()
+            except Exception:
+                pass
         return self._conn
 
     def _find_dataset(self, filename: str) -> Optional[Path]:
@@ -330,6 +344,73 @@ class ConversationalKnowledgeTrainer:
 
         return results
 
+    def record_turn(self, role: str, content: str):
+        """Records a conversational turn (user or hydra) into persistent session history."""
+        if not content or not content.strip():
+            return
+        try:
+            conn = self._get_connection()
+            cur = conn.cursor()
+            cur.execute("""
+            INSERT INTO session_conversation_history (timestamp, role, content)
+            VALUES (?, ?, ?)
+            """, (time.time(), role.lower().strip(), content.strip()))
+            conn.commit()
+        except Exception as e:
+            print(f"[CONVERSATION TRAINER NOTICE] Could not record turn: {e}")
+
+    def get_recent_history(self, limit: int = 6) -> List[Dict[str, str]]:
+        """Retrieves recent conversation turns in chronological order."""
+        try:
+            conn = self._get_connection()
+            cur = conn.cursor()
+            cur.execute("""
+            SELECT role, content
+            FROM (
+                SELECT id, role, content
+                FROM session_conversation_history
+                ORDER BY id DESC
+                LIMIT ?
+            )
+            ORDER BY id ASC
+            """, (limit,))
+            rows = cur.fetchall()
+            return [{"role": r["role"], "content": r["content"]} for r in rows]
+        except Exception as e:
+            print(f"[CONVERSATION TRAINER NOTICE] Could not fetch history: {e}")
+            return []
+
+    def search_history(self, query: str, limit: int = 3) -> List[Dict[str, str]]:
+        """Searches past conversation history for mentions of specific topics or entities."""
+        try:
+            conn = self._get_connection()
+            cur = conn.cursor()
+            kw = [w.lower() for w in query.split() if len(w) > 3 and w.lower() not in {"what", "that", "this", "were", "with", "from", "have"}]
+            if not kw:
+                return []
+            pattern = f"%{kw[-1]}%"
+            cur.execute("""
+            SELECT role, content
+            FROM session_conversation_history
+            WHERE lower(content) LIKE ?
+            ORDER BY id DESC
+            LIMIT ?
+            """, (pattern, limit))
+            rows = cur.fetchall()
+            return [{"role": r["role"], "content": r["content"]} for r in rows]
+        except Exception:
+            return []
+
+    def clear_history(self):
+        """Clears the session conversation history."""
+        try:
+            conn = self._get_connection()
+            cur = conn.cursor()
+            cur.execute("DELETE FROM session_conversation_history")
+            conn.commit()
+        except Exception:
+            pass
+
 
 class HydraConversationalEngine:
     """
@@ -463,17 +544,22 @@ class HydraConversationalEngine:
 
     def generate_reply(self, user_query: str, system_context: str = "") -> str:
         """
-        Generates a fast (under 2 seconds) conversational response grounded in the datasets.
-        Uses retrieved exemplars from SQLite FTS5 memory and the low-latency Qwen3-30B model.
+        Generates a fast (under 2 seconds) conversational response grounded in the datasets
+        and aware of recent conversation history across previous turns.
         """
         clean_q = user_query.strip()
         low_q = _clean_text(clean_q)
 
         # 1. Check for exact match in trained memory (0.05ms)
+        # Skip exact match if user is asking about previous context/memory
+        is_recall_query = any(w in clean_q.lower() for w in ["what did i", "what did we", "do you remember", "did i say", "previous", "earlier", "who is", "what was my", "what were"])
         exemplars = self.trainer.retrieve_similar(clean_q, top_k=3)
-        if exemplars and _clean_text(exemplars[0]["user"]) == low_q:
+        if not is_recall_query and exemplars and _clean_text(exemplars[0]["user"]) == low_q:
             print(f"[CONVERSATION ENGINE] Direct trained response match from {exemplars[0]['source']}")
-            return exemplars[0]["reply"]
+            ans = self._clean_llm_response(exemplars[0]["reply"])
+            self.trainer.record_turn("user", clean_q)
+            self.trainer.record_turn("hydra", ans)
+            return ans
 
         # 2. Build Few-Shot Grounding Prompt
         exemplar_text = ""
@@ -485,20 +571,38 @@ class HydraConversationalEngine:
             "You have been trained on authentic friend conversations and dialogue datasets.\n\n"
             "RULES:\n"
             "1. Speak naturally like a clever, supportive friend ('natural_friend' style).\n"
-            "2. Never use corporate filler ('I am an AI', 'How can I assist you?').\n"
-            "3. Do NOT include emojis, emoticons, or special symbols (no smiley faces, stars, hashtags, or asterisks) anywhere in your reply. Speak in clean, plain English.\n"
-            "4. Use clear, standard sentence punctuation with full stops (periods) and commas so your voice pauses naturally when spoken.\n"
-            "5. If user shares stress, validate and show genuine warmth first.\n"
-            "6. If playful, use clever banter or light humor.\n"
-            "7. If user asks what something is (e.g. 'what is spotify'), give a sharp, engaging explanation as a friend.\n"
-            "8. Answer directly in 1-3 conversational sentences (maximum 50 words) suitable for real-time speech.\n"
-            "9. Output ONLY your direct spoken answer. No internal thinking scratchpads or formatting.\n"
+            "2. Maintain conversation continuity and remember what you and the user discussed in earlier turns.\n"
+            "3. Never use corporate filler ('I am an AI', 'How can I assist you?').\n"
+            "4. Do NOT include emojis, emoticons, or special symbols (no smiley faces, stars, hashtags, or asterisks) anywhere in your reply. Speak in clean, plain English.\n"
+            "5. Use clear, standard sentence punctuation with full stops (periods) and commas so your voice pauses naturally when spoken.\n"
+            "6. If user shares stress, validate and show genuine warmth first.\n"
+            "7. If playful, use clever banter or light humor.\n"
+            "8. If user asks what something is (e.g. 'what is spotify'), give a sharp, engaging explanation as a friend.\n"
+            "9. Answer directly in 1-3 conversational sentences (maximum 50 words) suitable for real-time speech.\n"
+            "10. Output ONLY your direct spoken answer. No internal thinking scratchpads or formatting.\n"
             f"{f'FEW-SHOT EXAMPLES FROM TRAINING DATASET:{exemplar_text}' if exemplar_text else ''}"
         )
 
+        # 3. Retrieve recent conversation history & recall context
+        recent_history = self.trainer.get_recent_history(limit=6)
+
+        recall_context = ""
+        if is_recall_query:
+            recalled = self.trainer.search_history(clean_q, limit=3)
+            if recalled:
+                recalled_str = "\n".join([f"- {r['role'].upper()}: {r['content']}" for r in recalled])
+                recall_context = f"\n[Relevant Memory From Earlier Turns:\n{recalled_str}]\n"
+
         user_content = clean_q
-        if system_context:
-            user_content = f"{system_context}\n\nUser: {clean_q}"
+        if system_context or recall_context:
+            user_content = f"{system_context}{recall_context}\n\nUser: {clean_q}".strip()
+
+        # Build chronological multi-turn messages
+        messages = [{"role": "system", "content": system_prompt}]
+        for turn in recent_history:
+            role = "assistant" if turn["role"] == "hydra" else "user"
+            messages.append({"role": role, "content": turn["content"]})
+        messages.append({"role": "user", "content": user_content})
 
         client = self._get_client()
         if client:
@@ -507,10 +611,7 @@ class HydraConversationalEngine:
                     t0 = time.perf_counter()
                     completion = client.chat.completions.create(
                         model=model_name,
-                        messages=[
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_content}
-                        ],
+                        messages=messages,
                         temperature=0.7,
                         max_tokens=150
                     )
@@ -519,15 +620,17 @@ class HydraConversationalEngine:
                     if cleaned_ans:
                         elapsed = time.perf_counter() - t0
                         print(f"[CONVERSATION ENGINE] Generated reply in {elapsed:.2f}s ({model_name})")
+                        self.trainer.record_turn("user", clean_q)
+                        self.trainer.record_turn("hydra", cleaned_ans)
                         return cleaned_ans
                 except Exception as e:
                     print(f"[CONVERSATION ENGINE NOTICE] Model {model_name} error: {e}, trying fallback...")
                     continue
 
-        if exemplars:
-            return self._clean_llm_response(exemplars[0]["reply"])
-
-        return "I'm right here with you. What's on your mind?"
+        fallback_ans = self._clean_llm_response(exemplars[0]["reply"]) if exemplars else "I'm right here with you. What's on your mind?"
+        self.trainer.record_turn("user", clean_q)
+        self.trainer.record_turn("hydra", fallback_ans)
+        return fallback_ans
 
     def _clean_llm_response(self, text: str) -> str:
         """Strips any thinking process, scratchpad markers, emojis, and special characters."""
