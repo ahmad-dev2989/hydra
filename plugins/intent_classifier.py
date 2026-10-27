@@ -155,6 +155,7 @@ def is_conversational_inquiry(text: str) -> bool:
     qa_starters = [
         r"^why\b",
         r"^what\s+is\s+(?!playing\b|the\s+current\s+song\b|the\s+latest\s+email\b|due\b|my\s+assignment\b)",
+        r"^what's\s+(?!playing\b|the\s+current\s+song\b|the\s+latest\s+email\b|due\b|my\s+assignment\b)",
         r"^what\s+are\s+(?!my\s+emails\b|my\s+assignments\b|my\s+classes\b|the\s+assignments\b|the\s+classes\b|the\s+announcements\b|announcements\b|my\s+courses\b|the\s+courses\b)",
         r"^what\s+does\b",
         r"^how\s+does\b",
@@ -169,7 +170,8 @@ def is_conversational_inquiry(text: str) -> bool:
         r"^define\b",
         r"^can\s+you\s+explain\b",
         r"^why\s+do\s+we\b",
-        r"^is\s+(?:spotify|classroom|whatsapp|github|gmail)\s+(?:safe|free|good|popular|secure|used)\b"
+        r"^is\s+(?:spotify|classroom|whatsapp|github|gmail|youtube|linkedin|instagram|facebook)\s+(?:safe|free|good|popular|secure|used|better|worth)\b",
+        r"\b(?:what\s+is|what's|tell\s+me\s+about|explain|who\s+made|who\s+created)\s+(?:spotify|youtube|google\s+classroom|classroom|gmail|whatsapp|github|linkedin|instagram|facebook)\b"
     ]
 
     for pat in qa_starters:
@@ -332,6 +334,25 @@ def classify_command(raw_text: str) -> IntentResult:
             action="general_qa",
             reasoning=f"Conversational inquiry detected (question/explanation about {target_app or 'topic'})"
         )
+
+    # 2.5 AI Intent Reasoning (Task vs Conversation)
+    # Evaluates ambiguous queries and queries mentioning apps (e.g. 'what is spotify', 'spotify vs apple music')
+    # to guarantee they are reasoned with AI and NEVER hijacked as tasks simply because an app name appears.
+    try:
+        from .conversational_trainer import HYDRA_CONVERSATIONAL_ENGINE
+    except ImportError:
+        from conversational_trainer import HYDRA_CONVERSATIONAL_ENGINE
+
+    target_app_cand = detect_target_app(clean_text)
+    if target_app_cand or any(w in low for w in ["spotify", "youtube", "classroom", "gmail", "whatsapp", "github", "linkedin", "instagram", "facebook"]):
+        ai_verdict = HYDRA_CONVERSATIONAL_ENGINE.reason_task_or_conversation(clean_text)
+        if not ai_verdict.get("is_task", True):
+            return IntentResult(
+                intent_type=IntentType.CONVERSATIONAL,
+                target_app=target_app_cand,
+                action="conversational_inquiry",
+                reasoning=ai_verdict.get("reasoning", f"AI reasoned '{clean_text}' is conversational inquiry, not a task")
+            )
 
     # 3. Account Management
     if is_account_management_command(clean_text):

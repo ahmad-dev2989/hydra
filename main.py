@@ -376,8 +376,8 @@ class HydraPage(QWebEnginePage):
         if message.startswith("HYDRA_CMD:"):
             command = message[10:].strip()
             self.process_hydra_command(command)
-        elif message.startswith("HYDRA_OPEN_URL:"):
-            url = message[15:].strip()
+        elif message.startswith("HYDRA_OPEN_URL:") or message.startswith("HYDRA_BROWSER:"):
+            url = message.split(":", 1)[1].strip()
             if url:
                 print(f"[HYDRA BROWSER] Opening URL: {url}")
                 webbrowser.open(url)
@@ -651,24 +651,32 @@ class HydraPage(QWebEnginePage):
                     speak_voice(reply)
                     return
 
-                # Enrich conversational prompt with connected plugins context
-                brain_input = cmd_clean
+                # Route through Trained Conversational Engine (grounded in the 3 datasets)
+                system_ctx = ""
                 if connected_plugins_data:
                     plg_summary = ", ".join([f"{pk.replace('_', ' ').title()} (account: {pv.get('account')})" for pk, pv in connected_plugins_data.items() if isinstance(pv, dict) and pv.get("connected")])
                     if plg_summary:
-                        brain_input = f"[System Context: Connected plugins in HYDRA Plugins Hub: {plg_summary}]\n{cmd_clean}"
+                        system_ctx = f"[System Context: Connected plugins in HYDRA Plugins Hub: {plg_summary}]"
 
-                brain = get_jarvis_brain()
-                response = run_async(
-                    brain.generate(brain_input, publish_response=False),
-                    timeout=120.0
-                )
-                cleaned = clean_ai_response(response, user_input_hint=cmd_clean)
+                try:
+                    from plugins.conversational_trainer import HYDRA_CONVERSATIONAL_ENGINE
+                    cleaned = HYDRA_CONVERSATIONAL_ENGINE.generate_reply(cmd_clean, system_context=system_ctx)
+                except Exception as c_err:
+                    print(f"[CONVERSATIONAL ENGINE NOTICE] Fallback to default brain: {c_err}")
+                    brain_input = f"{system_ctx}\n{cmd_clean}" if system_ctx else cmd_clean
+                    brain = get_jarvis_brain()
+                    response = run_async(
+                        brain.generate(brain_input, publish_response=False),
+                        timeout=120.0
+                    )
+                    cleaned = clean_ai_response(response, user_input_hint=cmd_clean)
+
                 if not cleaned:
                     cleaned = "Command processed, sir."
 
-                print(f"[ENGINE] Execution finished in {time.perf_counter() - t_start:.2f}s")
+                print(f"[ENGINE] Conversational execution finished in {time.perf_counter() - t_start:.2f}s")
                 speak_voice(cleaned)
+                safe_emit_js(f"if (typeof appendMessage === 'function') appendMessage('hydra', {json.dumps(cleaned)});")
             except Exception as exc:
                 print(f"[ENGINE ERROR] {exc}")
                 speak_voice("I encountered an issue executing that command, sir.")
