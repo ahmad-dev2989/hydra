@@ -1,0 +1,17 @@
+# HYDRA — Desktop AI Assistant (Nebius x NVIDIA AI Hackathon)
+PyQt6>=6.5.0
+PyQt6-WebEngine>=6.5.0
+openai>=1.40.0
+python-dotenv>=1.0.0
+edge-tts>=6.1.0
+pygame>=2.5.0
+psutil>=5.9.0
+pyttsx3>=2.90
+send2trash>=1.8.0
+requests>=2.31.0
+uiautomation>=2.0.29
+winocr>=0.0.15
+opencv-python>=4.8.0
+pillow>=10.0.0
+numpy>=1.24.0
+pyautogui>=0.9.54

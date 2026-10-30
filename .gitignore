@@ -1,0 +1,69 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local environment, API keys & secrets
+.env
+.env.*
+!.env.example
+connected_plugins.json
+contacts.json
+user_preferences.json
+learned_skills.json
+learned_task_memory.json
+active_timers.json
+apps_index_cache.json
+
+# Large binaries & installer packages (>100MB causes GitHub push rejection)
+*.exe
+*.msi
+*.zip
+*.tar.gz
+*.rar
+*.dll
+*.pyd
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Database files & local vaults
+*.db
+*.db-wal
+*.db-shm
+data/vault/
+data/flight_recorder/
+
+# OS generated files & caches
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+*.bak
+*background*
+circle*.png
+
+# IDE & Editor config
+.vscode/
+.idea/
+
+# Runtime logs & temp files
+*.log
+@AutomationLog.txt
+regression.diffs
+regression.out
+current_screen.png
+scratch/
+web_cache/
+web_sessions/
+exports/
+downloads/
+
+# Avoid duplicate nested directory tracking
+PersonalJarvis-main/
