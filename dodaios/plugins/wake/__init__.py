@@ -1,1 +1,0 @@
-"""Wake-Word-Provider-Plugins."""
